@@ -118,6 +118,12 @@ export async function seedRolesAndPermissions(
       description: 'Clinic role with own database',
       permissionSlugs: ['read-user', 'create-user', 'update-user', 'read-role'],
     },
+    {
+      name: 'Patient',
+      slug: 'patient',
+      description: 'Patient role for healthcare patients',
+      permissionSlugs: ['read-user'], // Limited permissions for patients
+    },
   ];
 
   for (const roleData of roles) {
