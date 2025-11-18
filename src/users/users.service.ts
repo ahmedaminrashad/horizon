@@ -91,8 +91,10 @@ export class UsersService {
     return savedUser;
   }
 
-  async findAll(): Promise<User[]> {
-    return this.usersRepository.find({
+  async findAll(page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await this.usersRepository.findAndCount({
       select: [
         'id',
         'name',
@@ -105,7 +107,26 @@ export class UsersService {
         'updatedAt',
       ],
       relations: ['role', 'role.permissions'],
+      skip,
+      take: limit,
+      order: {
+        createdAt: 'DESC',
+      },
     });
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    };
   }
 
   async findOne(id: number): Promise<User> {

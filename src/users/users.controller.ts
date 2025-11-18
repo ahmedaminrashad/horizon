@@ -7,16 +7,19 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
@@ -42,10 +45,72 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiBearerAuth('JWT-auth')
   @Permissions(Permission.READ_USER)
-  @ApiOperation({ summary: 'Get all users' })
-  @ApiResponse({ status: 200, description: 'List of all users' })
-  findAll() {
-    return this.usersService.findAll();
+  @ApiOperation({ summary: 'Get all users with pagination' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of users',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              name: { type: 'string', nullable: true },
+              phone: { type: 'string' },
+              email: { type: 'string', nullable: true },
+              package_id: { type: 'number' },
+              role_id: { type: 'number', nullable: true },
+              database_name: { type: 'string', nullable: true },
+              role: {
+                type: 'object',
+                nullable: true,
+                properties: {
+                  id: { type: 'number' },
+                  name: { type: 'string' },
+                  slug: { type: 'string' },
+                  description: { type: 'string', nullable: true },
+                  permissions: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'number' },
+                        name: { type: 'string' },
+                        slug: { type: 'string' },
+                        description: { type: 'string', nullable: true },
+                      },
+                    },
+                  },
+                },
+              },
+              createdAt: { type: 'string', format: 'date-time' },
+              updatedAt: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+        meta: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 100 },
+            page: { type: 'number', example: 1 },
+            limit: { type: 'number', example: 10 },
+            totalPages: { type: 'number', example: 10 },
+            hasNextPage: { type: 'boolean', example: true },
+            hasPreviousPage: { type: 'boolean', example: false },
+          },
+        },
+      },
+    },
+  })
+  findAll(@Query() paginationQuery: PaginationQueryDto) {
+    const page = paginationQuery.page || 1;
+    const limit = paginationQuery.limit || 10;
+    return this.usersService.findAll(page, limit);
   }
 
   @Get(':id')

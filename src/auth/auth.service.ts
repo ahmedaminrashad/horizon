@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  NotFoundException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -88,6 +92,11 @@ export class AuthService {
       ...result,
       access_token: this.generateToken(fullUser),
     };
+  }
+
+  async getCurrentUser(userId: number) {
+    const user = await this.usersService.findOne(userId);
+    return user;
   }
 
   private generateToken(user: User): string {

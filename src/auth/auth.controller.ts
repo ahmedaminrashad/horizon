@@ -1,9 +1,10 @@
-import { Controller, Post, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { RegisterPatientDto } from './dto/register-patient.dto';
 import { LoginDto } from './dto/login.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -83,5 +84,54 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get current authenticated user' })
+  @ApiResponse({
+    status: 200,
+    description: 'Current user information with role and permissions',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number' },
+        name: { type: 'string', nullable: true },
+        phone: { type: 'string' },
+        email: { type: 'string', nullable: true },
+        package_id: { type: 'number' },
+        role_id: { type: 'number', nullable: true },
+        database_name: { type: 'string', nullable: true },
+        role: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string' },
+            slug: { type: 'string' },
+            description: { type: 'string', nullable: true },
+            permissions: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number' },
+                  name: { type: 'string' },
+                  slug: { type: 'string' },
+                  description: { type: 'string', nullable: true },
+                },
+              },
+            },
+          },
+        },
+        createdAt: { type: 'string', format: 'date-time' },
+        updatedAt: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getMe(@Request() req) {
+    const user = await this.authService.getCurrentUser(req.user.userId);
+    return user;
   }
 }

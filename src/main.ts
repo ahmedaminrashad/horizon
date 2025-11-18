@@ -8,6 +8,17 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
+  // Enable CORS for local development
+  const nodeEnv = configService.get<string>('NODE_ENV', 'development');
+  if (nodeEnv === 'development' || nodeEnv === 'local') {
+    app.enableCors({
+      origin: true, // Allow all origins in local development
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    });
+  }
+
   // Enable validation pipes
   app.useGlobalPipes(
     new ValidationPipe({
