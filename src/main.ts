@@ -29,7 +29,7 @@ async function bootstrap() {
   );
 
   // Set global prefix for all routes
-  app.setGlobalPrefix('backend');
+  app.setGlobalPrefix('api');
 
   // Swagger configuration
   const config = new DocumentBuilder()
@@ -54,7 +54,7 @@ async function bootstrap() {
     .addTag('permissions')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('backend/api', app, document);
+  SwaggerModule.setup('api-docs', app, document);
 
   const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
