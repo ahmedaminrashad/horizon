@@ -6,7 +6,7 @@ import {
   TableForeignKey,
 } from 'typeorm';
 
-export class Createrolesandpermissionstables1763919682812
+export class Createrolesandpermissionstables1699123456789
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
