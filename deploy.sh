@@ -162,7 +162,7 @@ build_application() {
 check_env_file() {
     print_info "Checking environment configuration..."
     cd $APP_DIR
-    
+    print_info "Current directory: $APP_DIR"
     if [ ! -f ".env" ]; then
         print_error ".env file not found!"
         print_info "Creating .env file from template..."
