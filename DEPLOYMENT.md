@@ -272,40 +272,68 @@ This script will:
 
 ## Nginx Configuration (Optional)
 
-If you installed Nginx, create a reverse proxy configuration:
+If you installed Nginx, set up a reverse proxy to make the backend accessible at `/backend`:
 
+### Automated Setup (Recommended)
+
+Use the provided setup script:
+
+```bash
+# Make script executable
+chmod +x setup-nginx-backend.sh
+
+# Run the setup script
+sudo bash setup-nginx-backend.sh
+```
+
+The script will:
+- Check if Nginx is installed (install if needed)
+- Copy the Nginx configuration file
+- Enable the site
+- Test and reload Nginx
+- Configure `/backend` to proxy to `http://localhost:3000`
+
+**Note:** You can customize the backend port by setting the `BACKEND_PORT` environment variable:
+```bash
+BACKEND_PORT=3001 sudo bash setup-nginx-backend.sh
+```
+
+### Manual Setup
+
+If you prefer to set up manually:
+
+1. Copy the configuration file:
+```bash
+sudo cp nginx-horizon-backend.conf /etc/nginx/sites-available/horizon-backend
+```
+
+2. Edit the configuration (optional - to set your domain/IP):
 ```bash
 sudo nano /etc/nginx/sites-available/horizon-backend
 ```
 
-Add the following configuration:
+Update `server_name _;` with your domain or IP address.
 
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-Enable the site:
-
+3. Enable the site:
 ```bash
 sudo ln -s /etc/nginx/sites-available/horizon-backend /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default  # Remove default site if needed
+```
+
+4. Test and reload:
+```bash
 sudo nginx -t
 sudo systemctl reload nginx
 ```
+
+### Configuration Details
+
+The Nginx configuration proxies `/backend` requests to the backend service:
+- Backend API: `http://your-ip/backend/auth/login`
+- Swagger Docs: `http://your-ip/backend/api`
+- Health Check: `http://your-ip/health`
+
+The backend service should be running on `localhost:3000` (or the port specified in your `.env` file).
 
 ## SSL Certificate (Let's Encrypt)
 

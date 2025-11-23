@@ -28,6 +28,9 @@ async function bootstrap() {
     }),
   );
 
+  // Set global prefix for all routes
+  app.setGlobalPrefix('backend');
+
   // Swagger configuration
   const config = new DocumentBuilder()
     .setTitle('Horizon Backend API')
@@ -51,7 +54,7 @@ async function bootstrap() {
     .addTag('permissions')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('backend/api', app, document);
 
   const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
