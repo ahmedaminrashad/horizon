@@ -10,6 +10,24 @@ Before deploying, ensure you have:
 - Root or sudo access
 - Git repository access (if deploying from Git)
 
+### Setting Up Ubuntu User with Sudo Access
+
+If you need to grant sudo/root access to the `ubuntu` user:
+
+```bash
+# Make script executable
+chmod +x setup-ubuntu-user.sh
+
+# Run as root
+sudo ./setup-ubuntu-user.sh
+```
+
+This script will:
+- Add `ubuntu` user to sudo group
+- Add `ubuntu` user to adm group (for log access)
+- Optionally configure passwordless sudo
+- Set up SSH directory with proper permissions
+
 ## Quick Start
 
 ### 1. Install Prerequisites
