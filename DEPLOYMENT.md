@@ -58,13 +58,25 @@ This script will install:
 
 After installation, configure MySQL:
 
+**Option 1: Using the setup script (Recommended)**
 ```bash
-# Secure MySQL installation
+# Make script executable
+chmod +x setup-mysql-password.sh
+
+# Run the script
+sudo bash setup-mysql-password.sh
+```
+
+**Option 2: Manual configuration**
+```bash
+# Secure MySQL installation (sets root password)
 sudo mysql_secure_installation
 
 # Create database
 mysql -u root -p -e "CREATE DATABASE horizon;"
 ```
+
+**Note:** On Ubuntu/Debian, MySQL root user may use `auth_socket` authentication by default, allowing login without password using `sudo mysql`. The setup script handles this automatically.
 
 ### 2.5. Install and Configure phpMyAdmin (Optional)
 

@@ -172,7 +172,7 @@ check_env_file() {
 DB_HOST=localhost
 DB_PORT=3306
 DB_USERNAME=root
-DB_PASSWORD=your_password
+DB_PASSWORD=Tga.org@1
 DB_DATABASE=horizon
 
 # JWT Configuration
