@@ -96,6 +96,21 @@ This will:
 - Optionally add password protection
 - Access phpMyAdmin at: `http://your-server-ip/phpmyadmin` (Apache) or `http://your-server-ip/` (Nginx)
 
+**If you get 404 error accessing phpMyAdmin:**
+
+```bash
+# Run the fix script
+sudo bash fix-phpmyadmin.sh
+```
+
+This script will:
+- Check if phpMyAdmin is installed
+- Verify web server configuration
+- Fix Apache/Nginx configuration
+- Ensure PHP and extensions are installed
+- Set proper permissions
+- Provide access URLs
+
 ### 3. Deploy Application
 
 Run the deployment script:
@@ -234,6 +249,26 @@ pm2 logs horizon-backend --err
 # Real-time logs
 pm2 logs horizon-backend --lines 100
 ```
+
+## Nginx Status Check
+
+To check if Nginx is installed and running:
+
+```bash
+# Make script executable
+chmod +x check-nginx.sh
+
+# Run check
+sudo bash check-nginx.sh
+```
+
+This script will:
+- Check if Nginx is installed
+- Check if Nginx is running
+- Validate Nginx configuration
+- Start Nginx if it's not running
+- Enable Nginx to start on boot
+- Show Nginx status and useful information
 
 ## Nginx Configuration (Optional)
 
