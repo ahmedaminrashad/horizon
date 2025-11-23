@@ -15,12 +15,15 @@ Before deploying, ensure you have:
 If you need to grant sudo/root access to the `ubuntu` user:
 
 ```bash
-# Make script executable
+# Option 1: Make script executable first
 chmod +x setup-ubuntu-user.sh
-
-# Run as root
 sudo ./setup-ubuntu-user.sh
+
+# Option 2: Run directly with bash (no chmod needed)
+sudo bash setup-ubuntu-user.sh
 ```
+
+**Note:** If you get "Permission denied" error, use `chmod +x` or run with `bash` directly.
 
 This script will:
 - Add `ubuntu` user to sudo group
@@ -49,6 +52,7 @@ This script will install:
 - MySQL Server
 - TypeScript and ts-node
 - Nginx (optional, for reverse proxy)
+- phpMyAdmin (optional, for database management)
 
 ### 2. Configure MySQL
 
@@ -61,6 +65,24 @@ sudo mysql_secure_installation
 # Create database
 mysql -u root -p -e "CREATE DATABASE horizon;"
 ```
+
+### 2.5. Install and Configure phpMyAdmin (Optional)
+
+If you selected phpMyAdmin during prerequisites installation, configure it:
+
+```bash
+# Make script executable
+chmod +x install-phpmyadmin.sh
+
+# Run configuration
+sudo bash install-phpmyadmin.sh
+```
+
+This will:
+- Configure web server (Apache/Nginx) for phpMyAdmin
+- Set up security settings
+- Optionally add password protection
+- Access phpMyAdmin at: `http://your-server-ip/phpmyadmin` (Apache) or `http://your-server-ip/` (Nginx)
 
 ### 3. Deploy Application
 

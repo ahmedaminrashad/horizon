@@ -135,6 +135,61 @@ else
     fi
 fi
 
+# Install phpMyAdmin (optional)
+print_info "Checking phpMyAdmin installation..."
+if [ -d "/usr/share/phpmyadmin" ] || [ -d "/var/www/phpmyadmin" ]; then
+    print_success "phpMyAdmin is already installed"
+else
+    read -p "Do you want to install phpMyAdmin? (y/n) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        print_info "Installing phpMyAdmin..."
+        
+        # Install PHP and required extensions
+        if ! command -v php &> /dev/null; then
+            print_info "Installing PHP and required extensions..."
+            sudo apt-get install -y php php-mysql php-mbstring php-zip php-gd php-json php-curl
+        else
+            # Install PHP extensions if PHP is already installed
+            sudo apt-get install -y php-mysql php-mbstring php-zip php-gd php-json php-curl
+        fi
+        
+        # Download and install phpMyAdmin
+        PMA_VERSION="5.2.1"
+        PMA_DIR="/usr/share/phpmyadmin"
+        
+        print_info "Downloading phpMyAdmin $PMA_VERSION..."
+        cd /tmp
+        wget -q https://files.phpmyadmin.net/phpMyAdmin/${PMA_VERSION}/phpMyAdmin-${PMA_VERSION}-all-languages.tar.gz
+        
+        print_info "Extracting phpMyAdmin..."
+        sudo tar -xzf phpMyAdmin-${PMA_VERSION}-all-languages.tar.gz
+        sudo mv phpMyAdmin-${PMA_VERSION}-all-languages $PMA_DIR
+        sudo chown -R www-data:www-data $PMA_DIR
+        
+        # Create config directory
+        sudo mkdir -p $PMA_DIR/config
+        sudo chmod 777 $PMA_DIR/config
+        
+        # Create blowfish secret
+        BLOWFISH_SECRET=$(openssl rand -base64 32)
+        
+        # Copy sample config
+        sudo cp $PMA_DIR/config.sample.inc.php $PMA_DIR/config.inc.php
+        
+        # Configure phpMyAdmin
+        sudo sed -i "s/\$cfg\['blowfish_secret'\] = '';/\$cfg['blowfish_secret'] = '$BLOWFISH_SECRET';/" $PMA_DIR/config.inc.php
+        
+        # Clean up
+        rm -f /tmp/phpMyAdmin-${PMA_VERSION}-all-languages.tar.gz
+        
+        print_success "phpMyAdmin installed successfully"
+        print_info "phpMyAdmin location: $PMA_DIR"
+        print_info "You need to configure web server (Apache/Nginx) to access phpMyAdmin"
+        print_info "Run: sudo bash install-phpmyadmin.sh for web server configuration"
+    fi
+fi
+
 # Summary
 echo ""
 echo "=========================================="

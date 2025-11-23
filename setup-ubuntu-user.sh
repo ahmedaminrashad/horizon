@@ -10,6 +10,14 @@ echo "Ubuntu User - Sudo Access Setup"
 echo "=========================================="
 echo ""
 
+# Check if script is executable, if not, provide instructions
+if [ ! -x "$0" ]; then
+    echo "Script is not executable. Making it executable..."
+    chmod +x "$0"
+    echo "Now run: sudo ./setup-ubuntu-user.sh"
+    exit 0
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
