@@ -39,6 +39,7 @@ fi
 # Configuration
 BACKEND_DOMAIN="backend.indicator-app.com"
 PHPMYADMIN_DOMAIN="sql.indicator-app.com"
+DASHBOARD_DOMAIN="dashboard.indicator-app.com"
 EMAIL="${SSL_EMAIL:-}"
 
 # Check if Nginx is installed
@@ -55,6 +56,7 @@ print_info "Checking Nginx configurations..."
 
 BACKEND_CONFIG="/etc/nginx/sites-available/horizon-backend"
 PHPMYADMIN_CONFIG="/etc/nginx/sites-available/phpmyadmin"
+DASHBOARD_CONFIG="/etc/nginx/sites-available/dashboard"
 
 if [ ! -f "$BACKEND_CONFIG" ]; then
     print_error "Backend Nginx configuration not found: $BACKEND_CONFIG"
@@ -64,6 +66,10 @@ fi
 
 if [ ! -f "$PHPMYADMIN_CONFIG" ]; then
     print_info "phpMyAdmin Nginx configuration not found. It will be created during SSL setup."
+fi
+
+if [ ! -f "$DASHBOARD_CONFIG" ]; then
+    print_info "Dashboard Nginx configuration not found. It will be created during SSL setup."
 fi
 
 # Install Certbot if not installed
@@ -89,11 +95,12 @@ fi
 
 # Check if domains are accessible
 print_info "Verifying domain accessibility..."
-print_info "Make sure both domains point to this server's IP address:"
+print_info "Make sure all domains point to this server's IP address:"
 print_info "  - $BACKEND_DOMAIN"
 print_info "  - $PHPMYADMIN_DOMAIN"
+print_info "  - $DASHBOARD_DOMAIN"
 echo ""
-read -p "Have you configured DNS for both domains? (y/n) " -n 1 -r
+read -p "Have you configured DNS for all domains? (y/n) " -n 1 -r
 echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     print_error "Please configure DNS first, then run this script again"
@@ -173,6 +180,74 @@ else
     print_info "You can retry later with: sudo certbot --nginx -d $PHPMYADMIN_DOMAIN"
 fi
 
+# Setup SSL for dashboard domain
+print_info "Setting up SSL certificate for $DASHBOARD_DOMAIN..."
+
+# Check if dashboard config exists, if not create it
+if [ ! -f "$DASHBOARD_CONFIG" ]; then
+    print_info "Creating Dashboard Nginx configuration..."
+    
+    # Check if config file exists in current directory
+    if [ -f "nginx-dashboard.conf" ]; then
+        print_info "Using nginx-dashboard.conf from project directory..."
+        cp nginx-dashboard.conf $DASHBOARD_CONFIG
+    else
+        # Create basic config - you may need to customize this based on your dashboard setup
+        print_info "Creating basic dashboard configuration..."
+        cat > $DASHBOARD_CONFIG << EOF
+server {
+    listen 80;
+    server_name $DASHBOARD_DOMAIN;
+    
+    # Increase body size limit for file uploads
+    client_max_body_size 10M;
+    
+    # Proxy to your dashboard application
+    # Update this based on where your dashboard is running
+    location / {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Host \$host;
+        proxy_set_header X-Forwarded-Port \$server_port;
+        
+        # Timeout settings
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+}
+EOF
+        print_info "Basic dashboard configuration created. You may need to customize the proxy_pass URL."
+    fi
+    
+    # Enable site
+    ln -sf $DASHBOARD_CONFIG /etc/nginx/sites-enabled/
+    
+    # Test and reload Nginx
+    if nginx -t; then
+        systemctl reload nginx
+        print_success "Dashboard Nginx configuration created"
+    else
+        print_error "Nginx configuration test failed"
+        exit 1
+    fi
+fi
+
+# Obtain SSL certificate for dashboard
+if certbot --nginx -d $DASHBOARD_DOMAIN --non-interactive --agree-tos --email $EMAIL --redirect; then
+    print_success "SSL certificate obtained for $DASHBOARD_DOMAIN"
+else
+    print_error "Failed to obtain SSL certificate for $DASHBOARD_DOMAIN"
+    print_info "You can retry later with: sudo certbot --nginx -d $DASHBOARD_DOMAIN"
+fi
+
 # Test certificate renewal
 print_info "Testing certificate renewal..."
 if certbot renew --dry-run; then
@@ -195,6 +270,7 @@ print_info "Access URLs:"
 echo "  Backend API: https://$BACKEND_DOMAIN/api"
 echo "  Backend Swagger: https://$BACKEND_DOMAIN/api"
 echo "  phpMyAdmin: https://$PHPMYADMIN_DOMAIN/"
+echo "  Dashboard: https://$DASHBOARD_DOMAIN/"
 echo ""
 print_info "Certificate Management:"
 echo "  View certificates: sudo certbot certificates"

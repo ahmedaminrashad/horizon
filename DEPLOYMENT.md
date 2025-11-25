@@ -411,12 +411,16 @@ The script will:
 - Install Certbot if not already installed
 - Obtain SSL certificates for `backend.indicator-app.com`
 - Obtain SSL certificates for `sql.indicator-app.com`
+- Obtain SSL certificates for `dashboard.indicator-app.com`
 - Configure Nginx to use HTTPS with automatic HTTP to HTTPS redirect
 - Set up automatic certificate renewal
 - Test certificate renewal process
 
 **Prerequisites:**
-- DNS must be configured to point both domains to your server's IP
+- DNS must be configured to point all domains to your server's IP:
+  - `backend.indicator-app.com`
+  - `sql.indicator-app.com`
+  - `dashboard.indicator-app.com`
 - Port 80 and 443 must be open in your firewall
 - Nginx must be installed and configured (run `setup-nginx-backend.sh` first)
 
@@ -438,6 +442,9 @@ sudo certbot --nginx -d backend.indicator-app.com
 
 # Obtain certificate for phpMyAdmin
 sudo certbot --nginx -d sql.indicator-app.com
+
+# Obtain certificate for dashboard
+sudo certbot --nginx -d dashboard.indicator-app.com
 
 # Auto-renewal is set up automatically
 ```
@@ -466,6 +473,7 @@ sudo journalctl -u certbot.timer
 - **Backend API**: `https://backend.indicator-app.com/api`
 - **Backend Swagger**: `https://backend.indicator-app.com/api`
 - **phpMyAdmin**: `https://sql.indicator-app.com/`
+- **Dashboard**: `https://dashboard.indicator-app.com/`
 
 ## Environment Variables
 
