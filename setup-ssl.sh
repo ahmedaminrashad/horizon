@@ -40,6 +40,7 @@ fi
 BACKEND_DOMAIN="backend.indicator-app.com"
 PHPMYADMIN_DOMAIN="sql.indicator-app.com"
 DASHBOARD_DOMAIN="dashboard.indicator-app.com"
+OPERATE_DOMAIN="operate.indicator-app.com"
 EMAIL="${SSL_EMAIL:-}"
 
 # Check if Nginx is installed
@@ -57,6 +58,7 @@ print_info "Checking Nginx configurations..."
 BACKEND_CONFIG="/etc/nginx/sites-available/horizon-backend"
 PHPMYADMIN_CONFIG="/etc/nginx/sites-available/phpmyadmin"
 DASHBOARD_CONFIG="/etc/nginx/sites-available/dashboard"
+OPERATE_CONFIG="/etc/nginx/sites-available/operate"
 
 if [ ! -f "$BACKEND_CONFIG" ]; then
     print_error "Backend Nginx configuration not found: $BACKEND_CONFIG"
@@ -70,6 +72,10 @@ fi
 
 if [ ! -f "$DASHBOARD_CONFIG" ]; then
     print_info "Dashboard Nginx configuration not found. It will be created during SSL setup."
+fi
+
+if [ ! -f "$OPERATE_CONFIG" ]; then
+    print_info "Operate Nginx configuration not found. It will be created during SSL setup."
 fi
 
 # Install Certbot if not installed
@@ -99,6 +105,7 @@ print_info "Make sure all domains point to this server's IP address:"
 print_info "  - $BACKEND_DOMAIN"
 print_info "  - $PHPMYADMIN_DOMAIN"
 print_info "  - $DASHBOARD_DOMAIN"
+print_info "  - $OPERATE_DOMAIN"
 echo ""
 read -p "Have you configured DNS for all domains? (y/n) " -n 1 -r
 echo
@@ -248,6 +255,74 @@ else
     print_info "You can retry later with: sudo certbot --nginx -d $DASHBOARD_DOMAIN"
 fi
 
+# Setup SSL for operate domain
+print_info "Setting up SSL certificate for $OPERATE_DOMAIN..."
+
+# Check if operate config exists, if not create it
+if [ ! -f "$OPERATE_CONFIG" ]; then
+    print_info "Creating Operate Nginx configuration..."
+    
+    # Check if config file exists in current directory
+    if [ -f "nginx-operate.conf" ]; then
+        print_info "Using nginx-operate.conf from project directory..."
+        cp nginx-operate.conf $OPERATE_CONFIG
+    else
+        # Create basic config - you may need to customize this based on your operate setup
+        print_info "Creating basic operate configuration..."
+        cat > $OPERATE_CONFIG << EOF
+server {
+    listen 80;
+    server_name $OPERATE_DOMAIN;
+    
+    # Increase body size limit for file uploads
+    client_max_body_size 10M;
+    
+    # Proxy to your operate application
+    # Update this based on where your operate app is running
+    location / {
+        proxy_pass http://localhost:3002;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Host \$host;
+        proxy_set_header X-Forwarded-Port \$server_port;
+        
+        # Timeout settings
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+}
+EOF
+        print_info "Basic operate configuration created. You may need to customize the proxy_pass URL."
+    fi
+    
+    # Enable site
+    ln -sf $OPERATE_CONFIG /etc/nginx/sites-enabled/
+    
+    # Test and reload Nginx
+    if nginx -t; then
+        systemctl reload nginx
+        print_success "Operate Nginx configuration created"
+    else
+        print_error "Nginx configuration test failed"
+        exit 1
+    fi
+fi
+
+# Obtain SSL certificate for operate
+if certbot --nginx -d $OPERATE_DOMAIN --non-interactive --agree-tos --email $EMAIL --redirect; then
+    print_success "SSL certificate obtained for $OPERATE_DOMAIN"
+else
+    print_error "Failed to obtain SSL certificate for $OPERATE_DOMAIN"
+    print_info "You can retry later with: sudo certbot --nginx -d $OPERATE_DOMAIN"
+fi
+
 # Test certificate renewal
 print_info "Testing certificate renewal..."
 if certbot renew --dry-run; then
@@ -271,6 +346,7 @@ echo "  Backend API: https://$BACKEND_DOMAIN/api"
 echo "  Backend Swagger: https://$BACKEND_DOMAIN/api"
 echo "  phpMyAdmin: https://$PHPMYADMIN_DOMAIN/"
 echo "  Dashboard: https://$DASHBOARD_DOMAIN/"
+echo "  Operate: https://$OPERATE_DOMAIN/"
 echo ""
 print_info "Certificate Management:"
 echo "  View certificates: sudo certbot certificates"
