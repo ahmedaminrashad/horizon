@@ -69,9 +69,9 @@ if [ ! -f "$CONFIG_FILE" ]; then
 fi
 
 # Get server name or IP
-print_info "Enter your server domain name or IP address (press Enter for default: _)"
+print_info "Enter your server domain name or IP address (press Enter for default: backend.indicator-app.com)"
 read -p "Server name/IP: " SERVER_NAME
-SERVER_NAME="${SERVER_NAME:-_}"
+SERVER_NAME="${SERVER_NAME:-backend.indicator-app.com}"
 
 # Update the config file with server name
 sed -i "s/server_name _;/server_name $SERVER_NAME;/" "$CONFIG_FILE"
