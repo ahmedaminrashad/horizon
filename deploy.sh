@@ -195,29 +195,19 @@ run_migrations() {
     print_info "Running database migrations..."
     cd $APP_DIR
     
-    # Check if migrations should be run
-    read -p "Do you want to run database migrations? (y/n) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        npm run migration:run
-        print_success "Migrations completed"
-    else
-        print_info "Skipping migrations"
-    fi
+    # Run migrations automatically without confirmation
+    npm run migration:run
+    print_success "Migrations completed"
 }
 
-# Seed database (optional)
+# Seed database
 seed_database() {
-    read -p "Do you want to seed the database? (y/n) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        print_info "Seeding database..."
-        cd $APP_DIR
-        npm run seed
-        print_success "Database seeded"
-    else
-        print_info "Skipping database seed"
-    fi
+    print_info "Seeding database..."
+    cd $APP_DIR
+    
+    # Run seed automatically without confirmation
+    npm run seed
+    print_success "Database seeded"
 }
 
 # Stop existing PM2 process
