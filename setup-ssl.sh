@@ -258,6 +258,68 @@ fi
 # Setup SSL for operate domain
 print_info "Setting up SSL certificate for $OPERATE_DOMAIN..."
 
+# Check if operate config exists and has SSL settings but certificates don't exist
+if [ -f "$OPERATE_CONFIG" ] && grep -q "ssl_certificate" "$OPERATE_CONFIG" && [ ! -f "/etc/letsencrypt/live/$OPERATE_DOMAIN/fullchain.pem" ]; then
+    print_info "Config exists with SSL settings but certificates not found. Creating HTTP-only version..."
+    # Backup existing config
+    cp $OPERATE_CONFIG ${OPERATE_CONFIG}.backup
+    print_info "Backed up existing config to ${OPERATE_CONFIG}.backup"
+    
+    # Create HTTP-only version
+    cat > $OPERATE_CONFIG << 'EOFTEMP'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name operate.indicator-app.com www.operate.indicator-app.com;
+
+    root /var/www/horizon-dashboard/dist;
+    index index.html index.htm;
+
+    access_log /var/log/nginx/operate.indicator-app.com-access.log;
+    error_log /var/log/nginx/operate.indicator-app.com-error.log;
+
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml text/javascript application/json application/javascript application/xml+rss application/rss+xml font/truetype font/opentype application/vnd.ms-fontobject image/svg+xml;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+        
+        location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            access_log off;
+        }
+    }
+
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    location ~ ~$ {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}
+EOFTEMP
+    
+    # Test and reload
+    if nginx -t; then
+        systemctl reload nginx
+        print_success "HTTP-only configuration created. Certbot will add SSL automatically."
+    else
+        print_error "Failed to create valid HTTP-only configuration"
+        # Restore backup
+        mv ${OPERATE_CONFIG}.backup $OPERATE_CONFIG
+        exit 1
+    fi
+fi
+
 # Check if operate config exists, if not create it
 if [ ! -f "$OPERATE_CONFIG" ]; then
     print_info "Creating Operate Nginx configuration..."
@@ -265,7 +327,65 @@ if [ ! -f "$OPERATE_CONFIG" ]; then
     # Check if config file exists in current directory
     if [ -f "nginx-operate.conf" ]; then
         print_info "Using nginx-operate.conf from project directory..."
-        cp nginx-operate.conf $OPERATE_CONFIG
+        
+        # Check if config has SSL settings but certificates don't exist
+        if grep -q "ssl_certificate" "nginx-operate.conf" && [ ! -f "/etc/letsencrypt/live/$OPERATE_DOMAIN/fullchain.pem" ]; then
+            print_info "Config has SSL settings but certificates don't exist yet. Creating HTTP-only version for Certbot..."
+            
+            # Create HTTP-only version by extracting just the HTTP server block or creating a basic one
+            # Remove HTTPS server block and SSL redirect, keep only HTTP server
+            cat > $OPERATE_CONFIG << 'EOFTEMP'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name operate.indicator-app.com www.operate.indicator-app.com;
+
+    # Root directory - serves files from /var/www/horizon-dashboard/dist
+    root /var/www/horizon-dashboard/dist;
+    index index.html index.htm;
+
+    # Logging
+    access_log /var/log/nginx/operate.indicator-app.com-access.log;
+    error_log /var/log/nginx/operate.indicator-app.com-error.log;
+
+    # Gzip Compression
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml text/javascript application/json application/javascript application/xml+rss application/rss+xml font/truetype font/opentype application/vnd.ms-fontobject image/svg+xml;
+
+    # Main location block - SPA routing support
+    location / {
+        try_files $uri $uri/ /index.html;
+        
+        # Cache static assets
+        location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            access_log off;
+        }
+    }
+
+    # Deny access to hidden files
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    # Deny access to backup files
+    location ~ ~$ {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}
+EOFTEMP
+            print_info "Created HTTP-only configuration. Certbot will add SSL settings automatically."
+        else
+            cp nginx-operate.conf $OPERATE_CONFIG
+        fi
     else
         # Create basic config - you may need to customize this based on your operate setup
         print_info "Creating basic operate configuration..."
@@ -305,13 +425,70 @@ EOF
     # Enable site
     ln -sf $OPERATE_CONFIG /etc/nginx/sites-enabled/
     
-    # Test and reload Nginx
+    # Test Nginx configuration before reloading
+    print_info "Testing Nginx configuration..."
     if nginx -t; then
         systemctl reload nginx
-        print_success "Operate Nginx configuration created"
+        print_success "Operate Nginx configuration created and enabled"
     else
         print_error "Nginx configuration test failed"
-        exit 1
+        print_info "Checking if SSL certificates are missing..."
+        
+        # If config has SSL but certificates don't exist, create HTTP-only version
+        if grep -q "ssl_certificate" $OPERATE_CONFIG && [ ! -f "/etc/letsencrypt/live/$OPERATE_DOMAIN/fullchain.pem" ]; then
+            print_info "SSL certificates not found. Creating HTTP-only configuration..."
+            cat > $OPERATE_CONFIG << 'EOFTEMP'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name operate.indicator-app.com www.operate.indicator-app.com;
+
+    root /var/www/horizon-dashboard/dist;
+    index index.html index.htm;
+
+    access_log /var/log/nginx/operate.indicator-app.com-access.log;
+    error_log /var/log/nginx/operate.indicator-app.com-error.log;
+
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml text/javascript application/json application/javascript application/xml+rss application/rss+xml font/truetype font/opentype application/vnd.ms-fontobject image/svg+xml;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+        
+        location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            access_log off;
+        }
+    }
+
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    location ~ ~$ {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}
+EOFTEMP
+            if nginx -t; then
+                systemctl reload nginx
+                print_success "HTTP-only configuration created. Certbot will add SSL automatically."
+            else
+                print_error "Failed to create valid Nginx configuration"
+                exit 1
+            fi
+        else
+            print_error "Please check the Nginx configuration manually"
+            exit 1
+        fi
     fi
 fi
 
