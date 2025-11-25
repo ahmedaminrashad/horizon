@@ -184,4 +184,11 @@ export class UsersService {
     const user = await this.findOne(id);
     await this.usersRepository.remove(user);
   }
+
+  async verifyPhone(phone: string): Promise<{ exists: boolean }> {
+    const user = await this.findByPhone(phone);
+    return {
+      exists: !!user,
+    };
+  }
 }

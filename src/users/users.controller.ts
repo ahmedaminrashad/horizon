@@ -20,6 +20,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { VerifyPhoneDto } from './dto/verify-phone.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
@@ -144,5 +145,25 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'User not found' })
   remove(@Param('id') id: string) {
     return this.usersService.remove(+id);
+  }
+
+  @Post('Verify')
+  @ApiOperation({ summary: 'Verify if a phone number exists' })
+  @ApiResponse({
+    status: 200,
+    description: 'Phone verification result',
+    schema: {
+      type: 'object',
+      properties: {
+        exists: {
+          type: 'boolean',
+          example: true,
+          description: 'Whether the phone number exists in the system',
+        },
+      },
+    },
+  })
+  verifyPhone(@Body() verifyPhoneDto: VerifyPhoneDto) {
+    return this.usersService.verifyPhone(verifyPhoneDto.phone);
   }
 }
