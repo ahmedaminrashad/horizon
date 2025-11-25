@@ -139,9 +139,21 @@ fi
 if [ "$WEB_SERVER" = "nginx" ]; then
     print_info "Configuring Nginx..."
     
-    # Create Nginx configuration
-    NGINX_CONF="/etc/nginx/sites-available/phpmyadmin"
-    cat > $NGINX_CONF << 'EOF'
+    # Check if setup script exists and use it, otherwise create config manually
+    if [ -f "setup-nginx-phpmyadmin.sh" ]; then
+        print_info "Using dedicated setup script for Nginx configuration..."
+        bash setup-nginx-phpmyadmin.sh
+    else
+        # Fallback: Create Nginx configuration manually
+        print_info "Creating Nginx configuration manually..."
+        NGINX_CONF="/etc/nginx/sites-available/phpmyadmin"
+        
+        # Check if config file exists
+        if [ -f "nginx-phpmyadmin.conf" ]; then
+            cp nginx-phpmyadmin.conf $NGINX_CONF
+        else
+            # Create basic config
+            cat > $NGINX_CONF << 'EOF'
 server {
     listen 80;
     server_name sql.indicator-app.com;
@@ -165,19 +177,21 @@ server {
     }
 }
 EOF
-    
-    # Enable site
-    ln -sf /etc/nginx/sites-available/phpmyadmin /etc/nginx/sites-enabled/
-    
-    # Test Nginx configuration
-    if nginx -t; then
-        systemctl reload nginx
-        print_success "Nginx configured for phpMyAdmin"
-        print_info "phpMyAdmin will be available at: http://sql.indicator-app.com/"
-    else
-        print_error "Nginx configuration test failed"
-        rm -f /etc/nginx/sites-enabled/phpmyadmin
-        exit 1
+        fi
+        
+        # Enable site
+        ln -sf /etc/nginx/sites-available/phpmyadmin /etc/nginx/sites-enabled/
+        
+        # Test Nginx configuration
+        if nginx -t; then
+            systemctl reload nginx
+            print_success "Nginx configured for phpMyAdmin"
+            print_info "phpMyAdmin will be available at: http://sql.indicator-app.com/"
+        else
+            print_error "Nginx configuration test failed"
+            rm -f /etc/nginx/sites-enabled/phpmyadmin
+            exit 1
+        fi
     fi
 fi
 

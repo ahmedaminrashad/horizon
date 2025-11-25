@@ -270,11 +270,13 @@ This script will:
 - Enable Nginx to start on boot
 - Show Nginx status and useful information
 
-## Nginx Configuration (Optional)
+## Nginx Configuration
 
-If you installed Nginx, set up a reverse proxy to make the backend accessible at `/backend`:
+### Backend Configuration
 
-### Automated Setup (Recommended)
+If you installed Nginx, set up a reverse proxy to make the backend accessible:
+
+#### Automated Setup (Recommended)
 
 Use the provided setup script:
 
@@ -288,17 +290,44 @@ sudo bash setup-nginx-backend.sh
 
 The script will:
 - Check if Nginx is installed (install if needed)
-- Copy the Nginx configuration file
+- Copy the Nginx configuration file (`nginx-horizon-backend.conf`)
 - Enable the site
 - Test and reload Nginx
-- Configure `/backend` to proxy to `http://localhost:3000`
+- Configure `/api` to proxy to `http://localhost:3000`
 
 **Note:** You can customize the backend port by setting the `BACKEND_PORT` environment variable:
 ```bash
 BACKEND_PORT=3001 sudo bash setup-nginx-backend.sh
 ```
 
-### Manual Setup
+### phpMyAdmin (SQL) Configuration
+
+Set up Nginx to serve phpMyAdmin at `sql.indicator-app.com`:
+
+#### Automated Setup (Recommended)
+
+```bash
+# Make script executable
+chmod +x setup-nginx-phpmyadmin.sh
+
+# Run the setup script
+sudo bash setup-nginx-phpmyadmin.sh
+```
+
+The script will:
+- Check if Nginx is installed
+- Verify phpMyAdmin is installed
+- Check and start PHP-FPM if needed
+- Copy the Nginx configuration file (`nginx-phpmyadmin.conf`)
+- Enable the site
+- Test and reload Nginx
+- Configure `sql.indicator-app.com` to serve phpMyAdmin
+
+**Prerequisites:**
+- phpMyAdmin must be installed (run `install-phpmyadmin.sh` first)
+- PHP-FPM must be installed and running
+
+#### Manual Setup
 
 If you prefer to set up manually:
 
@@ -312,7 +341,7 @@ sudo cp nginx-horizon-backend.conf /etc/nginx/sites-available/horizon-backend
 sudo nano /etc/nginx/sites-available/horizon-backend
 ```
 
-Update `server_name _;` with your domain or IP address.
+Update `server_name` with your domain or IP address.
 
 3. Enable the site:
 ```bash
@@ -326,28 +355,117 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-### Configuration Details
+#### Configuration Details
 
-The Nginx configuration proxies `/backend` requests to the backend service:
-- Backend API: `http://your-ip/backend/auth/login`
-- Swagger Docs: `http://your-ip/backend/api`
-- Health Check: `http://your-ip/health`
+The Nginx configuration proxies `/api` requests to the backend service:
+- Backend API: `http://backend.indicator-app.com/api`
+- Swagger Docs: `http://backend.indicator-app.com/api`
+- Health Check: `http://backend.indicator-app.com/health`
 
 The backend service should be running on `localhost:3000` (or the port specified in your `.env` file).
 
+#### Manual phpMyAdmin Setup
+
+If you prefer to set up phpMyAdmin manually:
+
+1. Copy the configuration file:
+```bash
+sudo cp nginx-phpmyadmin.conf /etc/nginx/sites-available/phpmyadmin
+```
+
+2. Edit the configuration (optional):
+```bash
+sudo nano /etc/nginx/sites-available/phpmyadmin
+```
+
+3. Enable the site:
+```bash
+sudo ln -s /etc/nginx/sites-available/phpmyadmin /etc/nginx/sites-enabled/
+```
+
+4. Test and reload:
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+phpMyAdmin will be accessible at: `http://sql.indicator-app.com/`
+
 ## SSL Certificate (Let's Encrypt)
 
-To enable HTTPS:
+To enable HTTPS for both backend and phpMyAdmin domains:
+
+### Automated Setup (Recommended)
+
+Use the provided SSL setup script:
+
+```bash
+# Make script executable
+chmod +x setup-ssl.sh
+
+# Run the SSL setup script
+sudo bash setup-ssl.sh
+```
+
+The script will:
+- Install Certbot if not already installed
+- Obtain SSL certificates for `backend.indicator-app.com`
+- Obtain SSL certificates for `sql.indicator-app.com`
+- Configure Nginx to use HTTPS with automatic HTTP to HTTPS redirect
+- Set up automatic certificate renewal
+- Test certificate renewal process
+
+**Prerequisites:**
+- DNS must be configured to point both domains to your server's IP
+- Port 80 and 443 must be open in your firewall
+- Nginx must be installed and configured (run `setup-nginx-backend.sh` first)
+
+**Note:** You'll be prompted for an email address for Let's Encrypt expiration notifications. You can also set it via environment variable:
+```bash
+SSL_EMAIL=your-email@example.com sudo bash setup-ssl.sh
+```
+
+### Manual Setup
+
+If you prefer to set up SSL manually:
 
 ```bash
 # Install Certbot
 sudo apt-get install certbot python3-certbot-nginx
 
-# Obtain certificate
-sudo certbot --nginx -d your-domain.com
+# Obtain certificate for backend
+sudo certbot --nginx -d backend.indicator-app.com
+
+# Obtain certificate for phpMyAdmin
+sudo certbot --nginx -d sql.indicator-app.com
 
 # Auto-renewal is set up automatically
 ```
+
+### Certificate Management
+
+```bash
+# View all certificates
+sudo certbot certificates
+
+# Renew certificates manually
+sudo certbot renew
+
+# Test renewal (dry run)
+sudo certbot renew --dry-run
+
+# Check auto-renewal status
+sudo systemctl status certbot.timer
+
+# View renewal logs
+sudo journalctl -u certbot.timer
+```
+
+### Access URLs After SSL Setup
+
+- **Backend API**: `https://backend.indicator-app.com/api`
+- **Backend Swagger**: `https://backend.indicator-app.com/api`
+- **phpMyAdmin**: `https://sql.indicator-app.com/`
 
 ## Environment Variables
 

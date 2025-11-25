@@ -152,7 +152,14 @@ if [ "$WEB_SERVER" = "nginx" ]; then
         fi
     else
         print_info "Creating Nginx configuration..."
-        cat > /etc/nginx/sites-available/phpmyadmin << 'EOF'
+        
+        # Check if config file exists in current directory
+        if [ -f "nginx-phpmyadmin.conf" ]; then
+            print_info "Using nginx-phpmyadmin.conf from project directory..."
+            cp nginx-phpmyadmin.conf /etc/nginx/sites-available/phpmyadmin
+        else
+            # Create basic config
+            cat > /etc/nginx/sites-available/phpmyadmin << 'EOF'
 server {
     listen 80;
     server_name sql.indicator-app.com;
@@ -176,6 +183,8 @@ server {
     }
 }
 EOF
+        fi
+        
         ln -sf /etc/nginx/sites-available/phpmyadmin /etc/nginx/sites-enabled/
         print_success "Nginx configuration created and enabled"
     fi

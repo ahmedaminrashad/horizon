@@ -119,7 +119,14 @@ print_info "Setting up SSL certificate for $PHPMYADMIN_DOMAIN..."
 # Check if phpMyAdmin config exists, if not create it
 if [ ! -f "$PHPMYADMIN_CONFIG" ]; then
     print_info "Creating phpMyAdmin Nginx configuration..."
-    cat > $PHPMYADMIN_CONFIG << EOF
+    
+    # Check if config file exists in current directory
+    if [ -f "nginx-phpmyadmin.conf" ]; then
+        print_info "Using nginx-phpmyadmin.conf from project directory..."
+        cp nginx-phpmyadmin.conf $PHPMYADMIN_CONFIG
+    else
+        # Create basic config
+        cat > $PHPMYADMIN_CONFIG << EOF
 server {
     listen 80;
     server_name $PHPMYADMIN_DOMAIN;
@@ -143,6 +150,7 @@ server {
     }
 }
 EOF
+    fi
     
     # Enable site
     ln -sf $PHPMYADMIN_CONFIG /etc/nginx/sites-enabled/
