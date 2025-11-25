@@ -71,36 +71,67 @@ fi
 print_success "phpMyAdmin found at: $PMA_DIR"
 
 # Check if PHP-FPM is installed and running
-if ! systemctl is-active --quiet php*-fpm 2>/dev/null; then
-    print_info "PHP-FPM is not running. Checking installation..."
+PHP_FPM_SOCKET=""
+PHP_VERSIONS=("8.3" "8.2" "8.1" "8.0" "7.4")
+PHP_FPM_FOUND=false
+PHP_VERSION_FOUND=""
+
+# Try to find PHP-FPM service
+for version in "${PHP_VERSIONS[@]}"; do
+    if systemctl list-units --type=service --all | grep -q "php${version}-fpm.service"; then
+        PHP_VERSION_FOUND="$version"
+        PHP_FPM_FOUND=true
+        break
+    fi
+done
+
+if [ "$PHP_FPM_FOUND" = false ]; then
+    print_error "PHP-FPM is not installed"
+    print_info "Installing PHP and PHP-FPM..."
+    apt-get update
+    apt-get install -y php-fpm php-mysql php-mbstring php-zip php-gd php-json php-curl php-xml
     
-    # Try to find and start PHP-FPM
-    PHP_VERSIONS=("8.3" "8.2" "8.1" "8.0" "7.4")
-    PHP_FPM_FOUND=false
+    # Find the installed PHP version
+    INSTALLED_PHP_VERSION=$(php -v | head -n 1 | cut -d' ' -f2 | cut -d'.' -f1,2)
+    PHP_VERSION_FOUND="$INSTALLED_PHP_VERSION"
+    print_success "PHP-FPM installed (version: $INSTALLED_PHP_VERSION)"
+fi
+
+# Start and enable PHP-FPM if not running
+if ! systemctl is-active --quiet php${PHP_VERSION_FOUND}-fpm 2>/dev/null; then
+    print_info "Starting PHP ${PHP_VERSION_FOUND}-FPM..."
+    systemctl start php${PHP_VERSION_FOUND}-fpm
+    systemctl enable php${PHP_VERSION_FOUND}-fpm
+    print_success "PHP ${PHP_VERSION_FOUND}-FPM started"
+else
+    print_success "PHP ${PHP_VERSION_FOUND}-FPM is running"
+fi
+
+# Find PHP-FPM socket path
+PHP_FPM_SOCKET="/var/run/php/php${PHP_VERSION_FOUND}-fpm.sock"
+if [ ! -S "$PHP_FPM_SOCKET" ]; then
+    # Try alternative locations
+    ALTERNATIVE_SOCKETS=(
+        "/var/run/php/php-fpm.sock"
+        "/run/php/php${PHP_VERSION_FOUND}-fpm.sock"
+        "/run/php/php-fpm.sock"
+    )
     
-    for version in "${PHP_VERSIONS[@]}"; do
-        if systemctl list-units --type=service | grep -q "php${version}-fpm"; then
-            print_info "Starting PHP ${version}-FPM..."
-            systemctl start php${version}-fpm
-            systemctl enable php${version}-fpm
-            PHP_FPM_FOUND=true
-            print_success "PHP ${version}-FPM started"
+    for sock in "${ALTERNATIVE_SOCKETS[@]}"; do
+        if [ -S "$sock" ]; then
+            PHP_FPM_SOCKET="$sock"
             break
         fi
     done
     
-    if [ "$PHP_FPM_FOUND" = false ]; then
-        print_error "PHP-FPM is not installed"
-        print_info "Installing PHP and PHP-FPM..."
-        apt-get update
-        apt-get install -y php-fpm php-mysql php-mbstring php-zip php-gd php-json php-curl php-xml
-        systemctl start php*-fpm
-        systemctl enable php*-fpm
-        print_success "PHP-FPM installed and started"
+    if [ ! -S "$PHP_FPM_SOCKET" ]; then
+        print_error "PHP-FPM socket not found. Expected at: /var/run/php/php${PHP_VERSION_FOUND}-fpm.sock"
+        print_info "Please check PHP-FPM configuration"
+        exit 1
     fi
-else
-    print_success "PHP-FPM is running"
 fi
+
+print_success "PHP-FPM socket found: $PHP_FPM_SOCKET"
 
 # Check if config file exists in current directory
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -119,6 +150,12 @@ if [ "$SERVER_NAME" != "$DOMAIN" ]; then
     sed -i "s/server_name $DOMAIN;/server_name $SERVER_NAME;/" "$CONFIG_FILE"
     print_info "Updated server name to: $SERVER_NAME"
 fi
+
+# Update config file with correct PHP-FPM socket
+# Handle both generic and version-specific socket paths
+sed -i "s|fastcgi_pass unix:/var/run/php/php-fpm.sock;|fastcgi_pass unix:$PHP_FPM_SOCKET;|" "$CONFIG_FILE"
+sed -i "s|fastcgi_pass unix:/var/run/php/php[0-9.]*-fpm.sock;|fastcgi_pass unix:$PHP_FPM_SOCKET;|" "$CONFIG_FILE"
+print_info "Updated PHP-FPM socket path in configuration: $PHP_FPM_SOCKET"
 
 # Copy configuration to sites-available
 print_info "Copying configuration to Nginx sites-available..."
