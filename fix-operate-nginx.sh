@@ -34,7 +34,7 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-OPERATE_CONFIG="/etc/nginx/sites-available/operate"
+OPERATE_CONFIG="/etc/nginx/sites-available/operate.indicator-app.com"
 OPERATE_CONFIG_ENABLED="/etc/nginx/sites-enabled/operate.indicator-app.com"
 
 # Check if config exists
