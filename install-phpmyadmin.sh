@@ -132,7 +132,7 @@ EOF
     systemctl reload apache2
     
     print_success "Apache configured for phpMyAdmin"
-    print_info "phpMyAdmin will be available at: http://your-server-ip/phpmyadmin"
+    print_info "phpMyAdmin will be available at: http://sql.indicator-app.com/phpmyadmin"
 fi
 
 # Configure Nginx
@@ -144,7 +144,7 @@ if [ "$WEB_SERVER" = "nginx" ]; then
     cat > $NGINX_CONF << 'EOF'
 server {
     listen 80;
-    server_name _;
+    server_name sql.indicator-app.com;
     
     root /usr/share/phpmyadmin;
     index index.php index.html index.htm;
@@ -173,7 +173,7 @@ EOF
     if nginx -t; then
         systemctl reload nginx
         print_success "Nginx configured for phpMyAdmin"
-        print_info "phpMyAdmin will be available at: http://your-server-ip/"
+        print_info "phpMyAdmin will be available at: http://sql.indicator-app.com/"
     else
         print_error "Nginx configuration test failed"
         rm -f /etc/nginx/sites-enabled/phpmyadmin
@@ -234,9 +234,9 @@ echo "=========================================="
 echo ""
 print_info "Access Information:"
 if [ "$WEB_SERVER" = "apache" ]; then
-    echo "  URL: http://your-server-ip/phpmyadmin"
+    echo "  URL: http://sql.indicator-app.com/phpmyadmin"
 elif [ "$WEB_SERVER" = "nginx" ]; then
-    echo "  URL: http://your-server-ip/"
+    echo "  URL: http://sql.indicator-app.com/"
 fi
 echo ""
 print_info "MySQL Login:"

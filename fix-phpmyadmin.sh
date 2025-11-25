@@ -131,7 +131,7 @@ EOF
         exit 1
     fi
     
-    print_success "phpMyAdmin should be accessible at: http://your-server-ip/phpmyadmin"
+    print_success "phpMyAdmin should be accessible at: http://sql.indicator-app.com/phpmyadmin"
 fi
 
 # Check Nginx configuration
@@ -155,7 +155,7 @@ if [ "$WEB_SERVER" = "nginx" ]; then
         cat > /etc/nginx/sites-available/phpmyadmin << 'EOF'
 server {
     listen 80;
-    server_name _;
+    server_name sql.indicator-app.com;
     
     root /usr/share/phpmyadmin;
     index index.php index.html index.htm;
@@ -197,7 +197,7 @@ EOF
         exit 1
     fi
     
-    print_success "phpMyAdmin should be accessible at: http://your-server-ip/"
+    print_success "phpMyAdmin should be accessible at: http://sql.indicator-app.com/"
 fi
 
 # Check PHP installation
@@ -251,10 +251,10 @@ echo "=========================================="
 echo ""
 print_info "Access Information:"
 if [ "$WEB_SERVER" = "apache" ]; then
-    echo "  URL: http://$(hostname -I | awk '{print $1}')/phpmyadmin"
+    echo "  URL: http://sql.indicator-app.com/phpmyadmin"
     echo "  Or: http://localhost/phpmyadmin"
 elif [ "$WEB_SERVER" = "nginx" ]; then
-    echo "  URL: http://$(hostname -I | awk '{print $1}')/"
+    echo "  URL: http://sql.indicator-app.com/"
     echo "  Or: http://localhost/"
 fi
 echo ""

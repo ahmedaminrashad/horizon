@@ -94,7 +94,7 @@ This will:
 - Configure web server (Apache/Nginx) for phpMyAdmin
 - Set up security settings
 - Optionally add password protection
-- Access phpMyAdmin at: `http://your-server-ip/phpmyadmin` (Apache) or `http://your-server-ip/` (Nginx)
+- Access phpMyAdmin at: `http://sql.indicator-app.com/phpmyadmin` (Apache) or `http://sql.indicator-app.com/` (Nginx)
 
 **If you get 404 error accessing phpMyAdmin:**
 
