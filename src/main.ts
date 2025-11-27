@@ -8,14 +8,55 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  // Enable CORS for local development
+  // Enable CORS configuration
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
+  
+  // Allowed origins for CORS
+  const allowedOrigins = [
+    'https://operate.indicator-app.com',
+    'https://backend.indicator-app.com',
+    'http://localhost:5173',
+  ];
+
   if (nodeEnv === 'development' || nodeEnv === 'local') {
+    // In development, allow all origins
     app.enableCors({
-      origin: true, // Allow all origins in local development
+      origin: true,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+      exposedHeaders: ['Authorization'],
+      preflightContinue: false,
+      optionsSuccessStatus: 204,
+    });
+  } else {
+    // In production, allow only specific origins
+    app.enableCors({
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) {
+          return callback(null, true);
+        }
+        
+        // Check if origin is in allowed list
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        
+        // Allow subdomains of indicator-app.com
+        if (origin.match(/^https?:\/\/[^.]+\.indicator-app\.com$/)) {
+          return callback(null, true);
+        }
+        
+        // Reject other origins
+        return callback(new Error('Not allowed by CORS'));
+      },
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+      exposedHeaders: ['Authorization'],
+      preflightContinue: false,
+      optionsSuccessStatus: 204,
     });
   }
 
