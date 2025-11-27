@@ -289,7 +289,7 @@ show_status() {
 main() {
     check_requirements
     setup_directories
-    backup_current
+    # backup_current  # Backup disabled
     pull_code
     install_dependencies
     build_application
