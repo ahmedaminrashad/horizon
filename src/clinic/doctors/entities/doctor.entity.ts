@@ -1,0 +1,55 @@
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { User } from '../../permissions/entities/user.entity';
+
+export enum Department {
+  CARDIOLOGY = 'CARDIOLOGY',
+  NEUROLOGY = 'NEUROLOGY',
+  ORTHOPEDICS = 'ORTHOPEDICS',
+  PEDIATRICS = 'PEDIATRICS',
+  DERMATOLOGY = 'DERMATOLOGY',
+  ONCOLOGY = 'ONCOLOGY',
+  RADIOLOGY = 'RADIOLOGY',
+  SURGERY = 'SURGERY',
+  INTERNAL_MEDICINE = 'INTERNAL_MEDICINE',
+  EMERGENCY = 'EMERGENCY',
+  OTHER = 'OTHER',
+}
+
+@Entity('doctors')
+export class Doctor {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'int' })
+  age: number;
+
+  @Column({
+    type: 'enum',
+    enum: Department,
+  })
+  department: Department;
+
+  @Column({ name: 'user_id' })
+  user_id: number;
+
+  @Column({ name: 'clinic_id' })
+  clinic_id: number;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  user: User;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+}

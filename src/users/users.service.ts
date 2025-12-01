@@ -12,6 +12,7 @@ import { User } from './entities/user.entity';
 import { DatabaseService } from '../database/database.service';
 import { RolesService } from '../roles/roles.service';
 import { ClinicMigrationService } from '../database/clinic-migration.service';
+import { TenantDataSourceService } from '../database/tenant-data-source.service';
 
 @Injectable()
 export class UsersService {
@@ -21,6 +22,7 @@ export class UsersService {
     private databaseService: DatabaseService,
     private rolesService: RolesService,
     private clinicMigrationService: ClinicMigrationService,
+    private tenantDataSourceService: TenantDataSourceService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -74,6 +76,11 @@ export class UsersService {
           // Run clinic migrations on the new database
           await this.clinicMigrationService.runMigrations(databaseName);
 
+          // Create user record in clinic database with same data but role_id = 2
+          await this.createClinicUser(savedUser, databaseName, 2);
+
+          console.log('User created in clinic database:', savedUser.id);
+
           // Update user with database name
           savedUser.database_name = databaseName;
           await this.usersRepository.save(savedUser);
@@ -89,6 +96,55 @@ export class UsersService {
     }
 
     return savedUser;
+  }
+
+  /**
+   * Create user record in clinic database with same data but different role_id
+   */
+  private async createClinicUser(
+    mainUser: User,
+    databaseName: string,
+    roleId: number,
+  ): Promise<void> {
+    try {
+      // Get clinic database DataSource
+      const clinicDataSource =
+        await this.tenantDataSourceService.getTenantDataSource(databaseName);
+
+      if (!clinicDataSource) {
+        throw new Error(`Failed to get DataSource for database: ${databaseName}`);
+      }
+
+      // Use raw SQL to insert user (ID will be auto-generated)
+      const queryRunner = clinicDataSource.createQueryRunner();
+      await queryRunner.connect();
+
+      const result = await queryRunner.query(
+        `INSERT INTO users (name, phone, email, password, package_id, role_id, createdAt, updatedAt) 
+         VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [
+          mainUser.name || null,
+          mainUser.phone,
+          mainUser.email || null,
+          mainUser.password, // Password is already hashed
+          mainUser.package_id || 0,
+          roleId,
+        ],
+      );
+
+      const clinicUserId = result.insertId || result[0]?.insertId;
+      console.log(
+        `User created in clinic database: main user ID ${mainUser.id}, clinic user ID ${clinicUserId}`,
+      );
+
+      await queryRunner.release();
+    } catch (error) {
+      console.error(
+        `Failed to create user in clinic database ${databaseName}:`,
+        error,
+      );
+      throw error;
+    }
   }
 
   async findAll(page: number = 1, limit: number = 10) {

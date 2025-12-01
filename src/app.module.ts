@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { RolesModule } from './roles/roles.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { DatabaseModule } from './database/database.module';
+import { ClinicModule } from './clinic/clinic.module';
 import { TenantInterceptor } from './database/tenant.interceptor';
 
 @Module({
@@ -37,6 +38,7 @@ import { TenantInterceptor } from './database/tenant.interceptor';
     AuthModule,
     RolesModule,
     PermissionsModule,
+    ClinicModule,
   ],
   controllers: [AppController],
   providers: [

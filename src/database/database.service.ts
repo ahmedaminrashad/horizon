@@ -2,6 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import * as mysql from 'mysql2/promise';
+// Import clinic entities explicitly
+import { User as ClinicUser } from '../clinic/permissions/entities/user.entity';
+import { Role as ClinicRole } from '../clinic/permissions/entities/role.entity';
+import { Permission as ClinicPermission } from '../clinic/permissions/entities/permission.entity';
+import { Doctor } from '../clinic/doctors/entities/doctor.entity';
 
 @Injectable()
 export class DatabaseService {
@@ -64,18 +69,34 @@ export class DatabaseService {
 
   /**
    * Get tenant database connection configuration
+   * Uses explicit entity classes to avoid "Cannot use import statement outside a module" error
    */
   getTenantDatabaseConfig(databaseName: string) {
+    // Use explicit entity classes instead of file paths to avoid module loading issues
+    const clinicEntities = [
+      ClinicUser,
+      ClinicRole,
+      ClinicPermission,
+      Doctor,
+    ];
+
+    const sanitizedDbName = this.sanitizeDatabaseName(databaseName);
+
     return {
       type: 'mysql' as const,
       host: this.configService.get('DB_HOST', 'localhost'),
       port: this.configService.get<number>('DB_PORT', 3306),
       username: this.configService.get('DB_USERNAME', 'root'),
       password: this.configService.get('DB_PASSWORD', ''),
-      database: this.sanitizeDatabaseName(databaseName),
-      entities: [__dirname + '/../../**/*.entity{.ts,.js}'],
+      database: sanitizedDbName,
+      entities: clinicEntities,
       synchronize: this.configService.get('NODE_ENV') === 'development',
-      autoLoadEntities: true,
+      autoLoadEntities: false,
+      logging: this.configService.get('NODE_ENV') === 'development' ? ['error', 'warn'] : false,
+      // Add connection pool settings
+      extra: {
+        connectionLimit: 10,
+      },
     };
   }
 

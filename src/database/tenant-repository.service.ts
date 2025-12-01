@@ -26,8 +26,14 @@ export class TenantRepositoryService {
       // Get repository from tenant database
       const tenantDataSource =
         await this.tenantDataSourceService.getTenantDataSource(tenantDatabase);
-      if (tenantDataSource) {
+      if (tenantDataSource && tenantDataSource.isInitialized) {
         return tenantDataSource.getRepository<T>(entity);
+      }
+      // If tenant DataSource failed to initialize, log warning and fall back to default
+      if (tenantDatabase) {
+        console.warn(
+          `Warning: Failed to connect to tenant database "${tenantDatabase}". Falling back to default database.`,
+        );
       }
     }
 

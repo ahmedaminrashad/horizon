@@ -19,10 +19,8 @@ export class TenantInterceptor implements NestInterceptor {
     // If user is authenticated and has clinic role, set tenant database
     if (user && user.role_slug === 'clinic' && user.database_name) {
       this.tenantContextService.setTenantDatabase(user.database_name);
-    } else {
-      // Use main database for non-clinic users
-      this.tenantContextService.setTenantDatabase(null);
     }
+    // If not a clinic user, don't modify the context (let ClinicTenantInterceptor handle it)
 
     return next.handle().pipe(
       tap(() => {

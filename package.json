@@ -22,7 +22,8 @@
     "migration:generate": "ts-node --project tsconfig.scripts.json -r tsconfig-paths/register src/database/scripts/generate-migration.ts",
     "migration:generate:clinic": "ts-node --project tsconfig.scripts.json -r tsconfig-paths/register src/database/scripts/generate-clinic-migration.ts",
     "migration:run": "ts-node --project tsconfig.scripts.json -r tsconfig-paths/register src/database/scripts/run-migrations.ts",
-    "migration:run:clinic": "ts-node --project tsconfig.scripts.json -r tsconfig-paths/register src/database/scripts/run-clinic-migrations.ts"
+    "migration:run:clinic": "ts-node --project tsconfig.scripts.json -r tsconfig-paths/register src/database/scripts/run-clinic-migrations.ts",
+    "migration:run:clinic:all": "ts-node --project tsconfig.scripts.json -r tsconfig-paths/register src/database/scripts/run-clinic-migrations-all.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
