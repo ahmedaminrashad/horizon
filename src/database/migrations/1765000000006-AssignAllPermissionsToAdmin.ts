@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AssignAllPermissionsToAdmin1765000000005
+export class AssignAllPermissionsToAdmin1765000000006
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
