@@ -10,7 +10,9 @@ import { RolesModule } from './roles/roles.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { DatabaseModule } from './database/database.module';
 import { ClinicModule } from './clinic/clinic.module';
+import { PackagesModule } from './packages/packages.module';
 import { TenantInterceptor } from './database/tenant.interceptor';
+import { LangInterceptor } from './interceptors/lang.interceptor';
 
 @Module({
   imports: [
@@ -39,10 +41,15 @@ import { TenantInterceptor } from './database/tenant.interceptor';
     RolesModule,
     PermissionsModule,
     ClinicModule,
+    PackagesModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LangInterceptor,
+    },
     {
       provide: APP_INTERCEPTOR,
       useClass: TenantInterceptor,

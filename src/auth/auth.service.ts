@@ -67,7 +67,6 @@ export class AuthService {
 
   async login(loginDto: LoginDto) {
     const user = await this.usersService.findByPhone(loginDto.phone);
-
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }

@@ -20,4 +20,10 @@ export enum Permission {
   READ_PERMISSION = 'read-permission',
   UPDATE_PERMISSION = 'update-permission',
   DELETE_PERMISSION = 'delete-permission',
+
+  // Package permissions
+  CREATE_PACKAGE = 'create-package',
+  READ_PACKAGE = 'read-package',
+  UPDATE_PACKAGE = 'update-package',
+  DELETE_PACKAGE = 'delete-package',
 }

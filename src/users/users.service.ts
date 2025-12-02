@@ -147,10 +147,10 @@ export class UsersService {
     }
   }
 
-  async findAll(page: number = 1, limit: number = 10) {
+  async findAll(page: number = 1, limit: number = 10, roleId?: number) {
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.usersRepository.findAndCount({
+    const findOptions: any = {
       select: [
         'id',
         'name',
@@ -168,7 +168,14 @@ export class UsersService {
       order: {
         createdAt: 'DESC',
       },
-    });
+    };
+
+    // Add role_id filter if provided
+    if (roleId) {
+      findOptions.where = { role_id: roleId };
+    }
+
+    const [data, total] = await this.usersRepository.findAndCount(findOptions);
 
     const totalPages = Math.ceil(total / limit);
 

@@ -28,5 +28,15 @@ export class PaginationQueryDto {
   @Min(1)
   @Max(100)
   limit?: number = 10;
+
+  @ApiPropertyOptional({
+    description: 'Filter users by role ID',
+    example: 1,
+    type: Number,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  role_id?: number;
 }
 
