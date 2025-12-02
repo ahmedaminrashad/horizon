@@ -147,35 +147,35 @@ export class UsersService {
     }
   }
 
-  async findAll(page: number = 1, limit: number = 10, roleId?: number) {
+  async findAll(page: number = 1, limit: number = 10, roleSlug?: string) {
     const skip = (page - 1) * limit;
 
-    const findOptions: any = {
-      select: [
-        'id',
-        'name',
-        'phone',
-        'email',
-        'package_id',
-        'role_id',
-        'database_name',
-        'createdAt',
-        'updatedAt',
-      ],
-      relations: ['role', 'role.permissions'],
-      skip,
-      take: limit,
-      order: {
-        createdAt: 'DESC',
-      },
-    };
+    // Build query using query builder for role slug filtering
+    const queryBuilder = this.usersRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('role.permissions', 'permissions')
+      .select([
+        'user.id',
+        'user.name',
+        'user.phone',
+        'user.email',
+        'user.package_id',
+        'user.role_id',
+        'user.database_name',
+        'user.createdAt',
+        'user.updatedAt',
+      ])
+      .orderBy('user.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
 
-    // Add role_id filter if provided
-    if (roleId) {
-      findOptions.where = { role_id: roleId };
+    // Add role_slug filter if provided
+    if (roleSlug && roleSlug.trim() !== '') {
+      queryBuilder.where('role.slug = :roleSlug', { roleSlug: roleSlug.trim() });
     }
 
-    const [data, total] = await this.usersRepository.findAndCount(findOptions);
+    const [data, total] = await queryBuilder.getManyAndCount();
 
     const totalPages = Math.ceil(total / limit);
 

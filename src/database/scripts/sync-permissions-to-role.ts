@@ -4,7 +4,7 @@ import { config } from 'dotenv';
 // Load environment variables
 config();
 
-async function syncPermissionsToRole(roleId: number) {
+async function syncPermissionsToRole(roleSlug: string) {
   // Create DataSource
   const dataSource = new DataSource({
     type: 'mysql',
@@ -20,19 +20,20 @@ async function syncPermissionsToRole(roleId: number) {
     await dataSource.initialize();
     console.log('Database connection established.');
 
-    // Verify role exists
+    // Verify role exists by slug
     const roleResult = await dataSource.query(
-      `SELECT id, name, slug FROM roles WHERE id = ? LIMIT 1`,
-      [roleId],
+      `SELECT id, name, slug FROM roles WHERE slug = ? LIMIT 1`,
+      [roleSlug],
     );
 
     if (roleResult.length === 0) {
-      console.error(`Role with ID ${roleId} not found.`);
+      console.error(`Role with slug "${roleSlug}" not found.`);
       await dataSource.destroy();
       process.exit(1);
     }
 
     const role = roleResult[0];
+    const roleId = role.id;
     console.log(`\n=== Syncing Permissions to Role: ${role.name} (ID: ${roleId}, Slug: ${role.slug}) ===`);
 
     // Get all permissions from the database
@@ -59,7 +60,7 @@ async function syncPermissionsToRole(roleId: number) {
     );
 
     console.log(
-      `${assignedPermissionIds.length} permission(s) already assigned to role_id ${roleId}.`,
+      `${assignedPermissionIds.length} permission(s) already assigned to role "${role.name}" (${role.slug}).`,
     );
 
     // Sync permissions: assign missing ones, skip existing ones
@@ -99,7 +100,7 @@ async function syncPermissionsToRole(roleId: number) {
     console.log('\n=== Sync Summary ===');
     if (assignedCount > 0) {
       console.log(
-        `✓ Successfully assigned ${assignedCount} permission(s) to role_id ${roleId}.`,
+        `✓ Successfully assigned ${assignedCount} permission(s) to role "${role.name}" (${role.slug}).`,
       );
     }
 
@@ -111,7 +112,7 @@ async function syncPermissionsToRole(roleId: number) {
 
     if (assignedCount === 0 && skippedCount === allPermissions.length) {
       console.log(
-        `✓ All ${allPermissions.length} permission(s) are already assigned to role_id ${roleId}.`,
+        `✓ All ${allPermissions.length} permission(s) are already assigned to role "${role.name}" (${role.slug}).`,
       );
     }
 
@@ -125,12 +126,14 @@ async function syncPermissionsToRole(roleId: number) {
   }
 }
 
-// Get role_id from command line argument or default to 2
-const roleId = process.argv[2] ? parseInt(process.argv[2], 10) : 2;
+// Get role slug from command line argument or default to a specific slug
+const roleSlug = process.argv[2] || '';
 
-if (isNaN(roleId)) {
-  console.error('Invalid role_id. Please provide a valid number.');
+if (!roleSlug) {
+  console.error('Error: Role slug is required.');
+  console.error('Usage: npm run sync:permissions <role-slug>');
+  console.error('Example: npm run sync:permissions admin');
   process.exit(1);
 }
 
-syncPermissionsToRole(roleId);
+syncPermissionsToRole(roleSlug);

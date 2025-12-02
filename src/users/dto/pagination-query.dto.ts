@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsOptional, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, IsInt, Min, Max, IsString } from 'class-validator';
 
 export class PaginationQueryDto {
   @ApiPropertyOptional({
@@ -30,13 +30,12 @@ export class PaginationQueryDto {
   limit?: number = 10;
 
   @ApiPropertyOptional({
-    description: 'Filter users by role ID',
-    example: 1,
-    type: Number,
+    description: 'Filter users by role slug',
+    example: 'admin',
+    type: String,
   })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  role_id?: number;
+  @IsString()
+  role_slug?: string;
 }
 

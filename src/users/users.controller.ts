@@ -49,7 +49,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Get all users with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiQuery({ name: 'role_id', required: false, type: Number, example: 1, description: 'Filter users by role ID' })
+  @ApiQuery({ name: 'role_slug', required: false, type: String, example: 'admin', description: 'Filter users by role slug' })
   @ApiResponse({
     status: 200,
     description: 'Paginated list of users',
@@ -112,8 +112,8 @@ export class UsersController {
   findAll(@Query() paginationQuery: PaginationQueryDto) {
     const page = paginationQuery.page || 1;
     const limit = paginationQuery.limit || 10;
-    const roleId = paginationQuery.role_id;
-    return this.usersService.findAll(page, limit, roleId);
+    const roleSlug = paginationQuery.role_slug;
+    return this.usersService.findAll(page, limit, roleSlug);
   }
 
   @Get(':id')
