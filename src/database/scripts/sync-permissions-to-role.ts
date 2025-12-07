@@ -137,3 +137,4 @@ if (!roleSlug) {
 }
 
 syncPermissionsToRole(roleSlug);
+

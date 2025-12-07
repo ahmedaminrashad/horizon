@@ -3,11 +3,13 @@ import {
   Column,
   PrimaryGeneratedColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../permissions/entities/user.entity';
+import { SlotTemplate } from '../../slot-template/entities/slot-template.entity';
 
 export enum Department {
   CARDIOLOGY = 'CARDIOLOGY',
@@ -46,6 +48,11 @@ export class Doctor {
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
+
+  @OneToMany(() => SlotTemplate, (slotTemplate) => slotTemplate.doctor, {
+    cascade: true,
+  })
+  slotTemplates: SlotTemplate[];
 
   @CreateDateColumn()
   createdAt: Date;

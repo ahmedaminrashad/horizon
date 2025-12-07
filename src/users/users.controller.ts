@@ -116,6 +116,64 @@ export class UsersController {
     return this.usersService.findAll(page, limit, roleSlug);
   }
 
+  @Get('public/clinics')
+  @ApiOperation({ summary: 'Get all clinic users (public endpoint)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of clinic users',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              name: { type: 'string', nullable: true },
+              phone: { type: 'string' },
+              email: { type: 'string', nullable: true },
+              package_id: { type: 'number' },
+              role_id: { type: 'number', nullable: true },
+              database_name: { type: 'string', nullable: true },
+              role: {
+                type: 'object',
+                nullable: true,
+                properties: {
+                  id: { type: 'number' },
+                  name: { type: 'string' },
+                  slug: { type: 'string' },
+                  description: { type: 'string', nullable: true },
+                },
+              },
+              createdAt: { type: 'string', format: 'date-time' },
+              updatedAt: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+        meta: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 100 },
+            page: { type: 'number', example: 1 },
+            limit: { type: 'number', example: 10 },
+            totalPages: { type: 'number', example: 10 },
+            hasNextPage: { type: 'boolean', example: true },
+            hasPreviousPage: { type: 'boolean', example: false },
+          },
+        },
+      },
+    },
+  })
+  getClinics(@Query() paginationQuery: PaginationQueryDto) {
+    const page = paginationQuery.page || 1;
+    const limit = paginationQuery.limit || 10;
+    // Always filter by role_slug='clinic' for this public endpoint
+    return this.usersService.findAll(page, limit, 'clinic');
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiBearerAuth('JWT-auth')

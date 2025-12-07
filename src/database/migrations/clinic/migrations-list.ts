@@ -4,6 +4,8 @@ import { Addnametousers1762807516112 } from './1762807516112-Addnametousers';
 import { CreateDoctorsTable1764000000000 } from './1764000000000-CreateDoctorsTable';
 import { CreateRolesAndPermissionsTables1764000000001 } from './1764000000001-CreateRolesAndPermissionsTables';
 import { SeedClinicRolesAndPermissions1764000000002 } from './1764000000002-SeedClinicRolesAndPermissions';
+import { CreateSlotTemplateTable1764000000003 } from './1764000000003-CreateSlotTemplateTable';
+import { AddDoctorIdToSlotTemplate1764000000004 } from './1764000000004-AddDoctorIdToSlotTemplate';
 
 /**
  * List of all clinic migrations in order
@@ -15,4 +17,6 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   CreateDoctorsTable1764000000000,
   CreateRolesAndPermissionsTables1764000000001,
   SeedClinicRolesAndPermissions1764000000002,
+  CreateSlotTemplateTable1764000000003,
+  AddDoctorIdToSlotTemplate1764000000004,
 ];
