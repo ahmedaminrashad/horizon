@@ -100,6 +100,16 @@ async function bootstrap() {
       persistAuthorization: false,
       tagsSorter: 'alpha',
       operationsSorter: 'alpha',
+      requestInterceptor: {
+        apply: function (requestObj: any) {
+          const headers = requestObj.headers || {};
+          headers['If-Modified-Since'] = 'Mon, 26 Jul 1997 05:00:00 GMT';
+          headers['Cache-Control'] = 'no-cache';
+          headers['Pragma'] = 'no-cache';
+          requestObj.headers = headers;
+          return requestObj;
+        },
+      },
     },
     customCss: `
       .swagger-ui .topbar { display: none }
