@@ -95,7 +95,7 @@ async function bootstrap() {
     .addTag('permissions')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/documentation', app, document, {
+  SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
       persistAuthorization: false,
       tagsSorter: 'alpha',

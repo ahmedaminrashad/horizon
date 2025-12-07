@@ -57,7 +57,7 @@ export class DoctorsService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await repository.findAndCount({
-      relations: ['user'],
+      relations: ['user', 'slotTemplates'],
       skip,
       take: limit,
       order: {
@@ -84,7 +84,7 @@ export class DoctorsService {
     const repository = await this.getRepository();
     const doctor = await repository.findOne({
       where: { id },
-      relations: ['user'],
+      relations: ['user', 'slotTemplates'],
     });
 
     if (!doctor) {

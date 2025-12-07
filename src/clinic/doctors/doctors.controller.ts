@@ -127,6 +127,21 @@ export class DoctorsController {
                   email: { type: 'string', nullable: true },
                 },
               },
+              slotTemplates: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    duration: { type: 'string', example: '00:30:00' },
+                    cost: { type: 'number', example: 100.5 },
+                    days: { type: 'string', example: 'MONDAY,TUESDAY,WEDNESDAY' },
+                    doctor_id: { type: 'number' },
+                    createdAt: { type: 'string', format: 'date-time' },
+                    updatedAt: { type: 'string', format: 'date-time' },
+                  },
+                },
+              },
               createdAt: { type: 'string', format: 'date-time' },
               updatedAt: { type: 'string', format: 'date-time' },
             },
