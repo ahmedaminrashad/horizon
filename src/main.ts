@@ -95,7 +95,17 @@ async function bootstrap() {
     .addTag('permissions')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: false,
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+    },
+    customCss: `
+      .swagger-ui .topbar { display: none }
+    `,
+    customSiteTitle: 'Horizon Backend API Documentation',
+  });
 
   const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
