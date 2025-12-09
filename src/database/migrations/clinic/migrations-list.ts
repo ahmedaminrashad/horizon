@@ -8,6 +8,7 @@ import { CreateSlotTemplateTable1764000000003 } from './1764000000003-CreateSlot
 import { AddDoctorIdToSlotTemplate1764000000004 } from './1764000000004-AddDoctorIdToSlotTemplate';
 import { CreateSettingsTable1766000000000 } from './1766000000000-CreateSettingsTable';
 import { AddSettingsPermissions1766000000001 } from './1766000000001-AddSettingsPermissions';
+import { SeedClinicSettings1766000000002 } from './1766000000002-SeedClinicSettings';
 import { CreateReservationsTable1767000000000 } from './1767000000000-CreateReservationsTable';
 import { AddReservationPermissions1767000000001 } from './1767000000001-AddReservationPermissions';
 
@@ -25,6 +26,7 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   AddDoctorIdToSlotTemplate1764000000004,
   CreateSettingsTable1766000000000,
   AddSettingsPermissions1766000000001,
+  SeedClinicSettings1766000000002,
   CreateReservationsTable1767000000000,
   AddReservationPermissions1767000000001,
 ];
