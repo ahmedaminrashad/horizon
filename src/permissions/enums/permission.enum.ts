@@ -26,4 +26,8 @@ export enum Permission {
   READ_PACKAGE = 'read-package',
   UPDATE_PACKAGE = 'update-package',
   DELETE_PACKAGE = 'delete-package',
+
+  // Settings permissions
+  READ_SETTING = 'read-setting',
+  UPDATE_SETTING = 'update-setting',
 }

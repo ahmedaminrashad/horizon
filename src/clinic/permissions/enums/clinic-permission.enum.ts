@@ -17,4 +17,14 @@ export enum ClinicPermission {
 
   // Clinic management
   MANAGE_CLINIC = 'manage-clinic',
+
+  // Settings permissions
+  READ_SETTING = 'read-setting',
+  UPDATE_SETTING = 'update-setting',
+
+  // Reservation permissions
+  CREATE_RESERVATION = 'create-reservation',
+  READ_RESERVATION = 'read-reservation',
+  UPDATE_RESERVATION = 'update-reservation',
+  DELETE_RESERVATION = 'delete-reservation',
 }

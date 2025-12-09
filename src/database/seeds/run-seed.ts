@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
 import { seedAdmin } from './admin.seeder';
 import { seedRolesAndPermissions } from './roles-permissions.seeder';
+import { seedSettings } from './settings.seeder';
 
 // Load environment variables
 config();
@@ -23,12 +24,15 @@ async function runSeed() {
     await dataSource.initialize();
     console.log('Database connection established.');
 
-    // Run seeders - roles and permissions first, then admin
+    // Run seeders - roles and permissions first, then admin, then settings
     console.log('\n=== Seeding Roles and Permissions ===');
     await seedRolesAndPermissions(dataSource);
 
     console.log('\n=== Seeding Admin User ===');
     await seedAdmin(dataSource);
+
+    console.log('\n=== Seeding Settings ===');
+    await seedSettings(dataSource);
 
     console.log('\nSeeding completed successfully!');
     await dataSource.destroy();
