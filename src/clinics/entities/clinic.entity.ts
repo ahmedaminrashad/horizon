@@ -29,6 +29,9 @@ export class Clinic {
   @Column({ type: 'decimal', precision: 11, scale: 8, nullable: true })
   longit: number;
 
+  @Column({ type: 'json', nullable: true })
+  departments: string[];
+
   @Column({ unique: true, nullable: true })
   database_name: string;
 

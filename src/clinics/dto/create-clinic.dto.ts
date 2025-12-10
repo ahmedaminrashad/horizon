@@ -5,6 +5,7 @@ import {
   IsEmail,
   IsOptional,
   IsNumber,
+  IsArray,
   Min,
   Max,
 } from 'class-validator';
@@ -59,4 +60,13 @@ export class CreateClinicDto {
   @Min(-180)
   @Max(180)
   longit?: number;
+
+  @ApiPropertyOptional({
+    description: 'List of departments offered by the clinic',
+    example: ['CARDIOLOGY', 'NEUROLOGY', 'PEDIATRICS'],
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  departments?: string[];
 }

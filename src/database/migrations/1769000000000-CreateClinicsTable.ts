@@ -54,6 +54,11 @@ export class CreateClinicsTable1769000000000 implements MigrationInterface {
             isNullable: true,
           },
           {
+            name: 'departments',
+            type: 'json',
+            isNullable: true,
+          },
+          {
             name: 'database_name',
             type: 'varchar',
             length: '255',

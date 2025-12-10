@@ -33,6 +33,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Permission } from '../permissions/enums/permission.enum';
+import { Department } from '../clinic/doctors/entities/doctor.entity';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 
@@ -59,6 +60,11 @@ export class ClinicsController {
             image: { type: 'string', nullable: true },
             lat: { type: 'number', nullable: true },
             longit: { type: 'number', nullable: true },
+            departments: {
+              type: 'array',
+              items: { type: 'string' },
+              nullable: true,
+            },
             database_name: { type: 'string', nullable: true },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
@@ -93,6 +99,30 @@ export class ClinicsController {
     const page = paginationQuery.page || 1;
     const limit = paginationQuery.limit || 10;
     return this.clinicsService.findAll(page, limit);
+  }
+
+  @Get('departments')
+  @ApiOperation({ summary: 'Get list of all departments' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of departments',
+    schema: {
+      type: 'object',
+      properties: {
+        departments: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: Object.values(Department),
+          },
+        },
+      },
+    },
+  })
+  getDepartments() {
+    return {
+      departments: Object.values(Department),
+    };
   }
 
   @Get(':id')
