@@ -30,4 +30,10 @@ export enum Permission {
   // Settings permissions
   READ_SETTING = 'read-setting',
   UPDATE_SETTING = 'update-setting',
+
+  // Clinic permissions
+  CREATE_CLINIC = 'create-clinic',
+  READ_CLINIC = 'read-clinic',
+  UPDATE_CLINIC = 'update-clinic',
+  DELETE_CLINIC = 'delete-clinic',
 }

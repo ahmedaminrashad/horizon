@@ -45,6 +45,12 @@ export class Doctor {
   @Column({ name: 'clinic_id' })
   clinic_id: number;
 
+  @Column({ type: 'decimal', precision: 3, scale: 2, nullable: true })
+  rate: number;
+
+  @Column({ nullable: true })
+  avatar: string;
+
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;

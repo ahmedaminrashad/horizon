@@ -7,6 +7,9 @@ import { User as ClinicUser } from '../clinic/permissions/entities/user.entity';
 import { Role as ClinicRole } from '../clinic/permissions/entities/role.entity';
 import { Permission as ClinicPermission } from '../clinic/permissions/entities/permission.entity';
 import { Doctor } from '../clinic/doctors/entities/doctor.entity';
+import { SlotTemplate } from '../clinic/slot-template/entities/slot-template.entity';
+import { Reservation } from '../clinic/reservations/entities/reservation.entity';
+import { Setting as ClinicSetting } from '../clinic/settings/entities/setting.entity';
 
 @Injectable()
 export class DatabaseService {
@@ -78,6 +81,9 @@ export class DatabaseService {
       ClinicRole,
       ClinicPermission,
       Doctor,
+      SlotTemplate,
+      Reservation,
+      ClinicSetting,
     ];
 
     const sanitizedDbName = this.sanitizeDatabaseName(databaseName);
