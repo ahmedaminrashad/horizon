@@ -23,13 +23,13 @@ import {
   ApiQuery,
   ApiConsumes,
   ApiBody,
+  ApiParam,
 } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { DoctorsService } from './doctors.service';
 import { CreateDoctorDto } from './dto/create-doctor.dto';
 import { UpdateDoctorDto } from './dto/update-doctor.dto';
-import { RegisterDoctorDto } from './dto/register-doctor.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
@@ -37,6 +37,8 @@ import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { ClinicPermission } from '../permissions/enums/clinic-permission.enum';
 import { Department } from './entities/doctor.entity';
+import { ClinicId } from '../decorators/clinic-id.decorator';
+import { RegisterDoctorDto } from './dto/register-doctor.dto';
 
 @ApiTags('clinic/doctors')
 @Controller('clinic/:clinicId/doctors')
@@ -46,7 +48,14 @@ export class DoctorsController {
   constructor(private readonly doctorsService: DoctorsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Register a new doctor' })
+  @UseGuards(ClinicPermissionsGuard)
+  @Permissions(ClinicPermission.CREATE_DOCTOR as string)
+  @ApiOperation({ summary: 'Register a new doctor (creates user and doctor)' })
+  @ApiParam({
+    name: 'clinicId',
+    type: Number,
+    description: 'Clinic ID (can be from JWT token or route parameter)',
+  })
   @ApiResponse({
     status: 201,
     description: 'Doctor registered successfully',
@@ -72,9 +81,24 @@ export class DoctorsController {
           properties: {
             id: { type: 'number' },
             age: { type: 'number' },
-            department: { type: 'string' },
+            department: { type: 'string', enum: Object.values(Department) },
             user_id: { type: 'number' },
             clinic_id: { type: 'number' },
+            slotTemplates: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number' },
+                  duration: { type: 'string', example: '00:30:00' },
+                  cost: { type: 'number', example: 100.5 },
+                  days: { type: 'string', example: 'MONDAY,TUESDAY,WEDNESDAY' },
+                  doctor_id: { type: 'number' },
+                  createdAt: { type: 'string', format: 'date-time' },
+                  updatedAt: { type: 'string', format: 'date-time' },
+                },
+              },
+            },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
           },
@@ -83,32 +107,50 @@ export class DoctorsController {
       },
     },
   })
+  @ApiResponse({ status: 400, description: 'Clinic context not found' })
   @ApiResponse({ status: 409, description: 'Phone or email already exists' })
-  @ApiResponse({ status: 404, description: 'Doctor role not found or clinic not found' })
-  registerDoctor(
-    @Param('clinicId') clinicId: string,
+  createNewUser(
+    @ClinicId() clinicId: number,
     @Body() registerDoctorDto: RegisterDoctorDto,
   ) {
-    return this.doctorsService.registerDoctor(+clinicId, registerDoctorDto);
+    console.log('Creating doctor', { clinicId, registerDoctorDto });
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.doctorsService.registerDoctor(clinicId, registerDoctorDto);
   }
 
-  @Post('create')
+  @Post('/create')
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.CREATE_DOCTOR as string)
   @ApiOperation({ summary: 'Create a new doctor (existing user)' })
+  @ApiParam({
+    name: 'clinicId',
+    type: Number,
+    description: 'Clinic ID (can be from JWT token or route parameter)',
+  })
   @ApiResponse({ status: 201, description: 'Doctor created successfully' })
   @ApiResponse({ status: 400, description: 'Clinic context not found' })
-  create(
-    @Param('clinicId') clinicId: string,
+  createExistingUser(
+    @ClinicId() clinicId: number,
     @Body() createDoctorDto: CreateDoctorDto,
   ) {
-    return this.doctorsService.create(+clinicId, createDoctorDto);
+    console.log('Creating doctor', { clinicId, createDoctorDto });
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.doctorsService.create(clinicId, createDoctorDto);
   }
 
   @Get()
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.READ_DOCTOR)
   @ApiOperation({ summary: 'Get all doctors with pagination' })
+  @ApiParam({
+    name: 'clinicId',
+    type: Number,
+    description: 'Clinic ID (can be from JWT token or route parameter)',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
@@ -145,7 +187,10 @@ export class DoctorsController {
                     id: { type: 'number' },
                     duration: { type: 'string', example: '00:30:00' },
                     cost: { type: 'number', example: 100.5 },
-                    days: { type: 'string', example: 'MONDAY,TUESDAY,WEDNESDAY' },
+                    days: {
+                      type: 'string',
+                      example: 'MONDAY,TUESDAY,WEDNESDAY',
+                    },
                     doctor_id: { type: 'number' },
                     createdAt: { type: 'string', format: 'date-time' },
                     updatedAt: { type: 'string', format: 'date-time' },
@@ -172,52 +217,76 @@ export class DoctorsController {
     },
   })
   findAll(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Query() paginationQuery: PaginationQueryDto,
   ) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
     const page = paginationQuery.page || 1;
     const limit = paginationQuery.limit || 10;
-    return this.doctorsService.findAll(+clinicId, page, limit);
+    return this.doctorsService.findAll(clinicId, page, limit);
   }
 
   @Get(':doctorId')
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.READ_DOCTOR)
   @ApiOperation({ summary: 'Get a doctor by ID' })
+  @ApiParam({
+    name: 'clinicId',
+    type: Number,
+    description: 'Clinic ID (can be from JWT token or route parameter)',
+  })
+  @ApiParam({ name: 'doctorId', type: Number, description: 'Doctor ID' })
   @ApiResponse({ status: 200, description: 'Doctor found' })
   @ApiResponse({ status: 404, description: 'Doctor not found' })
-  findOne(
-    @Param('clinicId') clinicId: string,
-    @Param('doctorId') doctorId: string,
-  ) {
-    return this.doctorsService.findOne(+clinicId, +doctorId);
+  findOne(@ClinicId() clinicId: number, @Param('doctorId') doctorId: string) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.doctorsService.findOne(clinicId, +doctorId);
   }
 
   @Patch(':doctorId')
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.UPDATE_DOCTOR)
   @ApiOperation({ summary: 'Update a doctor' })
+  @ApiParam({
+    name: 'clinicId',
+    type: Number,
+    description: 'Clinic ID (can be from JWT token or route parameter)',
+  })
+  @ApiParam({ name: 'doctorId', type: Number, description: 'Doctor ID' })
   @ApiResponse({ status: 200, description: 'Doctor updated successfully' })
   @ApiResponse({ status: 404, description: 'Doctor not found' })
   update(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Param('doctorId') doctorId: string,
     @Body() updateDoctorDto: UpdateDoctorDto,
   ) {
-    return this.doctorsService.update(+clinicId, +doctorId, updateDoctorDto);
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.doctorsService.update(clinicId, +doctorId, updateDoctorDto);
   }
 
   @Delete(':doctorId')
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.DELETE_DOCTOR)
   @ApiOperation({ summary: 'Delete a doctor' })
+  @ApiParam({
+    name: 'clinicId',
+    type: Number,
+    description: 'Clinic ID (can be from JWT token or route parameter)',
+  })
+  @ApiParam({ name: 'doctorId', type: Number, description: 'Doctor ID' })
   @ApiResponse({ status: 200, description: 'Doctor deleted successfully' })
   @ApiResponse({ status: 404, description: 'Doctor not found' })
-  remove(
-    @Param('clinicId') clinicId: string,
-    @Param('doctorId') doctorId: string,
-  ) {
-    return this.doctorsService.remove(+clinicId, +doctorId);
+  remove(@ClinicId() clinicId: number, @Param('doctorId') doctorId: string) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.doctorsService.remove(clinicId, +doctorId);
   }
 
   @Patch(':doctorId/avatar')
@@ -228,7 +297,8 @@ export class DoctorsController {
       storage: diskStorage({
         destination: './uploads/avatars',
         filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           const ext = extname(file.originalname);
           cb(null, `doctor-avatar-${uniqueSuffix}${ext}`);
         },
@@ -237,6 +307,12 @@ export class DoctorsController {
   )
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload doctor avatar' })
+  @ApiParam({
+    name: 'clinicId',
+    type: Number,
+    description: 'Clinic ID (can be from JWT token or route parameter)',
+  })
+  @ApiParam({ name: 'doctorId', type: Number, description: 'Doctor ID' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -251,7 +327,7 @@ export class DoctorsController {
   @ApiResponse({ status: 200, description: 'Avatar uploaded successfully' })
   @ApiResponse({ status: 404, description: 'Doctor not found' })
   async uploadAvatar(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Param('doctorId') doctorId: string,
     @UploadedFile(
       new ParseFilePipe({
@@ -263,7 +339,12 @@ export class DoctorsController {
     )
     file: Express.Multer.File,
   ) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
     const filePath = `/uploads/avatars/${file.filename}`;
-    return this.doctorsService.update(+clinicId, +doctorId, { avatar: filePath });
+    return this.doctorsService.update(clinicId, +doctorId, {
+      avatar: filePath,
+    });
   }
 }

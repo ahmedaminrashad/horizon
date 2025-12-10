@@ -25,6 +25,7 @@ import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { ClinicPermission } from '../permissions/enums/clinic-permission.enum';
+import { ClinicId } from '../decorators/clinic-id.decorator';
 import { ReservationStatus } from './entities/reservation.entity';
 
 @ApiTags('clinic/reservations')
@@ -41,10 +42,13 @@ export class ReservationsController {
   @ApiResponse({ status: 201, description: 'Reservation created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input' })
   create(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Body() createReservationDto: CreateReservationDto,
   ) {
-    return this.reservationsService.create(+clinicId, createReservationDto);
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.reservationsService.create(clinicId, createReservationDto);
   }
 
   @Get()
@@ -55,12 +59,15 @@ export class ReservationsController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({ status: 200, description: 'List of reservations' })
   findAll(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Query() paginationQuery: PaginationQueryDto,
   ) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
     const page = paginationQuery.page || 1;
     const limit = paginationQuery.limit || 10;
-    return this.reservationsService.findAll(+clinicId, page, limit);
+    return this.reservationsService.findAll(clinicId, page, limit);
   }
 
   @Get(':id')
@@ -70,10 +77,13 @@ export class ReservationsController {
   @ApiResponse({ status: 200, description: 'Reservation found' })
   @ApiResponse({ status: 404, description: 'Reservation not found' })
   findOne(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Param('id') id: string,
   ) {
-    return this.reservationsService.findOne(+clinicId, +id);
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.reservationsService.findOne(clinicId, +id);
   }
 
   @Patch(':id')
@@ -83,11 +93,14 @@ export class ReservationsController {
   @ApiResponse({ status: 200, description: 'Reservation updated successfully' })
   @ApiResponse({ status: 404, description: 'Reservation not found' })
   update(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Param('id') id: string,
     @Body() updateReservationDto: UpdateReservationDto,
   ) {
-    return this.reservationsService.update(+clinicId, +id, updateReservationDto);
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.reservationsService.update(clinicId, +id, updateReservationDto);
   }
 
   @Delete(':id')
@@ -97,9 +110,12 @@ export class ReservationsController {
   @ApiResponse({ status: 200, description: 'Reservation deleted successfully' })
   @ApiResponse({ status: 404, description: 'Reservation not found' })
   remove(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Param('id') id: string,
   ) {
-    return this.reservationsService.remove(+clinicId, +id);
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.reservationsService.remove(clinicId, +id);
   }
 }

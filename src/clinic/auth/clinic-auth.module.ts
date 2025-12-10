@@ -5,12 +5,14 @@ import { ClinicAuthService } from './clinic-auth.service';
 import { ClinicAuthController } from './clinic-auth.controller';
 import { DatabaseModule } from '../../database/database.module';
 import { UsersModule } from '../../users/users.module';
+import { ClinicsModule } from '../../clinics/clinics.module';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 
 @Module({
   imports: [
     DatabaseModule,
     UsersModule,
+    ClinicsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

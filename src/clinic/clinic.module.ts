@@ -9,9 +9,10 @@ import { ClinicUsersModule } from './users/clinic-users.module';
 import { ClinicTenantInterceptor } from './interceptors/clinic-tenant.interceptor';
 import { DatabaseModule } from '../database/database.module';
 import { UsersModule } from '../users/users.module';
+import { ClinicsModule } from '../clinics/clinics.module';
 
 @Module({
-  imports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, DatabaseModule, UsersModule],
+  imports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, DatabaseModule, UsersModule, ClinicsModule],
   exports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule],
   providers: [
     {

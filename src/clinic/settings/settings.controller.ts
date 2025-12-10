@@ -27,6 +27,7 @@ import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { ClinicPermission } from '../permissions/enums/clinic-permission.enum';
+import { ClinicId } from '../decorators/clinic-id.decorator';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 
@@ -46,7 +47,7 @@ export class ClinicSettingsController {
   @Permissions(ClinicPermission.READ_SETTING as string)
   @ApiOperation({ summary: 'Get clinic application settings' })
   @ApiResponse({ status: 200, description: 'Settings retrieved successfully' })
-  findOne(@Param('clinicId') clinicId: string) {
+  findOne(@ClinicId() clinicId: number) {
     return this.clinicSettingsService.findOne();
   }
 
@@ -57,7 +58,7 @@ export class ClinicSettingsController {
   @ApiResponse({ status: 200, description: 'Settings updated successfully' })
   @ApiResponse({ status: 404, description: 'Settings not found' })
   update(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Body() updateSettingDto: UpdateSettingDto,
   ) {
     return this.clinicSettingsService.update(updateSettingDto);
@@ -93,7 +94,7 @@ export class ClinicSettingsController {
   })
   @ApiResponse({ status: 200, description: 'Logo uploaded successfully' })
   async uploadLogo(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @UploadedFile(
       new ParseFilePipe({
         validators: [

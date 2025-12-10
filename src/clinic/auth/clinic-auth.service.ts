@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { UsersService } from '../../users/users.service';
+import { ClinicsService } from '../../clinics/clinics.service';
 import { TenantRepositoryService } from '../../database/tenant-repository.service';
 import { User as ClinicUser } from '../permissions/entities/user.entity';
 import { ClinicLoginDto } from './dto/clinic-login.dto';
@@ -13,7 +13,7 @@ import { ClinicLoginDto } from './dto/clinic-login.dto';
 @Injectable()
 export class ClinicAuthService {
   constructor(
-    private usersService: UsersService,
+    private clinicsService: ClinicsService,
     private jwtService: JwtService,
     private tenantRepositoryService: TenantRepositoryService,
   ) {}
@@ -22,11 +22,11 @@ export class ClinicAuthService {
 
     console.log('clinicId : ', clinicId);
     console.log('clinicLoginDto : ', clinicLoginDto);
-    // Get clinic user from main database to find database_name
-    // Note: Tenant context is automatically set by ClinicTenantInterceptor
-    const clinicUser = await this.usersService.findOne(clinicId);
+    // Get clinic from clinics table to find database_name
+    // Note: Tenant context is automatically set by ClinicTenantGuard
+    const clinic = await this.clinicsService.findOne(clinicId);
 
-    if (!clinicUser || !clinicUser.database_name) {
+    if (!clinic || !clinic.database_name) {
       throw new NotFoundException('Clinic not found');
     }
 
@@ -62,7 +62,7 @@ export class ClinicAuthService {
     const payload = {
       sub: clinicDbUser.id,
       role_id: clinicDbUser.role_id,
-      database_name: clinicUser.database_name,
+      database_name: clinic.database_name,
       clinic_id: clinicId,
       role_slug: clinicDbUser.role?.slug,
     };

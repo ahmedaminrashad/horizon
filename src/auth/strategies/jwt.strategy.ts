@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -13,6 +10,8 @@ import { User as ClinicUser } from '../../clinic/permissions/entities/user.entit
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
+  private readonly logger = new Logger(JwtStrategy.name);
+
   constructor(
     private configService: ConfigService,
     private usersService: UsersService,
@@ -72,21 +71,32 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
       // If route has clinicId and token has clinic_id, validate they match
       if (request?.params?.clinicId && payload.clinic_id && payload.clinic_id !== +request.params.clinicId) {
+        console.log('Token clinic_id does not match route clinicId.', {
+          tokenClinicId: payload.clinic_id,
+          routeClinicId: request.params.clinicId,
+        });
         throw new UnauthorizedException(
           'Token clinic_id does not match route clinicId.',
         );
       }
 
       // Validate user from clinic database (payload.sub is clinic user ID)
-      const userRepository = await this.tenantRepositoryService.getRepository<ClinicUser>(ClinicUser);
+      const userRepository =
+        await this.tenantRepositoryService.getRepository<ClinicUser>(
+          ClinicUser,
+        );
       const clinicUser = await userRepository.findOne({
         where: { id: payload.sub },
-        relations: ['role'],
+        relations: ['role', 'role.permissions'],
       });
 
       if (!clinicUser) {
         throw new UnauthorizedException('Clinic user not found');
       }
+
+      // Get user permissions for logging
+      const userPermissions =
+        clinicUser.role?.permissions?.map((p) => p.slug) || [];
 
       return {
         userId: clinicUser.id,

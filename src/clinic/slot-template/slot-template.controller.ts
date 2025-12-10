@@ -25,6 +25,7 @@ import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { ClinicPermission } from '../permissions/enums/clinic-permission.enum';
+import { ClinicId } from '../decorators/clinic-id.decorator';
 
 @ApiTags('clinic/slot-template')
 @Controller('clinic/:clinicId/slot-template')
@@ -40,10 +41,13 @@ export class SlotTemplateController {
   @ApiResponse({ status: 201, description: 'Slot template created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input or clinic context not found' })
   create(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Body() createSlotTemplateDto: CreateSlotTemplateDto,
   ) {
-    return this.slotTemplateService.create(+clinicId, createSlotTemplateDto);
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.slotTemplateService.create(clinicId, createSlotTemplateDto);
   }
 
   @Get()
@@ -98,13 +102,16 @@ export class SlotTemplateController {
     },
   })
   findAll(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Query() paginationQuery: PaginationQueryDto,
   ) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
     const page = paginationQuery.page || 1;
     const limit = paginationQuery.limit || 10;
     const doctorId = paginationQuery.doctor_id;
-    return this.slotTemplateService.findAll(+clinicId, page, limit, doctorId);
+    return this.slotTemplateService.findAll(clinicId, page, limit, doctorId);
   }
 
   @Get(':id')
@@ -114,10 +121,13 @@ export class SlotTemplateController {
   @ApiResponse({ status: 200, description: 'Slot template found' })
   @ApiResponse({ status: 404, description: 'Slot template not found' })
   findOne(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Param('id') id: string,
   ) {
-    return this.slotTemplateService.findOne(+clinicId, +id);
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.slotTemplateService.findOne(clinicId, +id);
   }
 
   @Patch(':id')
@@ -127,12 +137,15 @@ export class SlotTemplateController {
   @ApiResponse({ status: 200, description: 'Slot template updated successfully' })
   @ApiResponse({ status: 404, description: 'Slot template not found' })
   update(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Param('id') id: string,
     @Body() updateSlotTemplateDto: UpdateSlotTemplateDto,
   ) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
     return this.slotTemplateService.update(
-      +clinicId,
+      clinicId,
       +id,
       updateSlotTemplateDto,
     );
@@ -145,9 +158,12 @@ export class SlotTemplateController {
   @ApiResponse({ status: 200, description: 'Slot template deleted successfully' })
   @ApiResponse({ status: 404, description: 'Slot template not found' })
   remove(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Param('id') id: string,
   ) {
-    return this.slotTemplateService.remove(+clinicId, +id);
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.slotTemplateService.remove(clinicId, +id);
   }
 }

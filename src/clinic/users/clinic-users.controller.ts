@@ -25,6 +25,7 @@ import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { ClinicPermission } from '../permissions/enums/clinic-permission.enum';
+import { ClinicId } from '../decorators/clinic-id.decorator';
 
 @ApiTags('clinic/users')
 @Controller('clinic/:clinicId/users')
@@ -41,10 +42,13 @@ export class ClinicUsersController {
   @ApiResponse({ status: 400, description: 'Invalid input' })
   @ApiResponse({ status: 409, description: 'Phone or email already exists' })
   create(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Body() createClinicUserDto: CreateClinicUserDto,
   ) {
-    return this.clinicUsersService.create(+clinicId, createClinicUserDto);
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.clinicUsersService.create(clinicId, createClinicUserDto);
   }
 
   @Get()
@@ -55,12 +59,15 @@ export class ClinicUsersController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({ status: 200, description: 'List of users' })
   findAll(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Query() paginationQuery: PaginationQueryDto,
   ) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
     const page = paginationQuery.page || 1;
     const limit = paginationQuery.limit || 10;
-    return this.clinicUsersService.findAll(+clinicId, page, limit);
+    return this.clinicUsersService.findAll(clinicId, page, limit);
   }
 
   @Get(':id')
@@ -70,10 +77,13 @@ export class ClinicUsersController {
   @ApiResponse({ status: 200, description: 'User found' })
   @ApiResponse({ status: 404, description: 'User not found' })
   findOne(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Param('id') id: string,
   ) {
-    return this.clinicUsersService.findOne(+clinicId, +id);
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.clinicUsersService.findOne(clinicId, +id);
   }
 
   @Patch(':id')
@@ -84,11 +94,14 @@ export class ClinicUsersController {
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 409, description: 'Phone or email already exists' })
   update(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Param('id') id: string,
     @Body() updateClinicUserDto: UpdateClinicUserDto,
   ) {
-    return this.clinicUsersService.update(+clinicId, +id, updateClinicUserDto);
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.clinicUsersService.update(clinicId, +id, updateClinicUserDto);
   }
 
   @Delete(':id')
@@ -98,9 +111,12 @@ export class ClinicUsersController {
   @ApiResponse({ status: 200, description: 'User deleted successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   remove(
-    @Param('clinicId') clinicId: string,
+    @ClinicId() clinicId: number,
     @Param('id') id: string,
   ) {
-    return this.clinicUsersService.remove(+clinicId, +id);
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.clinicUsersService.remove(clinicId, +id);
   }
 }

@@ -13,6 +13,7 @@ import { ClinicModule } from './clinic/clinic.module';
 import { PackagesModule } from './packages/packages.module';
 import { SettingsModule } from './settings/settings.module';
 import { ClinicsModule } from './clinics/clinics.module';
+import { DoctorsModule } from './doctors/doctors.module';
 import { TenantInterceptor } from './database/tenant.interceptor';
 import { LangInterceptor } from './interceptors/lang.interceptor';
 
@@ -32,7 +33,7 @@ import { LangInterceptor } from './interceptors/lang.interceptor';
         password: configService.get('DB_PASSWORD', ''),
         database: configService.get('DB_DATABASE', 'horizon'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: configService.get('NODE_ENV') === 'development',
+        synchronize: false,
         autoLoadEntities: true,
       }),
       inject: [ConfigService],
@@ -46,6 +47,7 @@ import { LangInterceptor } from './interceptors/lang.interceptor';
     PackagesModule,
     SettingsModule,
     ClinicsModule,
+    DoctorsModule,
   ],
   controllers: [AppController],
   providers: [
