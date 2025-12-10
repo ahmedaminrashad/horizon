@@ -29,12 +29,12 @@ import { LangHeader } from '../decorators/lang-header.decorator';
 
 @ApiTags('packages')
 @Controller('packages')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
-@ApiBearerAuth('JWT-auth')
 export class PackagesController {
   constructor(private readonly packagesService: PackagesService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @ApiBearerAuth('JWT-auth')
   @Permissions(Permission.CREATE_PACKAGE as string)
   @ApiOperation({ summary: 'Create a new package' })
   @ApiResponse({ status: 201, description: 'Package created successfully' })
@@ -44,7 +44,6 @@ export class PackagesController {
   }
 
   @Get()
-  @Permissions(Permission.READ_PACKAGE as string)
   @ApiOperation({ summary: 'Get all packages with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
@@ -65,7 +64,6 @@ export class PackagesController {
   }
 
   @Get(':id')
-  @Permissions(Permission.READ_PACKAGE as string)
   @ApiOperation({ summary: 'Get a package by ID' })
   @ApiHeader({
     name: 'lang',
@@ -80,6 +78,8 @@ export class PackagesController {
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @ApiBearerAuth('JWT-auth')
   @Permissions(Permission.UPDATE_PACKAGE as string)
   @ApiOperation({ summary: 'Update a package' })
   @ApiResponse({ status: 200, description: 'Package updated successfully' })
@@ -89,6 +89,8 @@ export class PackagesController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @ApiBearerAuth('JWT-auth')
   @Permissions(Permission.DELETE_PACKAGE as string)
   @ApiOperation({ summary: 'Delete a package' })
   @ApiResponse({ status: 200, description: 'Package deleted successfully' })
@@ -98,6 +100,8 @@ export class PackagesController {
   }
 
   @Post(':id/translations')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @ApiBearerAuth('JWT-auth')
   @Permissions(Permission.UPDATE_PACKAGE as string)
   @ApiOperation({ summary: 'Add a translation to a package' })
   @ApiResponse({ status: 201, description: 'Translation added successfully' })
@@ -116,6 +120,8 @@ export class PackagesController {
   }
 
   @Patch(':id/translations/:lang')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @ApiBearerAuth('JWT-auth')
   @Permissions(Permission.UPDATE_PACKAGE as string)
   @ApiOperation({ summary: 'Update a package translation' })
   @ApiResponse({ status: 200, description: 'Translation updated successfully' })
@@ -133,6 +139,8 @@ export class PackagesController {
   }
 
   @Delete(':id/translations/:lang')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @ApiBearerAuth('JWT-auth')
   @Permissions(Permission.UPDATE_PACKAGE as string)
   @ApiOperation({ summary: 'Delete a package translation' })
   @ApiResponse({ status: 200, description: 'Translation deleted successfully' })
