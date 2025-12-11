@@ -35,6 +35,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
+import { Public } from '../../auth/decorators/public.decorator';
 import { ClinicPermission } from '../permissions/enums/clinic-permission.enum';
 import { Department } from './entities/doctor.entity';
 import { ClinicId } from '../decorators/clinic-id.decorator';
@@ -143,8 +144,7 @@ export class DoctorsController {
   }
 
   @Get()
-  @UseGuards(ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.READ_DOCTOR)
+  @Public()
   @ApiOperation({ summary: 'Get all doctors with pagination' })
   @ApiParam({
     name: 'clinicId',
