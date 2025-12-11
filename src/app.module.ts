@@ -14,6 +14,7 @@ import { PackagesModule } from './packages/packages.module';
 import { SettingsModule } from './settings/settings.module';
 import { ClinicsModule } from './clinics/clinics.module';
 import { DoctorsModule } from './doctors/doctors.module';
+import { UploadsModule } from './uploads/uploads.module';
 import { TenantInterceptor } from './database/tenant.interceptor';
 import { LangInterceptor } from './interceptors/lang.interceptor';
 
@@ -48,6 +49,7 @@ import { LangInterceptor } from './interceptors/lang.interceptor';
     SettingsModule,
     ClinicsModule,
     DoctorsModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [
