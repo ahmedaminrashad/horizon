@@ -11,8 +11,14 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // Serve static files from uploads directory
+  // Note: Static assets are served outside the global prefix
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads/',
+  });
+
+  // Also serve static files under /api/uploads for consistency with API routes
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/api/uploads/',
   });
 
   // Enable CORS configuration
