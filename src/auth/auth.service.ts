@@ -39,19 +39,10 @@ export class AuthService {
   }
 
   async registerPatient(registerPatientDto: RegisterPatientDto) {
-    // Find patient role
-    const patientRole = await this.rolesService.findBySlug('patient');
-    if (!patientRole) {
-      throw new NotFoundException(
-        'Patient role not found. Please run migrations first.',
-      );
-    }
-
     // Create user with patient role and default package_id
     const createUserDto = {
       ...registerPatientDto,
-      role_id: patientRole.id,
-      package_id: 0, // Default package for patients
+      package_id: 0,
     };
 
     const user = await this.usersService.create(createUserDto);
