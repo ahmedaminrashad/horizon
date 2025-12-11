@@ -229,8 +229,7 @@ export class DoctorsController {
   }
 
   @Get(':doctorId')
-  @UseGuards(ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.READ_DOCTOR)
+  @Public()
   @ApiOperation({ summary: 'Get a doctor by ID' })
   @ApiParam({
     name: 'clinicId',
