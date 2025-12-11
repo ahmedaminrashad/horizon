@@ -32,6 +32,7 @@ import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { Permission } from '../permissions/enums/permission.enum';
 import { Department } from '../clinic/doctors/entities/doctor.entity';
 import { diskStorage } from 'multer';
@@ -91,6 +92,7 @@ export class ClinicsController {
   }
 
   @Get()
+  @Public()
   @ApiOperation({ summary: 'Get all clinics with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
