@@ -19,8 +19,8 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { Public } from '../auth/decorators/public.decorator';
 
-@ApiTags('uploads')
-@Controller('uploads')
+@ApiTags('upload')
+@Controller('upload')
 export class UploadsController {
   @Post('image')
   @Public()

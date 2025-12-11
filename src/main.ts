@@ -107,6 +107,12 @@ async function bootstrap() {
     .addTag('roles')
     .addTag('permissions')
     .addTag('settings')
+    .addTag('upload')
+    .addTag('clinic')
+    .addTag('packages')
+    .addTag('doctors')
+    .addTag('patients')
+    .addTag('appointments')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/documentation/v1', app, document, {
