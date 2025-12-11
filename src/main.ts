@@ -103,7 +103,7 @@ async function bootstrap() {
     .addTag('settings')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/documentation', app, document, {
+  SwaggerModule.setup('api/documentation/v1', app, document, {
     swaggerOptions: {
       persistAuthorization: false,
       tagsSorter: 'alpha',
