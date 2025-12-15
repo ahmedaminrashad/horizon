@@ -14,7 +14,10 @@ export class Package {
   id: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
-  cost: number;
+  price_monthly: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  price_annual: number;
 
   @OneToMany(() => PackageTranslation, (translation) => translation.package, {
     cascade: true,
