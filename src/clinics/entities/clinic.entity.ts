@@ -35,6 +35,9 @@ export class Clinic {
   @Column({ unique: true, nullable: true })
   database_name: string;
 
+  @Column({ type: 'boolean', default: true })
+  is_active: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

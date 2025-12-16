@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsNumber,
   IsArray,
+  IsBoolean,
   Min,
   Max,
 } from 'class-validator';
@@ -69,4 +70,13 @@ export class CreateClinicDto {
   @IsOptional()
   @IsArray()
   departments?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Whether the clinic is active',
+    example: true,
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
 }

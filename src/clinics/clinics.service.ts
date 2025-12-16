@@ -146,6 +146,7 @@ export class ClinicsService {
       lat: registerClinicDto.lat,
       longit: registerClinicDto.longit,
       departments: registerClinicDto.departments,
+      is_active: true,
     });
 
     const savedClinic = await this.clinicsRepository.save(clinic);
