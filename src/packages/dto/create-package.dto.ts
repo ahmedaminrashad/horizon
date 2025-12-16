@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsArray, ValidateNested, Min } from 'class-validator';
+import { IsNumber, IsOptional, IsArray, ValidateNested, IsBoolean, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CreatePackageTranslationDto } from './create-package-translation.dto';
@@ -23,4 +23,13 @@ export class CreatePackageDto {
   @ValidateNested({ each: true })
   @Type(() => CreatePackageTranslationDto)
   translations?: CreatePackageTranslationDto[];
+
+  @ApiPropertyOptional({
+    description: 'Whether the package is featured',
+    example: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  is_featured?: boolean;
 }

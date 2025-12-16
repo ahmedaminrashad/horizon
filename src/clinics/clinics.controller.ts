@@ -80,9 +80,7 @@ export class ClinicsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @ApiBearerAuth('JWT-auth')
-  @Permissions(Permission.CREATE_CLINIC as string)
+  @Public()
   @ApiOperation({ summary: 'Create a new clinic' })
   @ApiResponse({ status: 201, description: 'Clinic created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input' })

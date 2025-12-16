@@ -19,6 +19,9 @@ export class Package {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   price_annual: number;
 
+  @Column({ type: 'boolean', default: false })
+  is_featured: boolean;
+
   @OneToMany(() => PackageTranslation, (translation) => translation.package, {
     cascade: true,
   })
