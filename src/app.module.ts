@@ -16,6 +16,8 @@ import { ClinicsModule } from './clinics/clinics.module';
 import { DoctorsModule } from './doctors/doctors.module';
 import { ServicesModule } from './services/services.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { CountriesModule } from './countries/countries.module';
+import { CitiesModule } from './cities/cities.module';
 import { TenantInterceptor } from './database/tenant.interceptor';
 import { LangInterceptor } from './interceptors/lang.interceptor';
 
@@ -52,6 +54,8 @@ import { LangInterceptor } from './interceptors/lang.interceptor';
     DoctorsModule,
     ServicesModule,
     UploadsModule,
+    CountriesModule,
+    CitiesModule,
   ],
   controllers: [AppController],
   providers: [

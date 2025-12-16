@@ -13,12 +13,18 @@ import { DatabaseService } from '../database/database.service';
 import { ClinicMigrationService } from '../database/clinic-migration.service';
 import * as bcrypt from 'bcrypt';
 import { TenantDataSourceService } from '../database/tenant-data-source.service';
+import { Country } from '../countries/entities/country.entity';
+import { City } from '../cities/entities/city.entity';
 
 @Injectable()
 export class ClinicsService {
   constructor(
     @InjectRepository(Clinic)
     private clinicsRepository: Repository<Clinic>,
+    @InjectRepository(Country)
+    private countriesRepository: Repository<Country>,
+    @InjectRepository(City)
+    private citiesRepository: Repository<City>,
     private databaseService: DatabaseService,
     private clinicMigrationService: ClinicMigrationService,
     private tenantDataSourceService: TenantDataSourceService,
@@ -43,6 +49,30 @@ export class ClinicsService {
       throw new ConflictException('Phone number already exists');
     }
 
+    // Validate country if provided
+    if (createClinicDto.country_id) {
+      const country = await this.countriesRepository.findOne({
+        where: { id: createClinicDto.country_id },
+      });
+      if (!country) {
+        throw new NotFoundException(
+          `Country with ID ${createClinicDto.country_id} not found`,
+        );
+      }
+    }
+
+    // Validate city if provided
+    if (createClinicDto.city_id) {
+      const city = await this.citiesRepository.findOne({
+        where: { id: createClinicDto.city_id },
+      });
+      if (!city) {
+        throw new NotFoundException(
+          `City with ID ${createClinicDto.city_id} not found`,
+        );
+      }
+    }
+
     const clinic = this.clinicsRepository.create(createClinicDto);
     return this.clinicsRepository.save(clinic);
   }
@@ -53,6 +83,7 @@ export class ClinicsService {
     const [data, total] = await this.clinicsRepository.findAndCount({
       skip,
       take: limit,
+      relations: ['country', 'city'],
       order: {
         createdAt: 'DESC',
       },
@@ -76,6 +107,7 @@ export class ClinicsService {
   async findOne(id: number): Promise<Clinic> {
     const clinic = await this.clinicsRepository.findOne({
       where: { id },
+      relations: ['country', 'city'],
     });
 
     if (!clinic) {
@@ -110,6 +142,30 @@ export class ClinicsService {
       }
     }
 
+    // Validate country if being updated
+    if (updateClinicDto.country_id) {
+      const country = await this.countriesRepository.findOne({
+        where: { id: updateClinicDto.country_id },
+      });
+      if (!country) {
+        throw new NotFoundException(
+          `Country with ID ${updateClinicDto.country_id} not found`,
+        );
+      }
+    }
+
+    // Validate city if being updated
+    if (updateClinicDto.city_id) {
+      const city = await this.citiesRepository.findOne({
+        where: { id: updateClinicDto.city_id },
+      });
+      if (!city) {
+        throw new NotFoundException(
+          `City with ID ${updateClinicDto.city_id} not found`,
+        );
+      }
+    }
+
     Object.assign(clinic, updateClinicDto);
     return this.clinicsRepository.save(clinic);
   }
@@ -137,6 +193,30 @@ export class ClinicsService {
       throw new ConflictException('Phone number already exists');
     }
 
+    // Validate country if provided
+    if (registerClinicDto.country_id) {
+      const country = await this.countriesRepository.findOne({
+        where: { id: registerClinicDto.country_id },
+      });
+      if (!country) {
+        throw new NotFoundException(
+          `Country with ID ${registerClinicDto.country_id} not found`,
+        );
+      }
+    }
+
+    // Validate city if provided
+    if (registerClinicDto.city_id) {
+      const city = await this.citiesRepository.findOne({
+        where: { id: registerClinicDto.city_id },
+      });
+      if (!city) {
+        throw new NotFoundException(
+          `City with ID ${registerClinicDto.city_id} not found`,
+        );
+      }
+    }
+
     // Create clinic record
     const clinic = this.clinicsRepository.create({
       name: registerClinicDto.name,
@@ -147,6 +227,8 @@ export class ClinicsService {
       longit: registerClinicDto.longit,
       departments: registerClinicDto.departments,
       is_active: true,
+      country_id: registerClinicDto.country_id,
+      city_id: registerClinicDto.city_id,
     });
 
     const savedClinic = await this.clinicsRepository.save(clinic);

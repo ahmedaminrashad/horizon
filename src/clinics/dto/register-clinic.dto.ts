@@ -80,4 +80,20 @@ export class RegisterClinicDto {
   @IsOptional()
   @IsArray()
   departments?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Country ID',
+    example: 1,
+  })
+  @IsOptional()
+  @IsNumber()
+  country_id?: number;
+
+  @ApiPropertyOptional({
+    description: 'City ID',
+    example: 1,
+  })
+  @IsOptional()
+  @IsNumber()
+  city_id?: number;
 }

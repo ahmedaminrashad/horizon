@@ -79,4 +79,20 @@ export class CreateClinicDto {
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Country ID',
+    example: 1,
+  })
+  @IsOptional()
+  @IsNumber()
+  country_id?: number;
+
+  @ApiPropertyOptional({
+    description: 'City ID',
+    example: 1,
+  })
+  @IsOptional()
+  @IsNumber()
+  city_id?: number;
 }

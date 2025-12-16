@@ -3,12 +3,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ClinicsService } from './clinics.service';
 import { ClinicsController } from './clinics.controller';
 import { Clinic } from './entities/clinic.entity';
+import { Country } from '../countries/entities/country.entity';
+import { City } from '../cities/entities/city.entity';
 import { DatabaseModule } from '../database/database.module';
 import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Clinic]),
+    TypeOrmModule.forFeature([Clinic, Country, City]),
     DatabaseModule,
     UsersModule,
   ],

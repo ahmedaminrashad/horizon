@@ -2,9 +2,13 @@ import {
   Entity,
   Column,
   PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Country } from '../../countries/entities/country.entity';
+import { City } from '../../cities/entities/city.entity';
 
 @Entity('clinics')
 export class Clinic {
@@ -37,6 +41,20 @@ export class Clinic {
 
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
+
+  @Column({ nullable: true })
+  country_id: number;
+
+  @ManyToOne(() => Country, { nullable: true })
+  @JoinColumn({ name: 'country_id' })
+  country: Country;
+
+  @Column({ nullable: true })
+  city_id: number;
+
+  @ManyToOne(() => City, { nullable: true })
+  @JoinColumn({ name: 'city_id' })
+  city: City;
 
   @CreateDateColumn()
   createdAt: Date;
