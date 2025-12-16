@@ -73,6 +73,12 @@ export class DoctorsService {
       email?: string;
       phone?: string;
       department?: string;
+      license_number?: string;
+      degree?: string;
+      languages?: string;
+      bio?: string;
+      appoint_type?: string;
+      is_active?: boolean;
     },
   ): Promise<Doctor> {
     const existingDoctor = await this.findByClinicDoctorId(
@@ -89,6 +95,12 @@ export class DoctorsService {
         email: doctorData.email,
         phone: doctorData.phone,
         department: doctorData.department as any,
+        license_number: doctorData.license_number,
+        degree: doctorData.degree,
+        languages: doctorData.languages,
+        bio: doctorData.bio,
+        appoint_type: doctorData.appoint_type as any,
+        is_active: doctorData.is_active,
       });
       return this.doctorsRepository.save(existingDoctor);
     } else {
@@ -102,6 +114,12 @@ export class DoctorsService {
         email: doctorData.email,
         phone: doctorData.phone,
         department: doctorData.department as any,
+        license_number: doctorData.license_number,
+        degree: doctorData.degree,
+        languages: doctorData.languages,
+        bio: doctorData.bio,
+        appoint_type: doctorData.appoint_type as any,
+        is_active: doctorData.is_active !== undefined ? doctorData.is_active : true,
       });
       return this.doctorsRepository.save(doctor);
     }

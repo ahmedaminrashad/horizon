@@ -10,9 +10,10 @@ import {
   ValidateNested,
   IsString,
   Matches,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Department } from '../entities/doctor.entity';
+import { Department, AppointType } from '../entities/doctor.entity';
 
 export class CreateDoctorDto {
   @ApiProperty({
@@ -50,6 +51,56 @@ export class CreateDoctorDto {
   })
   @IsOptional()
   avatar?: string;
+
+  @ApiPropertyOptional({
+    description: 'Doctor license number',
+    example: 'LIC123456',
+  })
+  @IsString()
+  @IsOptional()
+  license_number?: string;
+
+  @ApiPropertyOptional({
+    description: 'Doctor degree',
+    example: 'MD, PhD',
+  })
+  @IsString()
+  @IsOptional()
+  degree?: string;
+
+  @ApiPropertyOptional({
+    description: 'Languages spoken (comma-separated or JSON)',
+    example: 'English, Arabic, French',
+  })
+  @IsString()
+  @IsOptional()
+  languages?: string;
+
+  @ApiPropertyOptional({
+    description: 'Doctor biography',
+    example: 'Experienced cardiologist with 10 years of practice.',
+  })
+  @IsString()
+  @IsOptional()
+  bio?: string;
+
+  @ApiPropertyOptional({
+    description: 'Appointment type',
+    enum: AppointType,
+    example: AppointType.IN_CLINIC,
+  })
+  @IsEnum(AppointType)
+  @IsOptional()
+  appoint_type?: AppointType;
+
+  @ApiPropertyOptional({
+    description: 'Whether the doctor is active',
+    example: true,
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  is_active?: boolean;
 
   @ApiProperty({
     description: 'User ID associated with the doctor',

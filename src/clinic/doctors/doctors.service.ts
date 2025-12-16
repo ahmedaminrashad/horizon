@@ -195,7 +195,19 @@ export class DoctorsService {
     }
 
     // Extract user data and doctor-specific data
-    const { age, department, password, ...userData } = registerDoctorDto;
+    const {
+      age,
+      department,
+      password,
+      license_number,
+      degree,
+      languages,
+      bio,
+      appoint_type,
+      is_active,
+      slotTemplates,
+      ...userData
+    } = registerDoctorDto;
 
     // Check if phone already exists in clinic database
     const clinicUserRepository = clinicDataSource.getRepository(ClinicUser);
@@ -238,19 +250,22 @@ export class DoctorsService {
       department,
       user_id: savedClinicUser.id,
       clinic_id: clinicId,
+      license_number,
+      degree,
+      languages,
+      bio,
+      appoint_type,
+      is_active: is_active !== undefined ? is_active : true,
     });
 
     const savedDoctor = await doctorRepository.save(doctor);
 
     // Create slot templates if provided
-    if (
-      registerDoctorDto.slotTemplates &&
-      registerDoctorDto.slotTemplates.length > 0
-    ) {
+    if (slotTemplates && slotTemplates.length > 0) {
       const slotTemplateRepository =
         clinicDataSource.getRepository(SlotTemplate);
 
-      const slotTemplates = registerDoctorDto.slotTemplates.map((template) =>
+      const slotTemplateEntities = slotTemplates.map((template) =>
         slotTemplateRepository.create({
           duration: template.duration,
           cost: template.cost,
@@ -289,6 +304,12 @@ export class DoctorsService {
       email: clinicUserWithRole.email ?? undefined,
       phone: clinicUserWithRole.phone || undefined,
       department: savedDoctor.department,
+      license_number: savedDoctor.license_number,
+      degree: savedDoctor.degree,
+      languages: savedDoctor.languages,
+      bio: savedDoctor.bio,
+      appoint_type: savedDoctor.appoint_type,
+      is_active: savedDoctor.is_active,
     });
     await this.mainDoctorsService.syncDoctor(clinicId, savedDoctor.id, {
       name: clinicUserWithRole.name || '',
@@ -297,6 +318,12 @@ export class DoctorsService {
       email: clinicUserWithRole.email ?? undefined,
       phone: clinicUserWithRole.phone || undefined,
       department: savedDoctor.department,
+      license_number: savedDoctor.license_number,
+      degree: savedDoctor.degree,
+      languages: savedDoctor.languages,
+      bio: savedDoctor.bio,
+      appoint_type: savedDoctor.appoint_type,
+      is_active: savedDoctor.is_active,
     });
 
     // Generate token with clinic user info
@@ -357,6 +384,12 @@ export class DoctorsService {
         email: doctorEmail,
         phone: doctorPhone,
         department: clinicDoctor.department,
+        license_number: clinicDoctor.license_number,
+        degree: clinicDoctor.degree,
+        languages: clinicDoctor.languages,
+        bio: clinicDoctor.bio,
+        appoint_type: clinicDoctor.appoint_type,
+        is_active: clinicDoctor.is_active,
       });
     } catch (error) {
       // Log error but don't fail the operation

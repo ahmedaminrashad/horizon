@@ -12,6 +12,8 @@ import { SeedClinicSettings1766000000002 } from './1766000000002-SeedClinicSetti
 import { CreateReservationsTable1767000000000 } from './1767000000000-CreateReservationsTable';
 import { AddReservationPermissions1767000000001 } from './1767000000001-AddReservationPermissions';
 import { AddRateAndAvatarToDoctors1768000000000 } from './1768000000000-AddRateAndAvatarToDoctors';
+import { AddFieldsToClinicDoctors1769000000000 } from './1769000000000-AddFieldsToClinicDoctors';
+import { CreateServicesTable1771000000000 } from './1771000000000-CreateServicesTable';
 
 /**
  * List of all clinic migrations in order
@@ -31,4 +33,6 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   CreateReservationsTable1767000000000,
   AddReservationPermissions1767000000001,
   AddRateAndAvatarToDoctors1768000000000,
+  AddFieldsToClinicDoctors1769000000000,
+  CreateServicesTable1771000000000,
 ];
