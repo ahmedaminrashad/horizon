@@ -22,6 +22,9 @@ export class Package {
   @Column({ type: 'boolean', default: false })
   is_featured: boolean;
 
+  @Column({ type: 'json', nullable: true })
+  features: string[];
+
   @OneToMany(() => PackageTranslation, (translation) => translation.package, {
     cascade: true,
   })

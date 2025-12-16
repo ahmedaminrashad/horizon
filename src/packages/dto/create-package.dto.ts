@@ -32,4 +32,13 @@ export class CreatePackageDto {
   @IsOptional()
   @IsBoolean()
   is_featured?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'List of package features',
+    example: ['Feature 1', 'Feature 2', 'Feature 3'],
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  features?: string[];
 }

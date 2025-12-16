@@ -42,18 +42,17 @@ function getTenantDatabaseConfig(databaseName: string): DataSourceOptions {
 }
 
 /**
- * Get all clinic databases from users table
+ * Get all clinic databases from clinics table
  */
 async function getClinicDatabases(): Promise<string[]> {
   const connection = await mysql.createConnection(getMainDatabaseConfig());
 
   try {
-    // Get all users with clinic role
+    // Get all database_name from clinics table
     const [rows] = await connection.query(
-      `SELECT u.database_name 
-       FROM users u 
-       INNER JOIN roles r ON u.role_id = r.id 
-       WHERE r.slug = 'clinic' AND u.database_name IS NOT NULL AND u.database_name != ''`,
+      `SELECT database_name 
+       FROM clinics 
+       WHERE database_name IS NOT NULL AND database_name != ''`,
     );
 
     const databases = (rows as any[]).map((row) => row.database_name);
@@ -192,14 +191,14 @@ async function runMigrationsOnDatabase(databaseName: string): Promise<boolean> {
  * Run clinic migrations on all clinic databases
  */
 async function runClinicMigrationsAll() {
-  console.log('Fetching clinic databases from users table...\n');
+  console.log('Fetching clinic databases from clinics table...\n');
 
   try {
     const databases = await getClinicDatabases();
 
     if (databases.length === 0) {
-      console.log('No clinic databases found in users table.');
-      console.log('Make sure you have users with role "clinic" and database_name set.');
+      console.log('No clinic databases found in clinics table.');
+      console.log('Make sure you have clinics with database_name set.');
       process.exit(0);
     }
 
