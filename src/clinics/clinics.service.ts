@@ -229,6 +229,7 @@ export class ClinicsService {
       is_active: true,
       country_id: registerClinicDto.country_id,
       city_id: registerClinicDto.city_id,
+      owner: registerClinicDto.owner,
     });
 
     const savedClinic = await this.clinicsRepository.save(clinic);

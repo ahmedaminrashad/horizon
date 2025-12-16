@@ -56,6 +56,9 @@ export class Clinic {
   @JoinColumn({ name: 'city_id' })
   city: City;
 
+  @Column({ type: 'text', nullable: true })
+  owner: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

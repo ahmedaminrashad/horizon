@@ -95,4 +95,12 @@ export class CreateClinicDto {
   @IsOptional()
   @IsNumber()
   city_id?: number;
+
+  @ApiPropertyOptional({
+    description: 'Clinic owner information',
+    example: 'Dr. John Smith',
+  })
+  @IsOptional()
+  @IsString()
+  owner?: string;
 }
