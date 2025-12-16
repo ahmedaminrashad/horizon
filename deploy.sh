@@ -194,9 +194,10 @@ EOF
 run_migrations() {
     print_info "Running database migrations..."
     cd $APP_DIR
-    
+    npm run migration:run:clinic:all
     # Run migrations automatically without confirmation
     npm run migration:run
+
     print_success "Migrations completed"
 }
 
