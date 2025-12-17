@@ -74,7 +74,7 @@ export class Clinic {
   @Column({ type: 'text', nullable: true })
   bio: string;
 
-  @Column({ type: 'int', nullable: true, default: 0 })
+  @Column({ type: 'int', nullable: true })
   package_id: number;
 
   @ManyToOne(() => Package, { nullable: true })

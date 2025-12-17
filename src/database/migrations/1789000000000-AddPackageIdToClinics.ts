@@ -6,14 +6,20 @@ export class AddPackageIdToClinics1789000000000 implements MigrationInterface {
     const hasPackageIdColumn = table?.findColumnByName('package_id');
 
     if (!hasPackageIdColumn) {
+      // First, add the column as nullable without default
+      // This will set all existing rows to NULL automatically
       await queryRunner.addColumn(
         'clinics',
         new TableColumn({
           name: 'package_id',
           type: 'int',
           isNullable: true,
-          default: 0,
         }),
+      );
+
+      // Ensure all existing rows are NULL (they should be already, but just to be safe)
+      await queryRunner.query(
+        `UPDATE clinics SET package_id = NULL WHERE package_id IS NULL`,
       );
 
       // Add index for better query performance
@@ -25,7 +31,7 @@ export class AddPackageIdToClinics1789000000000 implements MigrationInterface {
         }),
       );
 
-      // Add foreign key constraint
+      // Add foreign key constraint only if packages table exists
       const packagesTable = await queryRunner.getTable('packages');
       if (packagesTable) {
         await queryRunner.createForeignKey(

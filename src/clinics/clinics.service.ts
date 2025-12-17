@@ -272,7 +272,7 @@ export class ClinicsService {
       address: registerClinicDto.address,
       wa_number: registerClinicDto.wa_number,
       bio: registerClinicDto.bio,
-      package_id: registerClinicDto.package_id || 0,
+      package_id: registerClinicDto.package_id ?? undefined,
     });
 
     const savedClinic = await this.clinicsRepository.save(clinic);
