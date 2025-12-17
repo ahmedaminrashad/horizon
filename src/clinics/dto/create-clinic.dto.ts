@@ -119,4 +119,12 @@ export class CreateClinicDto {
   @IsOptional()
   @IsString()
   wa_number?: string;
+
+  @ApiPropertyOptional({
+    description: 'Clinic biography/description',
+    example: 'A leading medical center providing comprehensive healthcare services.',
+  })
+  @IsOptional()
+  @IsString()
+  bio?: string;
 }

@@ -230,6 +230,9 @@ export class ClinicsService {
       country_id: registerClinicDto.country_id,
       city_id: registerClinicDto.city_id,
       owner: registerClinicDto.owner,
+      address: registerClinicDto.address,
+      wa_number: registerClinicDto.wa_number,
+      bio: registerClinicDto.bio,
     });
 
     const savedClinic = await this.clinicsRepository.save(clinic);

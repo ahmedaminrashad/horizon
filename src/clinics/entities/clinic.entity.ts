@@ -70,6 +70,9 @@ export class Clinic {
   @Column({ nullable: true })
   wa_number: string;
 
+  @Column({ type: 'text', nullable: true })
+  bio: string;
+
   @CreateDateColumn()
   createdAt: Date;
 
