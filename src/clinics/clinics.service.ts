@@ -83,7 +83,7 @@ export class ClinicsService {
     const [data, total] = await this.clinicsRepository.findAndCount({
       skip,
       take: limit,
-      relations: ['country', 'city'],
+      relations: ['country', 'city', 'branches'],
       order: {
         createdAt: 'DESC',
       },

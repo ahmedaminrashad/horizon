@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import { Request, Response, NextFunction } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -114,20 +115,48 @@ async function bootstrap() {
     .addTag('doctors')
     .addTag('patients')
     .addTag('appointments')
+    .addTag('clinics')
+    .addTag('branches')
     .build();
   const document = SwaggerModule.createDocument(app, config);
+
+  // Disable caching for Swagger JSON endpoint using Express middleware
+  app.use(
+    '/api/documentation',
+    (req: Request, res: Response, next: NextFunction) => {
+      if (req.path.endsWith('-json') || req.path.includes('swagger')) {
+        res.setHeader(
+          'Cache-Control',
+          'no-store, no-cache, must-revalidate, private',
+        );
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      }
+      next();
+    },
+  );
+
   SwaggerModule.setup('api/documentation/v4', app, document, {
     swaggerOptions: {
       persistAuthorization: false,
       tagsSorter: 'alpha',
       operationsSorter: 'alpha',
       requestInterceptor: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         apply: function (requestObj: any) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
           const headers = requestObj.headers || {};
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           headers['If-Modified-Since'] = 'Mon, 26 Jul 1997 05:00:00 GMT';
-          headers['Cache-Control'] = 'no-cache';
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           headers['Pragma'] = 'no-cache';
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          headers['Expires'] = '0';
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
           requestObj.headers = headers;
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
           return requestObj;
         },
       },

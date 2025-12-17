@@ -3,46 +3,34 @@ import {
   Column,
   PrimaryGeneratedColumn,
   ManyToOne,
-  OneToMany,
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Clinic } from '../../clinics/entities/clinic.entity';
 import { Country } from '../../countries/entities/country.entity';
 import { City } from '../../cities/entities/city.entity';
-import { Branch } from '../../branches/entities/branch.entity';
 
-@Entity('clinics')
-export class Clinic {
+@Entity('branches')
+export class Branch {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column()
   name: string;
 
-  @Column({ unique: true })
-  email: string;
+  @Column()
+  clinic_id: number;
 
-  @Column({ unique: true })
-  phone: string;
-
-  @Column({ nullable: true })
-  image: string;
+  @ManyToOne(() => Clinic)
+  @JoinColumn({ name: 'clinic_id' })
+  clinic: Clinic;
 
   @Column({ type: 'decimal', precision: 10, scale: 8, nullable: true })
   lat: number;
 
   @Column({ type: 'decimal', precision: 11, scale: 8, nullable: true })
   longit: number;
-
-  @Column({ type: 'json', nullable: true })
-  departments: string[];
-
-  @Column({ unique: true, nullable: true })
-  database_name: string;
-
-  @Column({ type: 'boolean', default: true })
-  is_active: boolean;
 
   @Column({ nullable: true })
   country_id: number;
@@ -58,17 +46,8 @@ export class Clinic {
   @JoinColumn({ name: 'city_id' })
   city: City;
 
-  @OneToMany(() => Branch, (branch) => branch.clinic)
-  branches: Branch[];
-
-  @Column({ type: 'text', nullable: true })
-  owner: string;
-
   @Column({ type: 'text', nullable: true })
   address: string;
-
-  @Column({ nullable: true })
-  wa_number: string;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -76,3 +55,4 @@ export class Clinic {
   @UpdateDateColumn()
   updatedAt: Date;
 }
+

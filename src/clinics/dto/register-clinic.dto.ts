@@ -104,4 +104,20 @@ export class RegisterClinicDto {
   @IsOptional()
   @IsString()
   owner?: string;
+
+  @ApiPropertyOptional({
+    description: 'Clinic address',
+    example: '123 Main Street, City, Country',
+  })
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiPropertyOptional({
+    description: 'WhatsApp number',
+    example: '+1234567890',
+  })
+  @IsOptional()
+  @IsString()
+  wa_number?: string;
 }
