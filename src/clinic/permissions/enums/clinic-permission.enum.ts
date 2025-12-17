@@ -27,4 +27,10 @@ export enum ClinicPermission {
   READ_RESERVATION = 'read-reservation',
   UPDATE_RESERVATION = 'update-reservation',
   DELETE_RESERVATION = 'delete-reservation',
+
+  // Branch permissions
+  CREATE_BRANCH = 'create-branch',
+  READ_BRANCH = 'read-branch',
+  UPDATE_BRANCH = 'update-branch',
+  DELETE_BRANCH = 'delete-branch',
 }

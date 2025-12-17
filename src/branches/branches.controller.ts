@@ -34,11 +34,14 @@ export class BranchesController {
   @Post()
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiBearerAuth('JWT-auth')
-  @Permissions(Permission.CREATE_CLINIC as string)
+  @Permissions(Permission.CREATE_BRANCH as string)
   @ApiOperation({ summary: 'Create a new branch' })
   @ApiResponse({ status: 201, description: 'Branch created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input' })
-  @ApiResponse({ status: 404, description: 'Clinic, country, or city not found' })
+  @ApiResponse({
+    status: 404,
+    description: 'Clinic, country, or city not found',
+  })
   create(@Body() createBranchDto: CreateBranchDto) {
     return this.branchesService.create(createBranchDto);
   }
@@ -72,7 +75,7 @@ export class BranchesController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiBearerAuth('JWT-auth')
-  @Permissions(Permission.UPDATE_CLINIC as string)
+  @Permissions(Permission.UPDATE_BRANCH as string)
   @ApiOperation({ summary: 'Update a branch' })
   @ApiResponse({ status: 200, description: 'Branch updated successfully' })
   @ApiResponse({ status: 404, description: 'Branch not found' })
@@ -83,7 +86,7 @@ export class BranchesController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiBearerAuth('JWT-auth')
-  @Permissions(Permission.DELETE_CLINIC as string)
+  @Permissions(Permission.DELETE_BRANCH as string)
   @ApiOperation({ summary: 'Delete a branch' })
   @ApiResponse({ status: 200, description: 'Branch deleted successfully' })
   @ApiResponse({ status: 404, description: 'Branch not found' })
@@ -91,4 +94,3 @@ export class BranchesController {
     return this.branchesService.remove(+id);
   }
 }
-

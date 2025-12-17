@@ -36,4 +36,10 @@ export enum Permission {
   READ_CLINIC = 'read-clinic',
   UPDATE_CLINIC = 'update-clinic',
   DELETE_CLINIC = 'delete-clinic',
+
+  // Branch permissions
+  CREATE_BRANCH = 'create-branch',
+  READ_BRANCH = 'read-branch',
+  UPDATE_BRANCH = 'update-branch',
+  DELETE_BRANCH = 'delete-branch',
 }

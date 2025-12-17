@@ -37,7 +37,7 @@ export class BranchesController {
 
   @Post()
   @UseGuards(ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.CREATE_DOCTOR as string)
+  @Permissions(ClinicPermission.CREATE_BRANCH as string)
   @ApiOperation({ summary: 'Create a new branch' })
   @ApiParam({
     name: 'clinicId',
@@ -57,7 +57,7 @@ export class BranchesController {
 
   @Get()
   @UseGuards(ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.READ_DOCTOR as string)
+  @Permissions(ClinicPermission.READ_BRANCH as string)
   @ApiOperation({ summary: 'Get all branches with pagination' })
   @ApiParam({
     name: 'clinicId',
@@ -80,7 +80,7 @@ export class BranchesController {
 
   @Get(':id')
   @UseGuards(ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.READ_DOCTOR as string)
+  @Permissions(ClinicPermission.READ_BRANCH as string)
   @ApiOperation({ summary: 'Get a branch by ID' })
   @ApiParam({
     name: 'clinicId',
@@ -100,7 +100,7 @@ export class BranchesController {
 
   @Patch(':id')
   @UseGuards(ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.UPDATE_DOCTOR as string)
+  @Permissions(ClinicPermission.UPDATE_BRANCH as string)
   @ApiOperation({ summary: 'Update a branch' })
   @ApiParam({
     name: 'clinicId',
@@ -121,7 +121,7 @@ export class BranchesController {
 
   @Delete(':id')
   @UseGuards(ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.DELETE_DOCTOR as string)
+  @Permissions(ClinicPermission.DELETE_BRANCH as string)
   @ApiOperation({ summary: 'Delete a branch' })
   @ApiParam({
     name: 'clinicId',
