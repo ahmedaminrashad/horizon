@@ -54,3 +54,4 @@ export class AddBranchPermissions1787000000000 implements MigrationInterface {
   }
 }
 
+

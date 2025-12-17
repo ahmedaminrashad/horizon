@@ -107,7 +107,7 @@ export class ClinicsService {
   async findOne(id: number): Promise<Clinic> {
     const clinic = await this.clinicsRepository.findOne({
       where: { id },
-      relations: ['country', 'city'],
+      relations: ['country', 'city', 'branches'],
     });
 
     if (!clinic) {
