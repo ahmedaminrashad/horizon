@@ -14,6 +14,7 @@ import { AddReservationPermissions1767000000001 } from './1767000000001-AddReser
 import { AddRateAndAvatarToDoctors1768000000000 } from './1768000000000-AddRateAndAvatarToDoctors';
 import { AddFieldsToClinicDoctors1769000000000 } from './1769000000000-AddFieldsToClinicDoctors';
 import { CreateServicesTable1771000000000 } from './1771000000000-CreateServicesTable';
+import { CreateBranchesTable1772000000000 } from './1772000000000-CreateBranchesTable';
 
 /**
  * List of all clinic migrations in order
@@ -35,4 +36,5 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   AddRateAndAvatarToDoctors1768000000000,
   AddFieldsToClinicDoctors1769000000000,
   CreateServicesTable1771000000000,
+  CreateBranchesTable1772000000000,
 ];

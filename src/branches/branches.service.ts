@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Branch } from './entities/branch.entity';
@@ -153,5 +150,60 @@ export class BranchesService {
     const branch = await this.findOne(id);
     await this.branchesRepository.remove(branch);
   }
-}
 
+  async findByClinicBranchId(
+    clinicId: number,
+    clinicBranchId: number,
+  ): Promise<Branch | null> {
+    return this.branchesRepository.findOne({
+      where: {
+        clinic_id: clinicId,
+        clinic_branch_id: clinicBranchId,
+      },
+    });
+  }
+
+  async syncBranch(
+    clinicId: number,
+    clinicBranchId: number,
+    branchData: {
+      name: string;
+      lat?: number;
+      longit?: number;
+      country_id?: number;
+      city_id?: number;
+      address?: string;
+    },
+  ): Promise<Branch> {
+    const existingBranch = await this.findByClinicBranchId(
+      clinicId,
+      clinicBranchId,
+    );
+
+    if (existingBranch) {
+      // Update existing branch
+      Object.assign(existingBranch, {
+        name: branchData.name,
+        lat: branchData.lat,
+        longit: branchData.longit,
+        country_id: branchData.country_id,
+        city_id: branchData.city_id,
+        address: branchData.address,
+      });
+      return this.branchesRepository.save(existingBranch);
+    } else {
+      // Create new branch
+      const branch = this.branchesRepository.create({
+        name: branchData.name,
+        clinic_id: clinicId,
+        clinic_branch_id: clinicBranchId,
+        lat: branchData.lat,
+        longit: branchData.longit,
+        country_id: branchData.country_id,
+        city_id: branchData.city_id,
+        address: branchData.address,
+      });
+      return this.branchesRepository.save(branch);
+    }
+  }
+}

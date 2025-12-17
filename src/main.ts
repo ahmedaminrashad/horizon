@@ -91,7 +91,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('Horizon Backend API')
     .setDescription('API documentation for Horizon Backend')
-    .setVersion('1.0')
+    .setVersion('1.1')
     .addBearerAuth(
       {
         type: 'http',
@@ -136,7 +136,7 @@ async function bootstrap() {
     },
   );
 
-  SwaggerModule.setup('api/documentation/v4', app, document, {
+  SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
       persistAuthorization: false,
       tagsSorter: 'alpha',
