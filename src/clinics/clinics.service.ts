@@ -15,6 +15,7 @@ import * as bcrypt from 'bcrypt';
 import { TenantDataSourceService } from '../database/tenant-data-source.service';
 import { Country } from '../countries/entities/country.entity';
 import { City } from '../cities/entities/city.entity';
+import { Package } from '../packages/entities/package.entity';
 
 @Injectable()
 export class ClinicsService {
@@ -25,6 +26,8 @@ export class ClinicsService {
     private countriesRepository: Repository<Country>,
     @InjectRepository(City)
     private citiesRepository: Repository<City>,
+    @InjectRepository(Package)
+    private packagesRepository: Repository<Package>,
     private databaseService: DatabaseService,
     private clinicMigrationService: ClinicMigrationService,
     private tenantDataSourceService: TenantDataSourceService,
@@ -73,6 +76,18 @@ export class ClinicsService {
       }
     }
 
+    // Validate package if provided
+    if (createClinicDto.package_id) {
+      const packageEntity = await this.packagesRepository.findOne({
+        where: { id: createClinicDto.package_id },
+      });
+      if (!packageEntity) {
+        throw new NotFoundException(
+          `Package with ID ${createClinicDto.package_id} not found`,
+        );
+      }
+    }
+
     const clinic = this.clinicsRepository.create(createClinicDto);
     return this.clinicsRepository.save(clinic);
   }
@@ -83,7 +98,7 @@ export class ClinicsService {
     const [data, total] = await this.clinicsRepository.findAndCount({
       skip,
       take: limit,
-      relations: ['country', 'city', 'branches'],
+      relations: ['country', 'city', 'branches', 'package'],
       order: {
         createdAt: 'DESC',
       },
@@ -107,7 +122,7 @@ export class ClinicsService {
   async findOne(id: number): Promise<Clinic> {
     const clinic = await this.clinicsRepository.findOne({
       where: { id },
-      relations: ['country', 'city', 'branches'],
+      relations: ['country', 'city', 'branches', 'package'],
     });
 
     if (!clinic) {
@@ -166,6 +181,18 @@ export class ClinicsService {
       }
     }
 
+    // Validate package if being updated
+    if (updateClinicDto.package_id) {
+      const packageEntity = await this.packagesRepository.findOne({
+        where: { id: updateClinicDto.package_id },
+      });
+      if (!packageEntity) {
+        throw new NotFoundException(
+          `Package with ID ${updateClinicDto.package_id} not found`,
+        );
+      }
+    }
+
     Object.assign(clinic, updateClinicDto);
     return this.clinicsRepository.save(clinic);
   }
@@ -217,6 +244,18 @@ export class ClinicsService {
       }
     }
 
+    // Validate package if provided
+    if (registerClinicDto.package_id) {
+      const packageEntity = await this.packagesRepository.findOne({
+        where: { id: registerClinicDto.package_id },
+      });
+      if (!packageEntity) {
+        throw new NotFoundException(
+          `Package with ID ${registerClinicDto.package_id} not found`,
+        );
+      }
+    }
+
     // Create clinic record
     const clinic = this.clinicsRepository.create({
       name: registerClinicDto.name,
@@ -233,6 +272,7 @@ export class ClinicsService {
       address: registerClinicDto.address,
       wa_number: registerClinicDto.wa_number,
       bio: registerClinicDto.bio,
+      package_id: registerClinicDto.package_id || 0,
     });
 
     const savedClinic = await this.clinicsRepository.save(clinic);

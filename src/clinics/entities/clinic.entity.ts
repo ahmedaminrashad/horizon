@@ -11,6 +11,7 @@ import {
 import { Country } from '../../countries/entities/country.entity';
 import { City } from '../../cities/entities/city.entity';
 import { Branch } from '../../branches/entities/branch.entity';
+import { Package } from '../../packages/entities/package.entity';
 
 @Entity('clinics')
 export class Clinic {
@@ -72,6 +73,13 @@ export class Clinic {
 
   @Column({ type: 'text', nullable: true })
   bio: string;
+
+  @Column({ type: 'int', nullable: true, default: 0 })
+  package_id: number;
+
+  @ManyToOne(() => Package, { nullable: true })
+  @JoinColumn({ name: 'package_id' })
+  package: Package;
 
   @CreateDateColumn()
   createdAt: Date;

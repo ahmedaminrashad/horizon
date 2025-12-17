@@ -128,4 +128,13 @@ export class RegisterClinicDto {
   @IsOptional()
   @IsString()
   bio?: string;
+
+  @ApiPropertyOptional({
+    description: 'Package ID',
+    example: 1,
+    default: 0,
+  })
+  @IsOptional()
+  @IsNumber()
+  package_id?: number;
 }
