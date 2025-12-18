@@ -18,9 +18,8 @@ export class ClinicServicesService {
   ) {}
 
   private async getRepository(): Promise<Repository<Service>> {
-    const repository = await this.tenantRepositoryService.getRepository<Service>(
-      Service,
-    );
+    const repository =
+      await this.tenantRepositoryService.getRepository<Service>(Service);
 
     if (!repository) {
       throw new BadRequestException(
@@ -58,7 +57,16 @@ export class ClinicServicesService {
     const repository = await this.getRepository();
     const skip = (page - 1) * limit;
 
-    const findOptions: any = {
+    const findOptions: {
+      skip: number;
+      take: number;
+      order: { createdAt: 'DESC' };
+      where?: {
+        is_active?: boolean;
+        category?: string;
+        specialty?: string;
+      };
+    } = {
       skip,
       take: limit,
       order: {
@@ -67,7 +75,11 @@ export class ClinicServicesService {
     };
 
     // Build where clause
-    const where: any = {};
+    const where: {
+      is_active?: boolean;
+      category?: string;
+      specialty?: string;
+    } = {};
     if (filters?.is_active !== undefined) {
       where.is_active = filters.is_active;
     }
@@ -143,18 +155,45 @@ export class ClinicServicesService {
     clinicService: Service,
   ): Promise<void> {
     try {
-      // Sync to main services table
-      await this.mainServicesService.syncService(clinicId, clinicService.id, {
-        name: clinicService.name,
-        category: clinicService.category,
-        specialty: clinicService.specialty,
-        degree: clinicService.degree,
-        type: clinicService.type,
-        default_duration: clinicService.default_duration,
-        default_price: clinicService.default_price,
-        currency: clinicService.currency,
-        is_active: clinicService.is_active,
-      });
+      // Check if service already exists in main services table
+      // Search with a larger limit to find the service by name
+      const existingServices = await this.mainServicesService.findAll(
+        1,
+        1000,
+        clinicId,
+      );
+      const existingService = existingServices.data.find(
+        (s) => s.name === clinicService.name,
+      );
+
+      if (existingService) {
+        // Update existing service
+        await this.mainServicesService.update(existingService.id, {
+          name: clinicService.name,
+          category: clinicService.category,
+          specialty: clinicService.specialty,
+          degree: clinicService.degree,
+          type: clinicService.type,
+          default_duration_minutes: clinicService.default_duration_minutes,
+          default_price: clinicService.default_price,
+          currency: clinicService.currency,
+          is_active: clinicService.is_active,
+        });
+      } else {
+        // Create new service
+        await this.mainServicesService.create({
+          clinic_id: clinicId,
+          name: clinicService.name,
+          category: clinicService.category,
+          specialty: clinicService.specialty,
+          degree: clinicService.degree,
+          type: clinicService.type,
+          default_duration_minutes: clinicService.default_duration_minutes,
+          default_price: clinicService.default_price,
+          currency: clinicService.currency,
+          is_active: clinicService.is_active,
+        });
+      }
     } catch (error) {
       // Log error but don't fail the operation
       console.error(

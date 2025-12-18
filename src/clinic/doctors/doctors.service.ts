@@ -37,9 +37,8 @@ export class DoctorsService {
   ) {}
 
   private async getRepository(): Promise<Repository<Doctor>> {
-    const repository = await this.tenantRepositoryService.getRepository<Doctor>(
-      Doctor,
-    );
+    const repository =
+      await this.tenantRepositoryService.getRepository<Doctor>(Doctor);
 
     if (!repository) {
       throw new BadRequestException(
@@ -50,16 +49,24 @@ export class DoctorsService {
     return repository;
   }
 
-  async create(clinicId: number, createDoctorDto: CreateDoctorDto): Promise<Doctor> {
+  async create(
+    clinicId: number,
+    createDoctorDto: CreateDoctorDto,
+  ): Promise<Doctor> {
     const repository = await this.getRepository();
     createDoctorDto.clinic_id = clinicId;
     const doctor = repository.create(createDoctorDto);
     const savedDoctor = await repository.save(doctor);
 
     // Create slot templates if provided
-    if (createDoctorDto.slotTemplates && createDoctorDto.slotTemplates.length > 0) {
+    if (
+      createDoctorDto.slotTemplates &&
+      createDoctorDto.slotTemplates.length > 0
+    ) {
       const slotTemplateRepository =
-        await this.tenantRepositoryService.getRepository<SlotTemplate>(SlotTemplate);
+        await this.tenantRepositoryService.getRepository<SlotTemplate>(
+          SlotTemplate,
+        );
 
       if (slotTemplateRepository) {
         const slotTemplates = createDoctorDto.slotTemplates.map((template) =>
@@ -130,7 +137,11 @@ export class DoctorsService {
     return doctor;
   }
 
-  async update(clinicId: number, id: number, updateDoctorDto: UpdateDoctorDto): Promise<Doctor> {
+  async update(
+    clinicId: number,
+    id: number,
+    updateDoctorDto: UpdateDoctorDto,
+  ): Promise<Doctor> {
     const repository = await this.getRepository();
     const doctor = await this.findOne(clinicId, id);
 
@@ -157,10 +168,7 @@ export class DoctorsService {
     await repository.remove(doctor);
   }
 
-  async registerDoctor(
-    clinicId: number,
-    registerDoctorDto: RegisterDoctorDto,
-  ) {
+  async registerDoctor(clinicId: number, registerDoctorDto: RegisterDoctorDto) {
     // Get clinic to find clinic database
     const clinic = await this.clinicsService.findOne(clinicId);
     if (!clinic || !clinic.database_name) {
@@ -170,9 +178,10 @@ export class DoctorsService {
     }
 
     // Get clinic database DataSource
-    const clinicDataSource = await this.tenantDataSourceService.getTenantDataSource(
-      clinic.database_name,
-    );
+    const clinicDataSource =
+      await this.tenantDataSourceService.getTenantDataSource(
+        clinic.database_name,
+      );
 
     if (!clinicDataSource) {
       throw new NotFoundException('Clinic database not accessible');
@@ -206,6 +215,9 @@ export class DoctorsService {
       appoint_type,
       is_active,
       slotTemplates,
+      branch_id,
+      experience_years,
+      number_of_patients,
       ...userData
     } = registerDoctorDto;
 
@@ -250,6 +262,9 @@ export class DoctorsService {
       department,
       user_id: savedClinicUser.id,
       clinic_id: clinicId,
+      branch_id,
+      experience_years,
+      number_of_patients,
       license_number,
       degree,
       languages,
@@ -273,7 +288,7 @@ export class DoctorsService {
           doctor_id: savedDoctor.id,
         }),
       );
-      await slotTemplateRepository.save(slotTemplates);
+      await slotTemplateRepository.save(slotTemplateEntities);
     }
 
     // Reload with user and slotTemplates relations for syncing
@@ -324,6 +339,9 @@ export class DoctorsService {
       bio: savedDoctor.bio,
       appoint_type: savedDoctor.appoint_type,
       is_active: savedDoctor.is_active,
+      branch_id: savedDoctor.branch_id,
+      experience_years: savedDoctor.experience_years,
+      number_of_patients: savedDoctor.number_of_patients,
     });
 
     // Generate token with clinic user info
@@ -390,6 +408,9 @@ export class DoctorsService {
         bio: clinicDoctor.bio,
         appoint_type: clinicDoctor.appoint_type,
         is_active: clinicDoctor.is_active,
+        branch_id: clinicDoctor.branch_id,
+        experience_years: clinicDoctor.experience_years,
+        number_of_patients: clinicDoctor.number_of_patients,
       });
     } catch (error) {
       // Log error but don't fail the operation

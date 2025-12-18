@@ -24,4 +24,14 @@ export class PaginationQueryDto {
   @IsNumber()
   @Min(1)
   limit?: number;
+
+  @ApiPropertyOptional({
+    description: 'Filter by clinic ID',
+    example: 1,
+    type: Number,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  clinicId?: number;
 }

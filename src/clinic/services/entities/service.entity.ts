@@ -8,9 +8,10 @@ import {
 
 export enum ServiceType {
   CONSULTATION = 'consultation',
-  FOLLOW_UP = 'follow-up',
-  ONLINE_CONSULTATION = 'online consultation',
-  HOME_VISIT = 'home visit',
+  FOLLOW_UP = 'follow_up',
+  ONLINE_CONSULTATION = 'online_consultation',
+  HOME_VISIT = 'home_visit',
+  OTHER = 'other',
 }
 
 @Entity('services')
@@ -37,10 +38,16 @@ export class Service {
   })
   type: ServiceType;
 
-  @Column({ name: 'default_duration', type: 'int', nullable: true })
-  default_duration: number;
+  @Column({ name: 'default_duration_minutes', type: 'int', nullable: true })
+  default_duration_minutes: number;
 
-  @Column({ name: 'default_price', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'default_price',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   default_price: number;
 
   @Column({ nullable: true })

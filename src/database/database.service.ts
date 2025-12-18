@@ -10,6 +10,7 @@ import { Doctor } from '../clinic/doctors/entities/doctor.entity';
 import { SlotTemplate } from '../clinic/slot-template/entities/slot-template.entity';
 import { Reservation } from '../clinic/reservations/entities/reservation.entity';
 import { Setting as ClinicSetting } from '../clinic/settings/entities/setting.entity';
+import { Branch } from '../clinic/branches/entities/branch.entity';
 
 @Injectable()
 export class DatabaseService {
@@ -84,6 +85,7 @@ export class DatabaseService {
       SlotTemplate,
       Reservation,
       ClinicSetting,
+      Branch,
     ];
 
     const sanitizedDbName = this.sanitizeDatabaseName(databaseName);
@@ -98,7 +100,10 @@ export class DatabaseService {
       entities: clinicEntities,
       synchronize: this.configService.get('NODE_ENV') === 'development',
       autoLoadEntities: false,
-      logging: this.configService.get('NODE_ENV') === 'development' ? ['error', 'warn'] : false,
+      logging:
+        this.configService.get('NODE_ENV') === 'development'
+          ? ['error', 'warn']
+          : false,
       // Add connection pool settings
       extra: {
         connectionLimit: 10,

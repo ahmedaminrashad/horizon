@@ -5,7 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { Branch } from '../../branches/entities/branch.entity';
 
 export enum Department {
   CARDIOLOGY = 'CARDIOLOGY',
@@ -46,6 +49,19 @@ export class Doctor {
   @Index('IDX_doctors_clinic_doctor_id')
   clinic_doctor_id: number;
 
+  @Column({ name: 'branch_id', nullable: true })
+  branch_id: number;
+
+  @ManyToOne(() => Branch, { nullable: true })
+  @JoinColumn({ name: 'branch_id' })
+  branch: Branch;
+
+  @Column({ name: 'experience_years', type: 'int', nullable: true })
+  experience_years: number;
+
+  @Column({ name: 'number_of_patients', type: 'int', nullable: true })
+  number_of_patients: number;
+
   @Column({ nullable: true })
   avatar: string;
 
@@ -61,6 +77,9 @@ export class Doctor {
     nullable: true,
   })
   department: Department;
+
+  @Column({ nullable: true })
+  specialty: string;
 
   @Column({ name: 'license_number', nullable: true })
   license_number: string;

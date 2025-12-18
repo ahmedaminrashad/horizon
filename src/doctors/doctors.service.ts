@@ -2,12 +2,15 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Doctor } from './entities/doctor.entity';
+import { ServicesService } from '../services/services.service';
+import { Service } from '../services/entities/service.entity';
 
 @Injectable()
 export class DoctorsService {
   constructor(
     @InjectRepository(Doctor)
     private doctorsRepository: Repository<Doctor>,
+    private servicesService: ServicesService,
   ) {}
 
   async findAll(page: number = 1, limit: number = 10, clinicId?: number) {
@@ -79,6 +82,9 @@ export class DoctorsService {
       bio?: string;
       appoint_type?: string;
       is_active?: boolean;
+      branch_id?: number;
+      experience_years?: number;
+      number_of_patients?: number;
     },
   ): Promise<Doctor> {
     const existingDoctor = await this.findByClinicDoctorId(
@@ -101,6 +107,9 @@ export class DoctorsService {
         bio: doctorData.bio,
         appoint_type: doctorData.appoint_type as any,
         is_active: doctorData.is_active,
+        branch_id: doctorData.branch_id,
+        experience_years: doctorData.experience_years,
+        number_of_patients: doctorData.number_of_patients,
       });
       return this.doctorsRepository.save(existingDoctor);
     } else {
@@ -119,9 +128,26 @@ export class DoctorsService {
         languages: doctorData.languages,
         bio: doctorData.bio,
         appoint_type: doctorData.appoint_type as any,
-        is_active: doctorData.is_active !== undefined ? doctorData.is_active : true,
+        is_active:
+          doctorData.is_active !== undefined ? doctorData.is_active : true,
+        branch_id: doctorData.branch_id,
+        experience_years: doctorData.experience_years,
+        number_of_patients: doctorData.number_of_patients,
       });
       return this.doctorsRepository.save(doctor);
     }
+  }
+
+  async suggestServices(doctorId: number): Promise<Service[]> {
+    const doctor = await this.findOne(doctorId);
+
+    // Find services matching doctor's specialty and degree
+    const services = await this.servicesService.findMatchingServices(
+      doctor.specialty || undefined,
+      doctor.degree || undefined,
+      doctor.clinic_id,
+    );
+
+    return services;
   }
 }

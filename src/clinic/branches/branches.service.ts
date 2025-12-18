@@ -117,7 +117,7 @@ export class BranchesService {
     clinicBranch: Branch,
   ): Promise<void> {
     try {
-      // Sync to main branches table
+      // Use clinic branch id as clinic_branch_id for syncing
       await this.mainBranchesService.syncBranch(clinicId, clinicBranch.id, {
         name: clinicBranch.name,
         lat: clinicBranch.lat,

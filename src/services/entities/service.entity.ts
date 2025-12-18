@@ -5,13 +5,17 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { Clinic } from '../../clinics/entities/clinic.entity';
 
 export enum ServiceType {
   CONSULTATION = 'consultation',
-  FOLLOW_UP = 'follow-up',
-  ONLINE_CONSULTATION = 'online consultation',
-  HOME_VISIT = 'home visit',
+  FOLLOW_UP = 'follow_up',
+  ONLINE_CONSULTATION = 'online_consultation',
+  HOME_VISIT = 'home_visit',
+  OTHER = 'other',
 }
 
 @Entity('services')
@@ -19,16 +23,16 @@ export class Service {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  name: string;
-
   @Column({ name: 'clinic_id' })
   @Index('IDX_services_clinic_id')
   clinic_id: number;
 
-  @Column({ name: 'clinic_service_id' })
-  @Index('IDX_services_clinic_service_id')
-  clinic_service_id: number;
+  @ManyToOne(() => Clinic, { nullable: false })
+  @JoinColumn({ name: 'clinic_id' })
+  clinic: Clinic;
+
+  @Column()
+  name: string;
 
   @Column({ nullable: true })
   category: string;
@@ -46,10 +50,16 @@ export class Service {
   })
   type: ServiceType;
 
-  @Column({ name: 'default_duration', type: 'int', nullable: true })
-  default_duration: number;
+  @Column({ name: 'default_duration_minutes', type: 'int', nullable: true })
+  default_duration_minutes: number;
 
-  @Column({ name: 'default_price', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'default_price',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   default_price: number;
 
   @Column({ nullable: true })

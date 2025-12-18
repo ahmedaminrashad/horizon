@@ -119,6 +119,32 @@ export class CreateDoctorDto {
   clinic_id: number;
 
   @ApiPropertyOptional({
+    description: 'Branch ID',
+    example: 1,
+  })
+  @IsNumber()
+  @IsOptional()
+  branch_id?: number;
+
+  @ApiPropertyOptional({
+    description: 'Years of experience',
+    example: 10,
+  })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  experience_years?: number;
+
+  @ApiPropertyOptional({
+    description: 'Number of patients',
+    example: 500,
+  })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  number_of_patients?: number;
+
+  @ApiPropertyOptional({
     description: 'Array of slot templates for this doctor',
     type: 'array',
     items: {
@@ -131,7 +157,7 @@ export class CreateDoctorDto {
         },
         cost: {
           type: 'number',
-          example: 100.50,
+          example: 100.5,
           description: 'Cost of the slot',
         },
         days: {
@@ -163,7 +189,7 @@ class SlotTemplateDto {
 
   @ApiProperty({
     description: 'Cost of the slot',
-    example: 100.50,
+    example: 100.5,
     type: Number,
   })
   @IsNumber()

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Service } from './entities/service.entity';
+import { Service, ServiceType } from './entities/service.entity';
 
 @Injectable()
 export class ServicesService {
@@ -51,68 +51,84 @@ export class ServicesService {
     return service;
   }
 
-  async findByClinicServiceId(
-    clinicId: number,
-    clinicServiceId: number,
-  ): Promise<Service | null> {
-    return this.servicesRepository.findOne({
-      where: {
-        clinic_id: clinicId,
-        clinic_service_id: clinicServiceId,
-      },
+  async create(serviceData: {
+    clinic_id: number;
+    name: string;
+    category?: string;
+    specialty?: string;
+    degree?: string;
+    type?: ServiceType;
+    default_duration_minutes?: number;
+    default_price?: number;
+    currency?: string;
+    is_active?: boolean;
+  }): Promise<Service> {
+    const service = this.servicesRepository.create({
+      clinic_id: serviceData.clinic_id,
+      name: serviceData.name,
+      category: serviceData.category,
+      specialty: serviceData.specialty,
+      degree: serviceData.degree,
+      type: serviceData.type,
+      default_duration_minutes: serviceData.default_duration_minutes,
+      default_price: serviceData.default_price,
+      currency: serviceData.currency,
+      is_active:
+        serviceData.is_active !== undefined ? serviceData.is_active : true,
     });
+    return this.servicesRepository.save(service);
   }
 
-  async syncService(
-    clinicId: number,
-    clinicServiceId: number,
+  async update(
+    id: number,
     serviceData: {
-      name: string;
+      name?: string;
       category?: string;
       specialty?: string;
       degree?: string;
-      type?: string;
-      default_duration?: number;
+      type?: ServiceType;
+      default_duration_minutes?: number;
       default_price?: number;
       currency?: string;
       is_active?: boolean;
     },
   ): Promise<Service> {
-    const existingService = await this.findByClinicServiceId(
-      clinicId,
-      clinicServiceId,
-    );
+    const service = await this.findOne(id);
+    Object.assign(service, serviceData);
+    return this.servicesRepository.save(service);
+  }
 
-    if (existingService) {
-      // Update existing service
-      Object.assign(existingService, {
-        name: serviceData.name,
-        category: serviceData.category,
-        specialty: serviceData.specialty,
-        degree: serviceData.degree,
-        type: serviceData.type as any,
-        default_duration: serviceData.default_duration,
-        default_price: serviceData.default_price,
-        currency: serviceData.currency,
-        is_active: serviceData.is_active,
-      });
-      return this.servicesRepository.save(existingService);
-    } else {
-      // Create new service
-      const service = this.servicesRepository.create({
-        name: serviceData.name,
-        clinic_id: clinicId,
-        clinic_service_id: clinicServiceId,
-        category: serviceData.category,
-        specialty: serviceData.specialty,
-        degree: serviceData.degree,
-        type: serviceData.type as any,
-        default_duration: serviceData.default_duration,
-        default_price: serviceData.default_price,
-        currency: serviceData.currency,
-        is_active: serviceData.is_active !== undefined ? serviceData.is_active : true,
-      });
-      return this.servicesRepository.save(service);
+  async findMatchingServices(
+    specialty?: string,
+    degree?: string,
+    clinicId?: number,
+  ): Promise<Service[]> {
+    const where: {
+      is_active: boolean;
+      specialty?: string;
+      degree?: string;
+      clinic_id?: number;
+    } = {
+      is_active: true,
+    };
+
+    if (specialty) {
+      where.specialty = specialty;
     }
+
+    if (degree) {
+      where.degree = degree;
+    }
+
+    if (clinicId) {
+      where.clinic_id = clinicId;
+    }
+
+    return this.servicesRepository.find({
+      where,
+      order: {
+        createdAt: 'DESC',
+      },
+    });
   }
 }

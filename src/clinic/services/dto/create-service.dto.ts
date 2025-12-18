@@ -60,11 +60,11 @@ export class CreateServiceDto {
   @IsNumber()
   @IsOptional()
   @Min(1)
-  default_duration?: number;
+  default_duration_minutes?: number;
 
   @ApiPropertyOptional({
     description: 'Default price',
-    example: 150.00,
+    example: 150,
     minimum: 0,
   })
   @IsNumber()

@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { User } from '../../permissions/entities/user.entity';
 import { SlotTemplate } from '../../slot-template/entities/slot-template.entity';
+import { Branch } from '../../branches/entities/branch.entity';
 
 export enum Department {
   CARDIOLOGY = 'CARDIOLOGY',
@@ -50,6 +51,19 @@ export class Doctor {
 
   @Column({ name: 'clinic_id' })
   clinic_id: number;
+
+  @Column({ name: 'branch_id', nullable: true })
+  branch_id: number;
+
+  @ManyToOne(() => Branch, { nullable: true })
+  @JoinColumn({ name: 'branch_id' })
+  branch: Branch;
+
+  @Column({ name: 'experience_years', type: 'int', nullable: true })
+  experience_years: number;
+
+  @Column({ name: 'number_of_patients', type: 'int', nullable: true })
+  number_of_patients: number;
 
   @Column({ type: 'decimal', precision: 3, scale: 2, nullable: true })
   rate: number;
