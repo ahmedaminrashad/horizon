@@ -31,6 +31,7 @@ async function bootstrap() {
     'https://backend.indicator-app.com',
     'http://localhost:5173',
     'https://medical-six-ashen.vercel.app',
+    'https://medical-aful.vercel.app',
   ];
 
   if (nodeEnv === 'development' || nodeEnv === 'local') {

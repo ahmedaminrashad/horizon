@@ -27,3 +27,4 @@ export class AddBioToClinics1788000000000 implements MigrationInterface {
   }
 }
 
+
