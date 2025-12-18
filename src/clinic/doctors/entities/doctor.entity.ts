@@ -46,6 +46,9 @@ export class Doctor {
   })
   department: Department;
 
+  @Column({ nullable: true })
+  specialty: string;
+
   @Column({ name: 'user_id' })
   user_id: number;
 
