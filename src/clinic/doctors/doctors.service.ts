@@ -145,8 +145,38 @@ export class DoctorsService {
     const repository = await this.getRepository();
     const doctor = await this.findOne(clinicId, id);
 
-    Object.assign(doctor, updateDoctorDto);
+    // Extract slotTemplates if provided (handle separately to avoid cascade issues)
+    const { slotTemplates, ...doctorUpdateData } = updateDoctorDto;
+
+    // Update doctor fields (excluding slotTemplates)
+    Object.assign(doctor, doctorUpdateData);
     const savedDoctor = await repository.save(doctor);
+
+    // Handle slot templates separately if provided
+    if (slotTemplates !== undefined) {
+      const slotTemplateRepository =
+        await this.tenantRepositoryService.getRepository<SlotTemplate>(
+          SlotTemplate,
+        );
+
+      if (slotTemplateRepository) {
+        // Remove existing slot templates
+        await slotTemplateRepository.delete({ doctor_id: savedDoctor.id });
+
+        // Create new slot templates if provided
+        if (slotTemplates.length > 0) {
+          const newSlotTemplates = slotTemplates.map((template) =>
+            slotTemplateRepository.create({
+              duration: template.duration,
+              cost: template.cost,
+              days: template.days,
+              doctor_id: savedDoctor.id,
+            }),
+          );
+          await slotTemplateRepository.save(newSlotTemplates);
+        }
+      }
+    }
 
     // Reload with user relation for syncing
     const doctorWithUser = await repository.findOne({
