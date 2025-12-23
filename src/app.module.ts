@@ -19,6 +19,7 @@ import { UploadsModule } from './uploads/uploads.module';
 import { CountriesModule } from './countries/countries.module';
 import { CitiesModule } from './cities/cities.module';
 import { BranchesModule } from './branches/branches.module';
+import { SearchModule } from './search/search.module';
 import { TenantInterceptor } from './database/tenant.interceptor';
 import { LangInterceptor } from './interceptors/lang.interceptor';
 
@@ -58,6 +59,7 @@ import { LangInterceptor } from './interceptors/lang.interceptor';
     CountriesModule,
     CitiesModule,
     BranchesModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [
