@@ -22,7 +22,12 @@ import {
 import { WorkingHoursService } from './working-hours.service';
 import { CreateWorkingHoursDto } from './dto/create-working-hours.dto';
 import { CreateBreakHoursDto } from './dto/create-break-hours.dto';
+import {
+  CreateDoctorWorkingHoursDto,
+  CreateBulkDoctorWorkingHoursDto,
+} from './dto/create-doctor-working-hours.dto';
 import { DayOfWeek, WorkingHour } from './entities/working-hour.entity';
+import { DoctorWorkingHour } from './entities/doctor-working-hour.entity';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
@@ -370,5 +375,264 @@ export class WorkingHoursController {
     @Param('day', new ParseEnumPipe(DayOfWeek)) day: DayOfWeek,
   ) {
     return this.workingHoursService.getScheduleByDay(day);
+  }
+
+  // ==================== Doctor Working Hours Endpoints ====================
+
+  @Get('doctors/:doctorId')
+  @Permissions(ClinicPermission.READ_SETTING as string)
+  @ApiOperation({
+    summary: 'Get all working hours for a doctor',
+    description: 'Retrieve all working hours for a specific doctor',
+  })
+  @ApiParam({
+    name: 'doctorId',
+    type: Number,
+    description: 'Doctor ID',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Doctor working hours retrieved successfully',
+    type: [DoctorWorkingHour],
+  })
+  getDoctorWorkingHours(@Param('doctorId', ParseIntPipe) doctorId: number) {
+    return this.workingHoursService.getDoctorWorkingHours(doctorId);
+  }
+
+  @Get('doctors/:doctorId/day/:day')
+  @Permissions(ClinicPermission.READ_SETTING as string)
+  @ApiOperation({
+    summary: 'Get doctor working hours by day',
+    description: 'Retrieve working hours for a doctor on a specific day',
+  })
+  @ApiParam({
+    name: 'doctorId',
+    type: Number,
+    description: 'Doctor ID',
+    example: 1,
+  })
+  @ApiParam({
+    name: 'day',
+    enum: DayOfWeek,
+    description: 'Day of the week',
+    example: DayOfWeek.MONDAY,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Doctor working hours for the day retrieved successfully',
+    type: [DoctorWorkingHour],
+  })
+  getDoctorWorkingHoursByDay(
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Param('day', new ParseEnumPipe(DayOfWeek)) day: DayOfWeek,
+  ) {
+    return this.workingHoursService.getDoctorWorkingHoursByDay(doctorId, day);
+  }
+
+  @Get('doctors/:doctorId/branch/:branchId')
+  @Permissions(ClinicPermission.READ_SETTING as string)
+  @ApiOperation({
+    summary: 'Get doctor working hours by branch',
+    description: 'Retrieve working hours for a doctor at a specific branch',
+  })
+  @ApiParam({
+    name: 'doctorId',
+    type: Number,
+    description: 'Doctor ID',
+    example: 1,
+  })
+  @ApiParam({
+    name: 'branchId',
+    type: Number,
+    description: 'Branch ID',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Doctor working hours for the branch retrieved successfully',
+    type: [DoctorWorkingHour],
+  })
+  getDoctorWorkingHoursByBranch(
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Param('branchId', ParseIntPipe) branchId: number,
+  ) {
+    return this.workingHoursService.getDoctorWorkingHoursByBranch(
+      doctorId,
+      branchId,
+    );
+  }
+
+  @Post('doctors/:doctorId')
+  @Permissions(ClinicPermission.UPDATE_SETTING as string)
+  @ApiOperation({
+    summary: 'Create doctor working hours',
+    description:
+      'Create a new working hour entry for a doctor. Validates for overlaps and invalid ranges.',
+  })
+  @ApiParam({
+    name: 'doctorId',
+    type: Number,
+    description: 'Doctor ID',
+    example: 1,
+  })
+  @ApiBody({ type: CreateDoctorWorkingHoursDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Doctor working hours created successfully',
+    type: DoctorWorkingHour,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid time ranges or overlaps detected',
+  })
+  setDoctorWorkingHours(
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Body() createDto: CreateDoctorWorkingHoursDto,
+  ) {
+    return this.workingHoursService.setDoctorWorkingHours(doctorId, createDto);
+  }
+
+  @Post('doctors/bulk')
+  @Permissions(ClinicPermission.UPDATE_SETTING as string)
+  @ApiOperation({
+    summary: 'Bulk create doctor working hours',
+    description:
+      'Create multiple working hour entries for a doctor at once. Validates for overlaps and invalid ranges.',
+  })
+  @ApiBody({ type: CreateBulkDoctorWorkingHoursDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Doctor working hours created successfully',
+    type: [DoctorWorkingHour],
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid time ranges or overlaps detected',
+  })
+  setBulkDoctorWorkingHours(@Body() createDto: CreateBulkDoctorWorkingHoursDto) {
+    return this.workingHoursService.setBulkDoctorWorkingHours(createDto);
+  }
+
+  @Post('doctors/:doctorId/update/:id')
+  @Permissions(ClinicPermission.UPDATE_SETTING as string)
+  @ApiOperation({
+    summary: 'Update doctor working hours',
+    description:
+      'Update an existing working hour entry for a doctor. Validates for overlaps and invalid ranges.',
+  })
+  @ApiParam({
+    name: 'doctorId',
+    type: Number,
+    description: 'Doctor ID',
+    example: 1,
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Working hour ID',
+    example: 1,
+  })
+  @ApiBody({ type: CreateDoctorWorkingHoursDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Doctor working hours updated successfully',
+    type: DoctorWorkingHour,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid time ranges or overlaps detected',
+  })
+  updateDoctorWorkingHour(
+    @Param('doctorId', ParseIntPipe) _doctorId: number,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateDto: Partial<CreateDoctorWorkingHoursDto>,
+  ) {
+    return this.workingHoursService.updateDoctorWorkingHour(id, updateDto);
+  }
+
+  @Delete('doctors/:doctorId/:id')
+  @Permissions(ClinicPermission.UPDATE_SETTING as string)
+  @ApiOperation({
+    summary: 'Delete doctor working hours',
+    description: 'Delete a specific working hour entry for a doctor',
+  })
+  @ApiParam({
+    name: 'doctorId',
+    type: Number,
+    description: 'Doctor ID',
+    example: 1,
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Working hour ID',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Doctor working hours deleted successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Working hour not found',
+  })
+  deleteDoctorWorkingHour(
+    @Param('doctorId', ParseIntPipe) _doctorId: number,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.workingHoursService.deleteDoctorWorkingHour(id);
+  }
+
+  @Delete('doctors/:doctorId')
+  @Permissions(ClinicPermission.UPDATE_SETTING as string)
+  @ApiOperation({
+    summary: 'Delete all working hours for a doctor',
+    description: 'Delete all working hour entries for a doctor',
+  })
+  @ApiParam({
+    name: 'doctorId',
+    type: Number,
+    description: 'Doctor ID',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'All doctor working hours deleted successfully',
+  })
+  deleteDoctorWorkingHours(@Param('doctorId', ParseIntPipe) doctorId: number) {
+    return this.workingHoursService.deleteDoctorWorkingHours(doctorId);
+  }
+
+  @Delete('doctors/:doctorId/day/:day')
+  @Permissions(ClinicPermission.UPDATE_SETTING as string)
+  @ApiOperation({
+    summary: 'Delete doctor working hours by day',
+    description: 'Delete all working hour entries for a doctor on a specific day',
+  })
+  @ApiParam({
+    name: 'doctorId',
+    type: Number,
+    description: 'Doctor ID',
+    example: 1,
+  })
+  @ApiParam({
+    name: 'day',
+    enum: DayOfWeek,
+    description: 'Day of the week',
+    example: DayOfWeek.MONDAY,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Doctor working hours for the day deleted successfully',
+  })
+  deleteDoctorWorkingHoursByDay(
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Param('day', new ParseEnumPipe(DayOfWeek)) day: DayOfWeek,
+  ) {
+    return this.workingHoursService.deleteDoctorWorkingHoursByDay(
+      doctorId,
+      day,
+    );
   }
 }

@@ -13,6 +13,7 @@ import { Setting as ClinicSetting } from '../clinic/settings/entities/setting.en
 import { Branch } from '../clinic/branches/entities/branch.entity';
 import { WorkingHour } from '../clinic/working-hours/entities/working-hour.entity';
 import { BreakHour } from '../clinic/working-hours/entities/break-hour.entity';
+import { DoctorWorkingHour } from '../clinic/working-hours/entities/doctor-working-hour.entity';
 
 @Injectable()
 export class DatabaseService {
@@ -90,6 +91,7 @@ export class DatabaseService {
       Branch,
       WorkingHour,
       BreakHour,
+      DoctorWorkingHour,
     ];
 
     const sanitizedDbName = this.sanitizeDatabaseName(databaseName);

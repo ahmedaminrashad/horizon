@@ -19,6 +19,7 @@ import { AddBranchPermissions1773000000000 } from './1773000000000-AddBranchPerm
 import { AddMoreFieldsToClinicDoctors1774000000002 } from './1774000000002-AddMoreFieldsToClinicDoctors';
 import { CreateWorkingHoursTable1775000000000 } from './1775000000000-CreateWorkingHoursTable';
 import { CreateBreakHoursTable1775000000001 } from './1775000000001-CreateBreakHoursTable';
+import { CreateDoctorWorkingHoursTable1775000000002 } from './1775000000002-CreateDoctorWorkingHoursTable';
 
 /**
  * List of all clinic migrations in order
@@ -45,4 +46,5 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   AddMoreFieldsToClinicDoctors1774000000002,
   CreateWorkingHoursTable1775000000000,
   CreateBreakHoursTable1775000000001,
+  CreateDoctorWorkingHoursTable1775000000002,
 ];

@@ -5,16 +5,20 @@ import { ClinicsController } from './clinics.controller';
 import { Clinic } from './entities/clinic.entity';
 import { ClinicWorkingHour } from './entities/clinic-working-hour.entity';
 import { ClinicBreakHour } from './entities/clinic-break-hour.entity';
+import { DoctorWorkingHour } from './entities/doctor-working-hour.entity';
+import { Doctor } from '../doctors/entities/doctor.entity';
 import { Country } from '../countries/entities/country.entity';
 import { City } from '../cities/entities/city.entity';
 import { Package } from '../packages/entities/package.entity';
 import { DatabaseModule } from '../database/database.module';
 import { UsersModule } from '../users/users.module';
 import { ClinicWorkingHoursService } from './clinic-working-hours.service';
+import { DoctorWorkingHoursService } from './doctor-working-hours.service';
 import {
   ClinicWorkingHoursController,
   PublicWorkingHoursController,
 } from './clinic-working-hours.controller';
+import { DoctorWorkingHoursController } from './doctor-working-hours.controller';
 
 @Module({
   imports: [
@@ -22,6 +26,8 @@ import {
       Clinic,
       ClinicWorkingHour,
       ClinicBreakHour,
+      DoctorWorkingHour,
+      Doctor,
       Country,
       City,
       Package,
@@ -33,8 +39,17 @@ import {
     ClinicsController,
     ClinicWorkingHoursController,
     PublicWorkingHoursController,
+    DoctorWorkingHoursController,
   ],
-  providers: [ClinicsService, ClinicWorkingHoursService],
-  exports: [ClinicsService, ClinicWorkingHoursService],
+  providers: [
+    ClinicsService,
+    ClinicWorkingHoursService,
+    DoctorWorkingHoursService,
+  ],
+  exports: [
+    ClinicsService,
+    ClinicWorkingHoursService,
+    DoctorWorkingHoursService,
+  ],
 })
 export class ClinicsModule {}
