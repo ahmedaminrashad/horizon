@@ -12,6 +12,7 @@ import { Country } from '../../countries/entities/country.entity';
 import { City } from '../../cities/entities/city.entity';
 import { Branch } from '../../branches/entities/branch.entity';
 import { Package } from '../../packages/entities/package.entity';
+import { SlotType } from '../enums/slot-type.enum';
 
 @Entity('clinics')
 export class Clinic {
@@ -80,6 +81,15 @@ export class Clinic {
   @ManyToOne(() => Package, { nullable: true })
   @JoinColumn({ name: 'package_id' })
   package: Package;
+
+  @Column({
+    name: 'slot_type',
+    type: 'enum',
+    enum: SlotType,
+    nullable: true,
+    default: SlotType.SLOTS,
+  })
+  slot_type: SlotType;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -35,6 +35,7 @@ import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Permission } from '../permissions/enums/permission.enum';
 import { Department } from '../clinic/doctors/entities/doctor.entity';
+import { SlotType } from './enums/slot-type.enum';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 
@@ -122,6 +123,31 @@ export class ClinicsController {
   getDepartments() {
     return {
       departments: Object.values(Department),
+    };
+  }
+
+  @Get('slot-types')
+  @Public()
+  @ApiOperation({ summary: 'Get list of all slot types' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of slot types',
+    schema: {
+      type: 'object',
+      properties: {
+        slotTypes: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: Object.values(SlotType),
+          },
+        },
+      },
+    },
+  })
+  getSlotTypes() {
+    return {
+      slotTypes: Object.values(SlotType),
     };
   }
 

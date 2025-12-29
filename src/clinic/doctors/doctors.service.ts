@@ -21,6 +21,9 @@ import { User as ClinicUser } from '../permissions/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { DoctorsService as MainDoctorsService } from '../../doctors/doctors.service';
+import { WorkingHoursService } from '../working-hours/working-hours.service';
+import { WorkingHour } from '../working-hours/entities/working-hour.entity';
+import { BreakHour } from '../working-hours/entities/break-hour.entity';
 
 @Injectable()
 export class DoctorsService {
@@ -34,6 +37,7 @@ export class DoctorsService {
     private rolesService: RolesService,
     private jwtService: JwtService,
     private mainDoctorsService: MainDoctorsService,
+    private workingHoursService: WorkingHoursService,
   ) {}
 
   private async getRepository(): Promise<Repository<Doctor>> {
@@ -58,17 +62,18 @@ export class DoctorsService {
     const doctor = repository.create(createDoctorDto);
     const savedDoctor = await repository.save(doctor);
 
-    // Create slot templates if provided
-    if (
-      createDoctorDto.slotTemplates &&
-      createDoctorDto.slotTemplates.length > 0
-    ) {
-      const slotTemplateRepository =
-        await this.tenantRepositoryService.getRepository<SlotTemplate>(
-          SlotTemplate,
-        );
+    // Create slot templates if provided, otherwise use default working hours
+    const slotTemplateRepository =
+      await this.tenantRepositoryService.getRepository<SlotTemplate>(
+        SlotTemplate,
+      );
 
-      if (slotTemplateRepository) {
+    if (slotTemplateRepository) {
+      if (
+        createDoctorDto.slotTemplates &&
+        createDoctorDto.slotTemplates.length > 0
+      ) {
+        // Use provided slot templates
         const slotTemplates = createDoctorDto.slotTemplates.map((template) =>
           slotTemplateRepository.create({
             duration: template.duration,
@@ -78,6 +83,20 @@ export class DoctorsService {
           }),
         );
         await slotTemplateRepository.save(slotTemplates);
+      } else {
+        // Use default working hours as baseline
+        const tenantDataSource =
+          await this.tenantDataSourceService.getTenantDataSource(
+            await this.getClinicDatabaseName(clinicId),
+          );
+
+        if (tenantDataSource) {
+          await this.createSlotTemplatesFromDefaultHours(
+            tenantDataSource,
+            slotTemplateRepository,
+            savedDoctor.id,
+          );
+        }
       }
     }
 
@@ -305,11 +324,12 @@ export class DoctorsService {
 
     const savedDoctor = await doctorRepository.save(doctor);
 
-    // Create slot templates if provided
-    if (slotTemplates && slotTemplates.length > 0) {
-      const slotTemplateRepository =
-        clinicDataSource.getRepository(SlotTemplate);
+    // Create slot templates if provided, otherwise use default working hours
+    const slotTemplateRepository =
+      clinicDataSource.getRepository(SlotTemplate);
 
+    if (slotTemplates && slotTemplates.length > 0) {
+      // Use provided slot templates
       const slotTemplateEntities = slotTemplates.map((template) =>
         slotTemplateRepository.create({
           duration: template.duration,
@@ -319,6 +339,13 @@ export class DoctorsService {
         }),
       );
       await slotTemplateRepository.save(slotTemplateEntities);
+    } else {
+      // Use default working hours as baseline
+      await this.createSlotTemplatesFromDefaultHours(
+        clinicDataSource,
+        slotTemplateRepository,
+        savedDoctor.id,
+      );
     }
 
     // Reload with user and slotTemplates relations for syncing
@@ -446,6 +473,159 @@ export class DoctorsService {
       // Log error but don't fail the operation
       console.error(
         `Failed to sync doctor ${clinicDoctor.id} to main doctors table:`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Get clinic database name
+   */
+  private async getClinicDatabaseName(clinicId: number): Promise<string> {
+    const clinic = await this.clinicsService.findOne(clinicId);
+    if (!clinic || !clinic.database_name) {
+      throw new NotFoundException(
+        'Clinic not found or clinic database not configured',
+      );
+    }
+    return clinic.database_name;
+  }
+
+  /**
+   * Convert time string (HH:MM:SS) to minutes
+   */
+  private timeToMinutes(time: string): number {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  }
+
+  /**
+   * Convert minutes to time string (HH:MM:SS)
+   */
+  private minutesToTime(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:00`;
+  }
+
+  /**
+   * Create slot templates from default working hours
+   * Helper method that works with a DataSource directly
+   */
+  private async createSlotTemplatesFromDefaultHours(
+    dataSource: DataSource,
+    slotTemplateRepository: Repository<SlotTemplate>,
+    doctorId: number,
+  ): Promise<void> {
+    try {
+      const workingHourRepository = dataSource.getRepository(WorkingHour);
+      const breakHourRepository = dataSource.getRepository(BreakHour);
+
+      // Get all working hours and breaks
+      const allWorkingHours = await workingHourRepository.find({
+        order: { day: 'ASC', range_order: 'ASC' },
+      });
+      const allBreakHours = await breakHourRepository.find({
+        order: { day: 'ASC', break_order: 'ASC' },
+      });
+
+      // Group working hours by day
+      const workingHoursByDay = new Map();
+      for (const wh of allWorkingHours) {
+        if (!workingHoursByDay.has(wh.day)) {
+          workingHoursByDay.set(wh.day, []);
+        }
+        workingHoursByDay.get(wh.day).push({
+          start_time: wh.start_time,
+          end_time: wh.end_time,
+        });
+      }
+
+      // Group breaks by day
+      const breaksByDay = new Map();
+      for (const bh of allBreakHours) {
+        if (!breaksByDay.has(bh.day)) {
+          breaksByDay.set(bh.day, []);
+        }
+        breaksByDay.get(bh.day).push({
+          start_time: bh.start_time,
+          end_time: bh.end_time,
+        });
+      }
+
+      // Create slot templates from working hours (excluding breaks)
+      const slotTemplateEntities: SlotTemplate[] = [];
+
+      for (const [day, workingRanges] of workingHoursByDay.entries()) {
+        const breaks = breaksByDay.get(day) || [];
+
+        for (const workingRange of workingRanges) {
+          let currentStart = this.timeToMinutes(workingRange.start_time);
+          const workingEnd = this.timeToMinutes(workingRange.end_time);
+
+          // Get relevant breaks within this working range
+          const relevantBreaks = breaks
+            .filter((b) => {
+              const breakStart = this.timeToMinutes(b.start_time);
+              const breakEnd = this.timeToMinutes(b.end_time);
+              return (
+                (breakStart >= currentStart && breakStart < workingEnd) ||
+                (breakEnd > currentStart && breakEnd <= workingEnd) ||
+                (breakStart <= currentStart && breakEnd >= workingEnd)
+              );
+            })
+            .sort(
+              (a, b) =>
+                this.timeToMinutes(a.start_time) -
+                this.timeToMinutes(b.start_time),
+            );
+
+          // Create available time ranges by subtracting breaks
+          for (const breakRange of relevantBreaks) {
+            const breakStart = this.timeToMinutes(breakRange.start_time);
+            const breakEnd = this.timeToMinutes(breakRange.end_time);
+
+            if (currentStart < breakStart) {
+              // Add range before break
+              const rangeDuration = breakStart - currentStart;
+              const slotDuration = Math.min(rangeDuration, 30); // Default 30 minutes
+
+              slotTemplateEntities.push(
+                slotTemplateRepository.create({
+                  duration: this.minutesToTime(slotDuration),
+                  cost: 0, // Default cost
+                  days: day,
+                  doctor_id: doctorId,
+                }),
+              );
+            }
+            currentStart = Math.max(currentStart, breakEnd);
+          }
+
+          // Add remaining range after last break
+          if (currentStart < workingEnd) {
+            const rangeDuration = workingEnd - currentStart;
+            const slotDuration = Math.min(rangeDuration, 30); // Default 30 minutes
+
+            slotTemplateEntities.push(
+              slotTemplateRepository.create({
+                duration: this.minutesToTime(slotDuration),
+                cost: 0, // Default cost
+                days: day,
+                doctor_id: doctorId,
+              }),
+            );
+          }
+        }
+      }
+
+      if (slotTemplateEntities.length > 0) {
+        await slotTemplateRepository.save(slotTemplateEntities);
+      }
+    } catch (error) {
+      // Log error but don't fail doctor creation if working hours are not set
+      console.warn(
+        'Could not create slot templates from default working hours:',
         error,
       );
     }

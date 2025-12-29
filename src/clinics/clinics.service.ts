@@ -273,6 +273,7 @@ export class ClinicsService {
       wa_number: registerClinicDto.wa_number,
       bio: registerClinicDto.bio,
       package_id: registerClinicDto.package_id ?? undefined,
+      slot_type: registerClinicDto.slot_type,
     });
 
     const savedClinic = await this.clinicsRepository.save(clinic);

@@ -11,6 +11,8 @@ import { SlotTemplate } from '../clinic/slot-template/entities/slot-template.ent
 import { Reservation } from '../clinic/reservations/entities/reservation.entity';
 import { Setting as ClinicSetting } from '../clinic/settings/entities/setting.entity';
 import { Branch } from '../clinic/branches/entities/branch.entity';
+import { WorkingHour } from '../clinic/working-hours/entities/working-hour.entity';
+import { BreakHour } from '../clinic/working-hours/entities/break-hour.entity';
 
 @Injectable()
 export class DatabaseService {
@@ -86,6 +88,8 @@ export class DatabaseService {
       Reservation,
       ClinicSetting,
       Branch,
+      WorkingHour,
+      BreakHour,
     ];
 
     const sanitizedDbName = this.sanitizeDatabaseName(databaseName);

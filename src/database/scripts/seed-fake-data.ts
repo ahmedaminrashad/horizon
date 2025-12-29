@@ -438,19 +438,19 @@ async function seedClinicDatabase(
     if (clinicUserIds.length > 1 && clinicBranchIds.length > 0) {
       const doctors = [
         {
-          name: `Dr. Clinic Doctor ${clinicId}`,
           user_id: clinicUserIds[1],
           clinic_id: clinicId,
           branch_id: clinicBranchIds[0],
           age: 35,
-          email: `doctor@${sanitizedDbName}.com`,
-          phone: `010${2000 + clinicId}0000`,
+          department: 'INTERNAL_MEDICINE',
           specialty: 'General Medicine',
           degree: 'MD',
           languages: 'English, Arabic',
           bio: `Clinic doctor with experience`,
           appoint_type: 'in-clinic',
           is_active: true,
+          experience_years: 10,
+          number_of_patients: 500,
         },
       ];
 
@@ -464,28 +464,33 @@ async function seedClinicDatabase(
         if (!existing) {
           await connection.query(
             `INSERT INTO doctors (
-              name, user_id, clinic_id, branch_id, age, email, phone,
-              specialty, degree, languages, bio, appoint_type, is_active, createdAt, updatedAt
+              user_id, clinic_id, branch_id, age, department, specialty, degree,
+              languages, bio, appoint_type, is_active, experience_years,
+              number_of_patients, createdAt, updatedAt
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
             [
-              doctor.name,
               doctor.user_id,
               doctor.clinic_id,
               doctor.branch_id,
               doctor.age,
-              doctor.email,
-              doctor.phone,
+              doctor.department,
               doctor.specialty,
               doctor.degree,
               doctor.languages,
               doctor.bio,
               doctor.appoint_type,
               doctor.is_active,
+              doctor.experience_years,
+              doctor.number_of_patients,
             ],
           );
-          console.log(`[${sanitizedDbName}]   ✓ Created doctor: ${doctor.name}`);
+          console.log(
+            `[${sanitizedDbName}]   ✓ Created doctor for user ID: ${doctor.user_id}`,
+          );
         } else {
-          console.log(`[${sanitizedDbName}]   - Doctor already exists: ${doctor.name}`);
+          console.log(
+            `[${sanitizedDbName}]   - Doctor already exists for user ID: ${doctor.user_id}`,
+          );
         }
       }
     }

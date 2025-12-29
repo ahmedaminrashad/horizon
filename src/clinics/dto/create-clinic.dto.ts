@@ -7,9 +7,11 @@ import {
   IsNumber,
   IsArray,
   IsBoolean,
+  IsEnum,
   Min,
   Max,
 } from 'class-validator';
+import { SlotType } from '../enums/slot-type.enum';
 
 export class CreateClinicDto {
   @ApiProperty({ description: 'Clinic name', example: 'City Medical Center' })
@@ -136,4 +138,14 @@ export class CreateClinicDto {
   @IsOptional()
   @IsNumber()
   package_id?: number;
+
+  @ApiPropertyOptional({
+    description: 'Slot type for appointments',
+    enum: SlotType,
+    example: SlotType.SLOTS,
+    default: SlotType.SLOTS,
+  })
+  @IsOptional()
+  @IsEnum(SlotType)
+  slot_type?: SlotType;
 }

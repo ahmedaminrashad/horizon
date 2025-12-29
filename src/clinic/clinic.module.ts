@@ -8,14 +8,15 @@ import { ReservationsModule } from './reservations/reservations.module';
 import { ClinicUsersModule } from './users/clinic-users.module';
 import { ClinicServicesModule } from './services/services.module';
 import { BranchesModule } from './branches/branches.module';
+import { WorkingHoursModule } from './working-hours/working-hours.module';
 import { ClinicTenantInterceptor } from './interceptors/clinic-tenant.interceptor';
 import { DatabaseModule } from '../database/database.module';
 import { UsersModule } from '../users/users.module';
 import { ClinicsModule } from '../clinics/clinics.module';
 
 @Module({
-  imports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, DatabaseModule, UsersModule, ClinicsModule],
-  exports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule],
+  imports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, WorkingHoursModule, DatabaseModule, UsersModule, ClinicsModule],
+  exports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, WorkingHoursModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,

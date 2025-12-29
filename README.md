@@ -33,6 +33,9 @@ Horizon Backend - A NestJS-based SaaS application with multi-tenant database sup
 - 🗄️ Separate Database per Clinic (Tenant)
 - 📦 Database Migrations (Main & Clinic)
 - 🔄 Automatic Migration Execution on Clinic Registration
+- ⏰ Clinic Working Hours & Breaks Management
+- 👨‍⚕️ Doctor Schedule Management with Default Templates
+- 🔍 Smart Search for Doctors and Clinics
 
 ## Project Setup
 
@@ -193,6 +196,7 @@ Example:
 ### Project-Specific
 - [MIGRATIONS.md](./MIGRATIONS.md) - Database migrations guide
 - [src/database/scripts/README.md](./src/database/scripts/README.md) - Migration scripts documentation
+- [src/clinic/working-hours/README.md](./src/clinic/working-hours/README.md) - Clinic working hours and breaks documentation
 
 ### NestJS Resources
 - Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
