@@ -34,35 +34,22 @@ export class AddBranchIdToClinicWorkingHours1794000000000
       }),
     );
 
-    // Update the existing index to include branch_id for better query performance
-    await queryRunner.dropIndex(
-      'clinic_working_hours',
-      'IDX_clinic_working_hours_clinic_day',
-    );
-
+    // Create a new composite index that includes branch_id for better query performance
+    // Keep the existing IDX_clinic_working_hours_clinic_day index as it may be used by foreign key constraints
     await queryRunner.createIndex(
       'clinic_working_hours',
       new TableIndex({
-        name: 'IDX_clinic_working_hours_clinic_day',
+        name: 'IDX_clinic_working_hours_clinic_day_branch',
         columnNames: ['clinic_id', 'day', 'branch_id'],
       }),
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Drop the updated index
+    // Drop the composite index with branch_id
     await queryRunner.dropIndex(
       'clinic_working_hours',
-      'IDX_clinic_working_hours_clinic_day',
-    );
-
-    // Restore the original index
-    await queryRunner.createIndex(
-      'clinic_working_hours',
-      new TableIndex({
-        name: 'IDX_clinic_working_hours_clinic_day',
-        columnNames: ['clinic_id', 'day'],
-      }),
+      'IDX_clinic_working_hours_clinic_day_branch',
     );
 
     // Drop branch_id index

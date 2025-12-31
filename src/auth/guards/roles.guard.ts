@@ -21,17 +21,38 @@ export class RolesGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-    const user = request.user;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const user = request.user as { userId: number } | undefined;
 
-    if (!user) {
+    if (!user || !user.userId) {
       return false;
     }
 
-    // Get user with role information
+    // Get user with role and permissions information
     const fullUser = await this.usersService.findOne(user.userId);
 
     if (!fullUser || !fullUser.role) {
       return false;
+    }
+
+    // Load role with permissions if not already loaded
+    if (!fullUser.role.permissions) {
+      // Reload user with permissions relation
+      const userWithPermissions = await this.usersService.findOne(user.userId);
+      if (!userWithPermissions?.role?.permissions) {
+        return false;
+      }
+      fullUser.role.permissions = userWithPermissions.role.permissions;
+    }
+
+    // Get user's permission slugs
+    const userPermissions = fullUser.role.permissions.map(
+      (permission) => permission.slug,
+    );
+
+    // Check if user has the "super" permission - if so, grant access to everything
+    if (userPermissions.includes('super')) {
+      return true;
     }
 
     // Check if user's role slug matches any of the required roles

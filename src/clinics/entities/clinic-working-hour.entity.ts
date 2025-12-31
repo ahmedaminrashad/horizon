@@ -26,7 +26,8 @@ export enum DayOfWeek {
  * Stores default working hours for clinics in the main database
  */
 @Entity('clinic_working_hours')
-@Index('IDX_clinic_working_hours_clinic_day', ['clinic_id', 'day', 'branch_id'])
+@Index('IDX_clinic_working_hours_clinic_day', ['clinic_id', 'day'])
+@Index('IDX_clinic_working_hours_clinic_day_branch', ['clinic_id', 'day', 'branch_id'])
 @Index('IDX_clinic_working_hours_branch', ['branch_id'])
 export class ClinicWorkingHour {
   @PrimaryGeneratedColumn()
