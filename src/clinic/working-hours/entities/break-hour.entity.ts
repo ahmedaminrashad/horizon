@@ -5,8 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { DayOfWeek } from './working-hour.entity';
+import { Branch } from '../../branches/entities/branch.entity';
 
 /**
  * Clinic Break Hours Entity
@@ -15,6 +18,8 @@ import { DayOfWeek } from './working-hour.entity';
  */
 @Entity('break_hours')
 @Index('IDX_break_hours_day', ['day'])
+@Index('IDX_break_hours_branch', ['branch_id'])
+@Index('IDX_break_hours_day_branch', ['day', 'branch_id'])
 export class BreakHour {
   @PrimaryGeneratedColumn()
   id: number;
@@ -24,6 +29,13 @@ export class BreakHour {
     enum: DayOfWeek,
   })
   day: DayOfWeek;
+
+  @Column({ name: 'branch_id', nullable: true })
+  branch_id: number;
+
+  @ManyToOne(() => Branch, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'branch_id' })
+  branch: Branch;
 
   @Column({
     type: 'time',

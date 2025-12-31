@@ -495,8 +495,23 @@ export class WorkingHoursService {
     clinicId: number,
     createBreakHoursDto: CreateBreakHoursDto,
   ): Promise<BreakHour[]> {
-    // Get working hours for validation
-    const allWorkingHours = await this.getWorkingHours();
+    // Get working hours for validation (matching the same branch)
+    const branchId = createBreakHoursDto.branch_id ?? null;
+    const repository = await this.getWorkingHoursRepository();
+    const whereCondition: any = {};
+    if (branchId !== null) {
+      whereCondition.branch_id = branchId;
+    } else {
+      whereCondition.branch_id = null;
+    }
+    const allWorkingHours = await repository.find({
+      where: whereCondition,
+      order: {
+        day: 'ASC',
+        range_order: 'ASC',
+      },
+    });
+
     const workingHoursByDay = new Map<
       DayOfWeek,
       Array<{ start_time: string; end_time: string }>
@@ -532,25 +547,36 @@ export class WorkingHoursService {
     // Get all days that will be updated
     const daysToUpdate = createBreakHoursDto.days.map((d) => d.day);
 
-    // Delete existing break hours for these days
+    // Delete existing break hours for these days and branch
     const breakHoursRepository = await this.getBreakHoursRepository();
-    await breakHoursRepository.delete({
+    const deleteCondition: any = {
       day: In(daysToUpdate),
-    });
+    };
+    if (branchId !== null) {
+      deleteCondition.branch_id = branchId;
+    } else {
+      deleteCondition.branch_id = null;
+    }
+    await breakHoursRepository.delete(deleteCondition);
 
     // Create new break hours
     const breakHours: BreakHour[] = [];
     for (const dayData of createBreakHoursDto.days) {
       for (let i = 0; i < dayData.break_ranges.length; i++) {
         const range = dayData.break_ranges[i];
-        const breakHour = breakHoursRepository.create({
+        const breakHourData: Partial<BreakHour> = {
           day: dayData.day,
           start_time: range.start_time,
           end_time: range.end_time,
           break_order: i,
           is_active: true,
-        });
-        breakHours.push(breakHour);
+        };
+        // Only include branch_id if it's not null (convert null to undefined)
+        if (branchId !== null) {
+          breakHourData.branch_id = branchId;
+        }
+        const breakHour = breakHoursRepository.create(breakHourData);
+        breakHours.push(breakHour as BreakHour);
       }
     }
 
@@ -752,6 +778,7 @@ export class WorkingHoursService {
   ): Promise<void> {
     // Convert clinic DTO to main database DTO format
     const clinicWorkingHoursDto: CreateClinicWorkingHoursDto = {
+      branch_id: createWorkingHoursDto.branch_id,
       days: createWorkingHoursDto.days.map((dayData) => ({
         day: dayData.day,
         working_ranges: dayData.working_ranges.map((range) => ({
@@ -767,6 +794,80 @@ export class WorkingHoursService {
       clinicWorkingHoursDto,
       true, // skipClinicSync = true to prevent circular sync
     );
+
+    // After syncing working hours, also sync break hours from clinic to main
+    try {
+      await this.syncBreakHoursFromClinicToMain(clinicId, createWorkingHoursDto.branch_id);
+    } catch (error) {
+      // Log error but don't fail the operation if sync fails
+      console.warn(
+        `Failed to auto-sync break hours to main database after working hours update for clinic ${clinicId}:`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Sync break hours from clinic database to main database
+   * This is called after working hours are updated to keep break hours in sync
+   */
+  private async syncBreakHoursFromClinicToMain(
+    clinicId: number,
+    branchId?: number,
+  ): Promise<void> {
+    // Get break hours from clinic database
+    const breakHoursRepository = await this.getBreakHoursRepository();
+    const whereCondition: any = {};
+    if (branchId !== undefined && branchId !== null) {
+      whereCondition.branch_id = branchId;
+    } else {
+      whereCondition.branch_id = null;
+    }
+    
+    const clinicBreakHours = await breakHoursRepository.find({
+      where: whereCondition,
+      order: {
+        day: 'ASC',
+        break_order: 'ASC',
+      },
+    });
+
+    if (clinicBreakHours.length === 0) {
+      // No break hours to sync
+      return;
+    }
+
+    // Group break hours by day
+    const breakHoursByDay = new Map<
+      DayOfWeek,
+      Array<{ start_time: string; end_time: string }>
+    >();
+
+    for (const bh of clinicBreakHours) {
+      if (!breakHoursByDay.has(bh.day)) {
+        breakHoursByDay.set(bh.day, []);
+      }
+      breakHoursByDay.get(bh.day)!.push({
+        start_time: bh.start_time,
+        end_time: bh.end_time,
+      });
+    }
+
+    // Convert to main database DTO format
+    const clinicBreakHoursDto: CreateClinicBreakHoursDto = {
+      branch_id: branchId,
+      days: Array.from(breakHoursByDay.entries()).map(([day, break_ranges]) => ({
+        day,
+        break_ranges,
+      })),
+    };
+
+    // Sync to main database (skip clinic sync to prevent circular sync)
+    await this.clinicWorkingHoursService.setBreakHours(
+      clinicId,
+      clinicBreakHoursDto,
+      true, // skipClinicSync = true to prevent circular sync
+    );
   }
 
   /**
@@ -778,6 +879,7 @@ export class WorkingHoursService {
   ): Promise<void> {
     // Convert clinic DTO to main database DTO format
     const clinicBreakHoursDto: CreateClinicBreakHoursDto = {
+      branch_id: createBreakHoursDto.branch_id,
       days: createBreakHoursDto.days.map((dayData) => ({
         day: dayData.day,
         break_ranges: dayData.break_ranges.map((range) => ({

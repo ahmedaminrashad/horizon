@@ -137,27 +137,41 @@ export class ClinicWorkingHoursService {
 
     // Get all days that will be updated
     const daysToUpdate = createWorkingHoursDto.days.map((d) => d.day);
+    const branchId = createWorkingHoursDto.branch_id ?? null;
 
-    // Delete existing working hours for these days
-    await this.clinicWorkingHoursRepository.delete({
+    // Delete existing working hours for these days and branch
+    const deleteCondition: any = {
       clinic_id: clinicId,
       day: In(daysToUpdate),
-    });
+    };
+    if (branchId !== null) {
+      deleteCondition.branch_id = branchId;
+    } else {
+      deleteCondition.branch_id = null;
+    }
+    await this.clinicWorkingHoursRepository.delete(deleteCondition);
 
     // Create new working hours
     const workingHours: ClinicWorkingHour[] = [];
     for (const dayData of createWorkingHoursDto.days) {
       for (let i = 0; i < dayData.working_ranges.length; i++) {
         const range = dayData.working_ranges[i];
-        const workingHour = this.clinicWorkingHoursRepository.create({
+        const workingHourData: Partial<ClinicWorkingHour> = {
           clinic_id: clinicId,
           day: dayData.day,
           start_time: range.start_time,
           end_time: range.end_time,
           range_order: i,
           is_active: true,
-        });
-        workingHours.push(workingHour);
+        };
+        // Only include branch_id if it's not null (convert null to undefined)
+        if (branchId !== null) {
+          workingHourData.branch_id = branchId;
+        }
+        const workingHour = this.clinicWorkingHoursRepository.create(
+          workingHourData,
+        );
+        workingHours.push(workingHour as ClinicWorkingHour);
       }
     }
 
@@ -211,8 +225,24 @@ export class ClinicWorkingHoursService {
       throw new NotFoundException(`Clinic with ID ${clinicId} not found`);
     }
 
-    // Get working hours for validation
-    const allWorkingHours = await this.getWorkingHours(clinicId);
+    // Get working hours for validation (matching the same branch)
+    const branchId = createBreakHoursDto.branch_id ?? null;
+    const whereCondition: any = {
+      clinic_id: clinicId,
+    };
+    if (branchId !== null) {
+      whereCondition.branch_id = branchId;
+    } else {
+      whereCondition.branch_id = null;
+    }
+    const allWorkingHours = await this.clinicWorkingHoursRepository.find({
+      where: whereCondition,
+      order: {
+        day: 'ASC',
+        range_order: 'ASC',
+      },
+    });
+
     const workingHoursByDay = new Map<
       DayOfWeek,
       Array<{ start_time: string; end_time: string }>
@@ -284,26 +314,39 @@ export class ClinicWorkingHoursService {
     // Get all days that will be updated
     const daysToUpdate = createBreakHoursDto.days.map((d) => d.day);
 
-    // Delete existing break hours for these days
-    await this.clinicBreakHoursRepository.delete({
+    // Delete existing break hours for these days and branch
+    const deleteCondition: any = {
       clinic_id: clinicId,
       day: In(daysToUpdate),
-    });
+    };
+    if (branchId !== null) {
+      deleteCondition.branch_id = branchId;
+    } else {
+      deleteCondition.branch_id = null;
+    }
+    await this.clinicBreakHoursRepository.delete(deleteCondition);
 
     // Create new break hours
     const breakHours: ClinicBreakHour[] = [];
     for (const dayData of createBreakHoursDto.days) {
       for (let i = 0; i < dayData.break_ranges.length; i++) {
         const range = dayData.break_ranges[i];
-        const breakHour = this.clinicBreakHoursRepository.create({
+        const breakHourData: Partial<ClinicBreakHour> = {
           clinic_id: clinicId,
           day: dayData.day,
           start_time: range.start_time,
           end_time: range.end_time,
           break_order: i,
           is_active: true,
-        });
-        breakHours.push(breakHour);
+        };
+        // Only include branch_id if it's not null (convert null to undefined)
+        if (branchId !== null) {
+          breakHourData.branch_id = branchId;
+        }
+        const breakHour = this.clinicBreakHoursRepository.create(
+          breakHourData,
+        );
+        breakHours.push(breakHour as ClinicBreakHour);
       }
     }
 

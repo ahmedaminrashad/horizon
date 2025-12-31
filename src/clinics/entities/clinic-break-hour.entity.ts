@@ -9,6 +9,7 @@ import {
   Index,
 } from 'typeorm';
 import { Clinic } from './clinic.entity';
+import { Branch } from '../../branches/entities/branch.entity';
 import { DayOfWeek } from './clinic-working-hour.entity';
 
 /**
@@ -17,6 +18,8 @@ import { DayOfWeek } from './clinic-working-hour.entity';
  */
 @Entity('clinic_break_hours')
 @Index('IDX_clinic_break_hours_clinic_day', ['clinic_id', 'day'])
+@Index('IDX_clinic_break_hours_clinic_day_branch', ['clinic_id', 'day', 'branch_id'])
+@Index('IDX_clinic_break_hours_branch', ['branch_id'])
 export class ClinicBreakHour {
   @PrimaryGeneratedColumn()
   id: number;
@@ -27,6 +30,13 @@ export class ClinicBreakHour {
   @ManyToOne(() => Clinic, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'clinic_id' })
   clinic: Clinic;
+
+  @Column({ name: 'branch_id', nullable: true })
+  branch_id: number;
+
+  @ManyToOne(() => Branch, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'branch_id' })
+  branch: Branch;
 
   @Column({
     type: 'enum',

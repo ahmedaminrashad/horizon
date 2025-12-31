@@ -1,10 +1,12 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEnum,
   IsArray,
   ValidateNested,
   IsNotEmpty,
   ArrayMinSize,
+  IsOptional,
+  IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DayOfWeek } from '../entities/clinic-working-hour.entity';
@@ -42,6 +44,15 @@ export class DayWorkingHoursDto {
  * DTO for creating/updating clinic default working hours
  */
 export class CreateClinicWorkingHoursDto {
+  @ApiPropertyOptional({
+    description: 'Branch ID (optional, null for clinic-wide working hours)',
+    type: Number,
+    example: 1,
+  })
+  @IsOptional()
+  @IsNumber()
+  branch_id?: number;
+
   @ApiProperty({
     description: 'Working hours for each day of the week',
     type: [DayWorkingHoursDto],
