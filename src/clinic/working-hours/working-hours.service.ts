@@ -362,12 +362,17 @@ export class WorkingHoursService {
 
     // Check for existing/conflicting working hours before deletion
     for (const dayData of createWorkingHoursDto.days) {
+      const whereCondition: any = {
+        day: dayData.day,
+        is_active: true,
+      };
+      if (branchId !== null) {
+        whereCondition.branch_id = branchId;
+      } else {
+        whereCondition.branch_id = null;
+      }
       const existingHours = await repository.find({
-        where: {
-          day: dayData.day,
-          branch_id: branchId,
-          is_active: true,
-        },
+        where: whereCondition,
       });
 
       // Check each new range against existing ones
@@ -410,10 +415,15 @@ export class WorkingHoursService {
     }
 
     // Delete existing working hours for these days and branch
-    await repository.delete({
+    const deleteCondition: any = {
       day: In(daysToUpdate),
-      branch_id: branchId,
-    });
+    };
+    if (branchId !== null) {
+      deleteCondition.branch_id = branchId;
+    } else {
+      deleteCondition.branch_id = null;
+    }
+    await repository.delete(deleteCondition);
 
     // Create new working hours
     const workingHours: WorkingHour[] = [];
