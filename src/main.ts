@@ -130,16 +130,7 @@ async function bootstrap() {
   }
 
   // Disable caching for Swagger JSON endpoint using Express middleware
-  app.use('/api/docs', (req: Request, res: Response, next: NextFunction) => {
-    res.setHeader(
-      'Cache-Control',
-      'no-store, no-cache, must-revalidate, private',
-    );
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.setHeader('Last-Modified', new Date().toUTCString());
-    next();
-  });
+
 
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
@@ -171,7 +162,16 @@ async function bootstrap() {
     `,
     customSiteTitle: 'Horizon Backend API Documentation',
   });
-
+  app.use('/api/docs', (req: Request, res: Response, next: NextFunction) => {
+    res.setHeader(
+      'Cache-Control',
+      'no-store, no-cache, must-revalidate, private',
+    );
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Last-Modified', new Date().toUTCString());
+    next();
+  });
   const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
 }
