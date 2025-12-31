@@ -19,6 +19,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed": "ts-node --project tsconfig.scripts.json src/database/seeds/run-seed.ts",
+    "seed:clinic:all": "ts-node --project tsconfig.scripts.json -r tsconfig-paths/register src/database/scripts/seed-clinic-all.ts",
     "migration:generate": "ts-node --project tsconfig.scripts.json -r tsconfig-paths/register src/database/scripts/generate-migration.ts",
     "migration:generate:clinic": "ts-node --project tsconfig.scripts.json -r tsconfig-paths/register src/database/scripts/generate-clinic-migration.ts",
     "migration:run": "ts-node --project tsconfig.scripts.json -r tsconfig-paths/register src/database/scripts/run-migrations.ts",

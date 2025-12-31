@@ -211,6 +211,16 @@ seed_database() {
     print_success "Database seeded"
 }
 
+# Seed clinic databases
+seed_clinic_databases() {
+    print_info "Seeding clinic databases..."
+    cd $APP_DIR
+    
+    # Run clinic seed automatically without confirmation
+    npm run seed:clinic:all
+    print_success "Clinic databases seeded"
+}
+
 # Stop existing PM2 process
 stop_pm2() {
     print_info "Stopping existing PM2 process..."
@@ -297,6 +307,7 @@ main() {
     check_env_file
     run_migrations
     seed_database
+    seed_clinic_databases
     stop_pm2
     start_application
     show_status
