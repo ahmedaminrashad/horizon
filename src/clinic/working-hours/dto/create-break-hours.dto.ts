@@ -44,9 +44,12 @@ export class DayBreakHoursDto {
  */
 export class CreateBreakHoursDto {
   @ApiPropertyOptional({
-    description: 'Branch ID (optional, null for clinic-wide break hours)',
+    description:
+      'Branch ID (optional). If provided, break hours will be specific to this branch. ' +
+      'If omitted or null, break hours will be clinic-wide and apply to all branches.',
     type: Number,
     example: 1,
+    required: false,
   })
   @IsOptional()
   @IsNumber()

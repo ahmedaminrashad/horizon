@@ -110,7 +110,8 @@ export class WorkingHoursController {
   @ApiOperation({
     summary: 'Set working hours for the clinic',
     description:
-      'Creates or updates working hours. Supports multiple ranges per day. Validates for overlaps and invalid ranges.',
+      'Creates or updates working hours. Supports multiple ranges per day. Validates for overlaps and invalid ranges. ' +
+      'Can set clinic-wide working hours (omit branch_id) or branch-specific working hours (provide branch_id).',
   })
   @ApiQuery({
     name: 'clinicId',
@@ -229,7 +230,8 @@ export class WorkingHoursController {
   @ApiOperation({
     summary: 'Set break hours for the clinic',
     description:
-      'Creates or updates break hours. Supports multiple breaks per day. Validates that breaks are within working hours and do not overlap.',
+      'Creates or updates break hours. Supports multiple breaks per day. Validates that breaks are within working hours and do not overlap. ' +
+      'Can set clinic-wide break hours (omit branch_id) or branch-specific break hours (provide branch_id).',
   })
   @ApiQuery({
     name: 'clinicId',
