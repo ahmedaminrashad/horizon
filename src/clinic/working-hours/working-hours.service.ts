@@ -203,6 +203,18 @@ export class WorkingHoursService {
   }
 
   /**
+   * Check if a time range exactly matches an existing working hour
+   */
+  private rangesExactMatch(
+    start1: string,
+    end1: string,
+    start2: string,
+    end2: string,
+  ): boolean {
+    return start1 === start2 && end1 === end2;
+  }
+
+  /**
    * Validate break hours ranges and ensure they are within working hours
    */
   private validateBreakRanges(
@@ -346,10 +358,61 @@ export class WorkingHoursService {
 
     // Get all days that will be updated
     const daysToUpdate = createWorkingHoursDto.days.map((d) => d.day);
+    const branchId = createWorkingHoursDto.branch_id ?? null;
 
-    // Delete existing working hours for these days
+    // Check for existing/conflicting working hours before deletion
+    for (const dayData of createWorkingHoursDto.days) {
+      const existingHours = await repository.find({
+        where: {
+          day: dayData.day,
+          branch_id: branchId,
+          is_active: true,
+        },
+      });
+
+      // Check each new range against existing ones
+      for (const newRange of dayData.working_ranges) {
+        for (const existingHour of existingHours) {
+          // Check for exact match (same duration)
+          if (
+            this.rangesExactMatch(
+              existingHour.start_time,
+              existingHour.end_time,
+              newRange.start_time,
+              newRange.end_time,
+            )
+          ) {
+            throw new BadRequestException(
+              `Working hours already exist for ${dayData.day} ` +
+                `(${newRange.start_time} - ${newRange.end_time})` +
+                (branchId ? ` at branch ${branchId}` : ' (clinic-wide)'),
+            );
+          }
+
+          // Check for overlap/conflict
+          if (
+            this.rangesOverlap(
+              existingHour.start_time,
+              existingHour.end_time,
+              newRange.start_time,
+              newRange.end_time,
+            )
+          ) {
+            throw new BadRequestException(
+              `Working hours conflict detected for ${dayData.day}: ` +
+                `New range (${newRange.start_time} - ${newRange.end_time}) ` +
+                `overlaps with existing range (${existingHour.start_time} - ${existingHour.end_time})` +
+                (branchId ? ` at branch ${branchId}` : ' (clinic-wide)'),
+            );
+          }
+        }
+      }
+    }
+
+    // Delete existing working hours for these days and branch
     await repository.delete({
       day: In(daysToUpdate),
+      branch_id: branchId,
     });
 
     // Create new working hours
@@ -359,6 +422,7 @@ export class WorkingHoursService {
         const range = dayData.working_ranges[i];
         const workingHour = repository.create({
           day: dayData.day,
+          branch_id: branchId,
           start_time: range.start_time,
           end_time: range.end_time,
           range_order: i,
