@@ -430,15 +430,19 @@ export class WorkingHoursService {
     for (const dayData of createWorkingHoursDto.days) {
       for (let i = 0; i < dayData.working_ranges.length; i++) {
         const range = dayData.working_ranges[i];
-        const workingHour = repository.create({
+        const workingHourData: Partial<WorkingHour> = {
           day: dayData.day,
-          branch_id: branchId,
           start_time: range.start_time,
           end_time: range.end_time,
           range_order: i,
           is_active: true,
-        });
-        workingHours.push(workingHour);
+        };
+        // Only include branch_id if it's not null (convert null to undefined)
+        if (branchId !== null) {
+          workingHourData.branch_id = branchId;
+        }
+        const workingHour = repository.create(workingHourData);
+        workingHours.push(workingHour as WorkingHour);
       }
     }
 
