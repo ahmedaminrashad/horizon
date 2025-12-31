@@ -149,6 +149,35 @@ install_dependencies() {
     print_success "Dependencies installed"
 }
 
+# Clear Swagger cache
+clear_swagger_cache() {
+    print_info "Clearing Swagger cache..."
+    cd $APP_DIR
+    
+    # Remove dist folder which contains built Swagger documentation
+    if [ -d "dist" ]; then
+        print_info "Removing dist folder..."
+        rm -rf dist
+        print_success "Dist folder removed"
+    fi
+    
+    # Clear any Swagger JSON cache files
+    if [ -f "swagger.json" ]; then
+        print_info "Removing swagger.json..."
+        rm -f swagger.json
+        print_success "swagger.json removed"
+    fi
+    
+    # Clear node_modules cache if it exists
+    if [ -d "node_modules/.cache" ]; then
+        print_info "Clearing node_modules cache..."
+        rm -rf node_modules/.cache
+        print_success "Node modules cache cleared"
+    fi
+    
+    print_success "Swagger cache cleared"
+}
+
 # Build application
 build_application() {
     print_info "Building application..."
@@ -303,6 +332,7 @@ main() {
     # backup_current  # Backup disabled
     pull_code
     install_dependencies
+    clear_swagger_cache
     build_application
     check_env_file
     run_migrations
