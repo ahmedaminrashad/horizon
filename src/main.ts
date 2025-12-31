@@ -92,7 +92,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('Horizon Backend API')
     .setDescription('API documentation for Horizon Backend')
-    .setVersion('1.3')
+    .setVersion('1.4')
     .addBearerAuth(
       {
         type: 'http',
@@ -119,7 +119,7 @@ async function bootstrap() {
     .addTag('clinics')
     .addTag('branches')
     .addTag('working-hours')
-    
+    .addTag('break-hours')
     .build();
   const document = SwaggerModule.createDocument(app, config);
 
