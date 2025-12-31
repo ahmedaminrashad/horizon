@@ -9,6 +9,7 @@ import {
   Index,
 } from 'typeorm';
 import { Clinic } from './clinic.entity';
+import { Branch } from '../../branches/entities/branch.entity';
 
 export enum DayOfWeek {
   MONDAY = 'MONDAY',
@@ -25,7 +26,8 @@ export enum DayOfWeek {
  * Stores default working hours for clinics in the main database
  */
 @Entity('clinic_working_hours')
-@Index('IDX_clinic_working_hours_clinic_day', ['clinic_id', 'day'])
+@Index('IDX_clinic_working_hours_clinic_day', ['clinic_id', 'day', 'branch_id'])
+@Index('IDX_clinic_working_hours_branch', ['branch_id'])
 export class ClinicWorkingHour {
   @PrimaryGeneratedColumn()
   id: number;
@@ -36,6 +38,13 @@ export class ClinicWorkingHour {
   @ManyToOne(() => Clinic, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'clinic_id' })
   clinic: Clinic;
+
+  @Column({ name: 'branch_id', nullable: true })
+  branch_id: number;
+
+  @ManyToOne(() => Branch, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'branch_id' })
+  branch: Branch;
 
   @Column({
     type: 'enum',
