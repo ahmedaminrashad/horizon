@@ -93,6 +93,7 @@ async function bootstrap() {
     .setTitle('Horizon Backend API')
     .setDescription('API documentation for Horizon Backend')
     .setVersion('1.4')
+    .addServer('/api', 'API Server')
     .addBearerAuth(
       {
         type: 'http',
@@ -123,21 +124,22 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
 
+  // Ensure version is set correctly
+  if (document.info) {
+    document.info.version = '1.4';
+  }
+
   // Disable caching for Swagger JSON endpoint using Express middleware
-  app.use(
-    '/api/documentation',
-    (req: Request, res: Response, next: NextFunction) => {
-      if (req.path.endsWith('-json') || req.path.includes('swagger')) {
-        res.setHeader(
-          'Cache-Control',
-          'no-store, no-cache, must-revalidate, private',
-        );
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-      }
-      next();
-    },
-  );
+  app.use('/api/docs', (req: Request, res: Response, next: NextFunction) => {
+    res.setHeader(
+      'Cache-Control',
+      'no-store, no-cache, must-revalidate, private',
+    );
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Last-Modified', new Date().toUTCString());
+    next();
+  });
 
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
