@@ -50,6 +50,11 @@ export class PermissionsGuard implements CanActivate {
       (permission) => permission.slug,
     );
 
+    // Check if user has the "super" permission - if so, grant access to everything
+    if (userPermissions.includes('super')) {
+      return true;
+    }
+
     // Check if user has all required permissions
     return requiredPermissions.every((permission) =>
       userPermissions.includes(permission),

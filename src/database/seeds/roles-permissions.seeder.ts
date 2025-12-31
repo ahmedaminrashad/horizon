@@ -11,6 +11,11 @@ export async function seedRolesAndPermissions(
   // Create Permissions
   const permissions = [
     {
+      name: 'Super',
+      slug: 'super',
+      description: 'Grants access to everything - bypasses all permission checks',
+    },
+    {
       name: 'Create User',
       slug: 'create-user',
       description: 'Allows creating new users',

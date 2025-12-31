@@ -3,6 +3,9 @@
  * This enum should match the permission slugs in the database
  */
 export enum Permission {
+  // Super permission - grants access to everything
+  SUPER = 'super',
+
   // User permissions
   CREATE_USER = 'create-user',
   READ_USER = 'read-user',
