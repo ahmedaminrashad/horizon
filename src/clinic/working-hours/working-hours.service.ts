@@ -293,6 +293,9 @@ export class WorkingHoursService {
     const queryBuilder =
       this.clinicWorkingHourRepository.createQueryBuilder('wh');
 
+    // Join with branch to include branch data
+    queryBuilder.leftJoinAndSelect('wh.branch', 'branch');
+
     if (clinicId) {
       queryBuilder.where('wh.clinic_id = :clinicId', { clinicId });
     }
@@ -316,17 +319,23 @@ export class WorkingHoursService {
 
     const clinicWorkingHours = await queryBuilder.getMany();
 
-    // Convert ClinicWorkingHour to WorkingHour format
-    return clinicWorkingHours.map((wh) => ({
-      id: wh.id,
-      day: wh.day,
-      start_time: wh.start_time,
-      end_time: wh.end_time,
-      range_order: wh.range_order,
-      is_active: wh.is_active,
-      createdAt: wh.createdAt,
-      updatedAt: wh.updatedAt,
-    })) as WorkingHour[];
+    // Convert ClinicWorkingHour to WorkingHour format, including branch
+    return clinicWorkingHours.map((wh) => {
+      const workingHour = {
+        id: wh.id,
+        day: wh.day,
+        start_time: wh.start_time,
+        end_time: wh.end_time,
+        range_order: wh.range_order,
+        is_active: wh.is_active,
+        branch_id: wh.branch_id,
+        branch: wh.branch || null,
+        createdAt: wh.createdAt,
+        updatedAt: wh.updatedAt,
+      } as WorkingHour;
+
+      return workingHour;
+    });
   }
 
   /**
