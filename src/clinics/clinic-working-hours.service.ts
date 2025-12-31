@@ -113,6 +113,88 @@ export class ClinicWorkingHoursService {
   }
 
   /**
+   * Merge working hours to main database without deleting existing ones
+   * Only adds new working hours that don't conflict with existing ones
+   */
+  async mergeWorkingHours(
+    clinicId: number,
+    createWorkingHoursDto: CreateClinicWorkingHoursDto,
+  ): Promise<ClinicWorkingHour[]> {
+    const branchId = createWorkingHoursDto.branch_id ?? null;
+
+    // Get existing working hours
+    const existingHours = await this.getWorkingHours(clinicId);
+    const existingForBranch = existingHours.filter((wh) => {
+      if (branchId === null) {
+        return wh.branch_id === null;
+      }
+      return wh.branch_id === branchId;
+    });
+
+    // Group by day
+    const existingByDay = new Map<DayOfWeek, ClinicWorkingHour[]>();
+    for (const wh of existingForBranch) {
+      if (!existingByDay.has(wh.day)) {
+        existingByDay.set(wh.day, []);
+      }
+      existingByDay.get(wh.day)!.push(wh);
+    }
+
+    // Create new working hours that don't conflict
+    const newHours: ClinicWorkingHour[] = [];
+    for (const dayData of createWorkingHoursDto.days) {
+      const existingForDay = existingByDay.get(dayData.day) || [];
+      let rangeOrder = existingForDay.length;
+
+      for (const range of dayData.working_ranges) {
+        // Check for exact match
+        const exactMatch = existingForDay.some(
+          (existing) =>
+            existing.start_time === range.start_time &&
+            existing.end_time === range.end_time,
+        );
+
+        if (exactMatch) {
+          continue;
+        }
+
+        // Check for overlaps
+        const hasOverlap = existingForDay.some((existing) =>
+          this.rangesOverlap(
+            existing.start_time,
+            existing.end_time,
+            range.start_time,
+            range.end_time,
+          ),
+        );
+
+        if (!hasOverlap) {
+          const hourData: Partial<ClinicWorkingHour> = {
+            clinic_id: clinicId,
+            day: dayData.day,
+            start_time: range.start_time,
+            end_time: range.end_time,
+            range_order: rangeOrder++,
+            is_active: true,
+          };
+          if (branchId !== null) {
+            hourData.branch_id = branchId;
+          }
+          const hour = this.clinicWorkingHoursRepository.create(hourData);
+          newHours.push(hour as ClinicWorkingHour);
+        }
+      }
+    }
+
+    // Save new hours
+    if (newHours.length > 0) {
+      return await this.clinicWorkingHoursRepository.save(newHours);
+    }
+
+    return [];
+  }
+
+  /**
    * Set working hours for a clinic (main database)
    * @param skipClinicSync If true, skip syncing to clinic database (prevents circular sync)
    */
@@ -379,6 +461,7 @@ export class ClinicWorkingHoursService {
   /**
    * Sync working hours from main database to clinic database
    * This is called automatically when working hours are set, but can also be called manually
+   * Merges working hours instead of replacing - keeps existing records without conflicts
    */
   private async syncWorkingHoursToClinic(clinicId: number): Promise<void> {
     const clinic = await this.clinicsRepository.findOne({
@@ -413,24 +496,70 @@ export class ClinicWorkingHoursService {
     const workingHoursRepository =
       tenantDataSource.getRepository(WorkingHour);
 
-    // Group by day and delete existing
-    const daysToUpdate = [
-      ...new Set(mainWorkingHours.map((wh) => wh.day)),
-    ];
-    await workingHoursRepository.delete({ day: In(daysToUpdate) });
+    // Get existing working hours in clinic database, grouped by branch_id and day
+    const existingWorkingHours = await workingHoursRepository.find({
+      order: {
+        day: 'ASC',
+        range_order: 'ASC',
+      },
+    });
 
-    // Create working hours in clinic database
-    const clinicWorkingHours = mainWorkingHours.map((wh) =>
-      workingHoursRepository.create({
-        day: wh.day,
-        start_time: wh.start_time,
-        end_time: wh.end_time,
-        range_order: wh.range_order,
-        is_active: wh.is_active,
-      }),
-    );
+    // Group existing hours by day and branch_id for conflict checking
+    const existingByDayAndBranch = new Map<string, WorkingHour[]>();
+    for (const wh of existingWorkingHours) {
+      const key = `${wh.day}_${wh.branch_id ?? 'null'}`;
+      if (!existingByDayAndBranch.has(key)) {
+        existingByDayAndBranch.set(key, []);
+      }
+      existingByDayAndBranch.get(key)!.push(wh);
+    }
 
-    await workingHoursRepository.save(clinicWorkingHours);
+    // Only add working hours that don't conflict with existing ones
+    const newWorkingHours: WorkingHour[] = [];
+    for (const mainWh of mainWorkingHours) {
+      const key = `${mainWh.day}_${mainWh.branch_id ?? 'null'}`;
+      const existingForDay = existingByDayAndBranch.get(key) || [];
+
+      // Check if this working hour already exists (exact match)
+      const exactMatch = existingForDay.some(
+        (existing) =>
+          existing.start_time === mainWh.start_time &&
+          existing.end_time === mainWh.end_time,
+      );
+
+      if (exactMatch) {
+        // Already exists, skip
+        continue;
+      }
+
+      // Check for overlaps
+      const hasOverlap = existingForDay.some((existing) =>
+        this.rangesOverlap(
+          existing.start_time,
+          existing.end_time,
+          mainWh.start_time,
+          mainWh.end_time,
+        ),
+      );
+
+      if (!hasOverlap) {
+        // No conflict, add it
+        const clinicWh = workingHoursRepository.create({
+          day: mainWh.day,
+          start_time: mainWh.start_time,
+          end_time: mainWh.end_time,
+          range_order: mainWh.range_order,
+          is_active: mainWh.is_active,
+          branch_id: mainWh.branch_id,
+        });
+        newWorkingHours.push(clinicWh);
+      }
+    }
+
+    // Save only new non-conflicting working hours
+    if (newWorkingHours.length > 0) {
+      await workingHoursRepository.save(newWorkingHours);
+    }
   }
 
   /**

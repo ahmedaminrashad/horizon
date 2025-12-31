@@ -771,29 +771,111 @@ export class WorkingHoursService {
 
   /**
    * Sync working hours from clinic database to main database
+   * Merges working hours instead of replacing - keeps existing records without conflicts
    */
   private async syncWorkingHoursToMain(
     clinicId: number,
     createWorkingHoursDto: CreateWorkingHoursDto,
   ): Promise<void> {
-    // Convert clinic DTO to main database DTO format
-    const clinicWorkingHoursDto: CreateClinicWorkingHoursDto = {
-      branch_id: createWorkingHoursDto.branch_id,
-      days: createWorkingHoursDto.days.map((dayData) => ({
-        day: dayData.day,
-        working_ranges: dayData.working_ranges.map((range) => ({
+    const branchId = createWorkingHoursDto.branch_id ?? null;
+
+    // Get existing working hours in main database for this clinic and branch
+    const existingMainHours = await this.clinicWorkingHoursService.getWorkingHours(
+      clinicId,
+    );
+    
+    // Filter by branch_id
+    const existingForBranch = existingMainHours.filter((wh) => {
+      if (branchId === null) {
+        return wh.branch_id === null;
+      }
+      return wh.branch_id === branchId;
+    });
+
+    // Group existing hours by day for conflict checking
+    const existingByDay = new Map<DayOfWeek, ClinicWorkingHour[]>();
+    for (const wh of existingForBranch) {
+      if (!existingByDay.has(wh.day)) {
+        existingByDay.set(wh.day, []);
+      }
+      existingByDay.get(wh.day)!.push(wh);
+    }
+
+    // Prepare new working hours to add (only non-conflicting ones)
+    const newWorkingHoursRanges: Array<{
+      day: DayOfWeek;
+      start_time: string;
+      end_time: string;
+      range_order: number;
+    }> = [];
+
+    for (const dayData of createWorkingHoursDto.days) {
+      const existingForDay = existingByDay.get(dayData.day) || [];
+      let rangeOrder = existingForDay.length;
+
+      for (const range of dayData.working_ranges) {
+        // Check if this working hour already exists (exact match)
+        const exactMatch = existingForDay.some(
+          (existing) =>
+            existing.start_time === range.start_time &&
+            existing.end_time === range.end_time,
+        );
+
+        if (exactMatch) {
+          // Already exists, skip
+          continue;
+        }
+
+        // Check for overlaps
+        const hasOverlap = existingForDay.some((existing) =>
+          this.rangesOverlap(
+            existing.start_time,
+            existing.end_time,
+            range.start_time,
+            range.end_time,
+          ),
+        );
+
+        if (!hasOverlap) {
+          // No conflict, add it
+          newWorkingHoursRanges.push({
+            day: dayData.day,
+            start_time: range.start_time,
+            end_time: range.end_time,
+            range_order: rangeOrder++,
+          });
+        }
+      }
+    }
+
+    // Save only new non-conflicting working hours using a merge method
+    if (newWorkingHoursRanges.length > 0) {
+      // Group by day for DTO format
+      const daysMap = new Map<
+        DayOfWeek,
+        Array<{ start_time: string; end_time: string }>
+      >();
+      for (const range of newWorkingHoursRanges) {
+        if (!daysMap.has(range.day)) {
+          daysMap.set(range.day, []);
+        }
+        daysMap.get(range.day)!.push({
           start_time: range.start_time,
           end_time: range.end_time,
-        })),
-      })),
-    };
+        });
+      }
 
-    // Sync to main database (skip clinic sync to prevent circular sync)
-    await this.clinicWorkingHoursService.setWorkingHours(
-      clinicId,
-      clinicWorkingHoursDto,
-      true, // skipClinicSync = true to prevent circular sync
-    );
+      const mergeDto: CreateClinicWorkingHoursDto = {
+        branch_id: branchId ?? undefined,
+        days: Array.from(daysMap.entries()).map(([day, working_ranges]) => ({
+          day,
+          working_ranges,
+        })),
+      };
+
+      // Use merge method instead of setWorkingHours
+      await this.mergeWorkingHoursToMain(clinicId, mergeDto);
+    }
 
     // After syncing working hours, also sync break hours from clinic to main
     try {
@@ -805,6 +887,20 @@ export class WorkingHoursService {
         error,
       );
     }
+  }
+
+  /**
+   * Merge working hours to main database without deleting existing ones
+   */
+  private async mergeWorkingHoursToMain(
+    clinicId: number,
+    createWorkingHoursDto: CreateClinicWorkingHoursDto,
+  ): Promise<void> {
+    // Use the merge method from ClinicWorkingHoursService
+    await this.clinicWorkingHoursService.mergeWorkingHours(
+      clinicId,
+      createWorkingHoursDto,
+    );
   }
 
   /**
