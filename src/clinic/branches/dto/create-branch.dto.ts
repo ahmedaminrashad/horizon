@@ -8,7 +8,7 @@ import {
   Max,
 } from 'class-validator';
 
-export class CreateBranchDto {
+export class CreateClinicBranchDto {
   @ApiProperty({ description: 'Branch name', example: 'Downtown Branch' })
   @IsString()
   @IsNotEmpty()

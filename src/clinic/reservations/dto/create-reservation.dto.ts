@@ -19,17 +19,32 @@ export class CreateReservationDto {
   @IsInt()
   patient_id: number;
 
-  @ApiProperty({ example: 100.50, description: 'Reservation fees' })
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Doctor working hour ID (optional)',
+  })
+  @IsOptional()
+  @IsInt()
+  doctor_working_hour_id?: number;
+
+  @ApiProperty({ example: 100.5, description: 'Reservation fees' })
   @IsNumber()
   @Min(0)
   fees: number;
 
-  @ApiPropertyOptional({ example: false, description: 'Whether fees are paid', default: false })
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Whether fees are paid',
+    default: false,
+  })
   @IsOptional()
   @IsBoolean()
   paid?: boolean;
 
-  @ApiProperty({ example: '2024-01-15T10:00:00', description: 'Reservation date and time' })
+  @ApiProperty({
+    example: '2024-01-15T10:00:00',
+    description: 'Reservation date and time',
+  })
   @IsDateString()
   date_time: string;
 

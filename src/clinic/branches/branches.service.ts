@@ -5,8 +5,8 @@ import {
 } from '@nestjs/common';
 import { TenantRepositoryService } from '../../database/tenant-repository.service';
 import { Branch } from './entities/branch.entity';
-import { CreateBranchDto } from './dto/create-branch.dto';
-import { UpdateBranchDto } from './dto/update-branch.dto';
+import { CreateClinicBranchDto } from './dto/create-branch.dto';
+import { UpdateClinicBranchDto } from './dto/update-branch.dto';
 import { BranchesService as MainBranchesService } from '../../branches/branches.service';
 
 @Injectable()
@@ -31,7 +31,7 @@ export class BranchesService {
 
   async create(
     clinicId: number,
-    createBranchDto: CreateBranchDto,
+    createBranchDto: CreateClinicBranchDto,
   ): Promise<Branch> {
     const repository = await this.getRepository();
     const branch = repository.create({
@@ -89,7 +89,7 @@ export class BranchesService {
   async update(
     clinicId: number,
     id: number,
-    updateBranchDto: UpdateBranchDto,
+    updateBranchDto: UpdateClinicBranchDto,
   ): Promise<Branch> {
     const repository = await this.getRepository();
     const branch = await this.findOne(clinicId, id);

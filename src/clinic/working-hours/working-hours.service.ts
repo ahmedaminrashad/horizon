@@ -789,10 +789,9 @@ export class WorkingHoursService {
     const branchId = createWorkingHoursDto.branch_id ?? null;
 
     // Get existing working hours in main database for this clinic and branch
-    const existingMainHours = await this.clinicWorkingHoursService.getWorkingHours(
-      clinicId,
-    );
-    
+    const existingMainHours =
+      await this.clinicWorkingHoursService.getWorkingHours(clinicId);
+
     // Filter by branch_id
     const existingForBranch = existingMainHours.filter((wh) => {
       if (branchId === null) {
@@ -888,7 +887,10 @@ export class WorkingHoursService {
 
     // After syncing working hours, also sync break hours from clinic to main
     try {
-      await this.syncBreakHoursFromClinicToMain(clinicId, createWorkingHoursDto.branch_id);
+      await this.syncBreakHoursFromClinicToMain(
+        clinicId,
+        createWorkingHoursDto.branch_id,
+      );
     } catch (error) {
       // Log error but don't fail the operation if sync fails
       console.warn(
@@ -928,7 +930,7 @@ export class WorkingHoursService {
     } else {
       whereCondition.branch_id = null;
     }
-    
+
     const clinicBreakHours = await breakHoursRepository.find({
       where: whereCondition,
       order: {
@@ -961,10 +963,12 @@ export class WorkingHoursService {
     // Convert to main database DTO format
     const clinicBreakHoursDto: CreateClinicBreakHoursDto = {
       branch_id: branchId,
-      days: Array.from(breakHoursByDay.entries()).map(([day, break_ranges]) => ({
-        day,
-        break_ranges,
-      })),
+      days: Array.from(breakHoursByDay.entries()).map(
+        ([day, break_ranges]) => ({
+          day,
+          break_ranges,
+        }),
+      ),
     };
 
     // Sync to main database (skip clinic sync to prevent circular sync)
@@ -1115,13 +1119,16 @@ export class WorkingHoursService {
       end_time: createDto.end_time,
       is_active: createDto.is_active ?? true,
       waterfall: createDto.waterfall ?? true,
+      session_time: createDto.session_time,
     };
     if (createDto.branch_id !== undefined) {
       workingHourData.branch_id = createDto.branch_id;
     }
     const workingHour = repository.create(workingHourData);
 
-    const saved = (await repository.save(workingHour)) as unknown as DoctorWorkingHour;
+    const saved = (await repository.save(
+      workingHour,
+    )) as unknown as DoctorWorkingHour;
 
     // Sync to main database
     await this.syncDoctorWorkingHoursToMain(doctorId, [saved]);
@@ -1184,13 +1191,16 @@ export class WorkingHoursService {
           end_time: workingHourDto.end_time,
           is_active: workingHourDto.is_active ?? true,
           waterfall: workingHourDto.waterfall ?? true,
+          session_time: workingHourDto.session_time,
         };
         if (workingHourDto.branch_id !== undefined) {
           workingHourData.branch_id = workingHourDto.branch_id;
         }
         const workingHour = repository.create(workingHourData);
 
-        const saved = (await repository.save(workingHour)) as unknown as DoctorWorkingHour;
+        const saved = (await repository.save(
+          workingHour,
+        )) as unknown as DoctorWorkingHour;
         createdHours.push(saved);
       }
     }
@@ -1270,15 +1280,16 @@ export class WorkingHoursService {
         updateDto.waterfall !== undefined
           ? updateDto.waterfall
           : workingHour.waterfall,
+      session_time:
+        updateDto.session_time !== undefined
+          ? updateDto.session_time
+          : workingHour.session_time,
     });
 
     const saved = await repository.save(workingHour);
 
     // Sync to main database
-    await this.syncDoctorWorkingHoursToMain(
-      workingHour.doctor_id,
-      saved,
-    );
+    await this.syncDoctorWorkingHoursToMain(workingHour.doctor_id, saved);
 
     return saved;
   }
@@ -1336,7 +1347,8 @@ export class WorkingHoursService {
       }
 
       // Get main database DataSource to find main doctor
-      const mainDataSource = this.clinicWorkingHourRepository.manager.connection;
+      const mainDataSource =
+        this.clinicWorkingHourRepository.manager.connection;
       const mainDoctorRepository = mainDataSource.getRepository(MainDoctor);
 
       // Find main database doctor by clinic_id and clinic_doctor_id
@@ -1361,6 +1373,7 @@ export class WorkingHoursService {
           end_time: workingHour.end_time,
           is_active: workingHour.is_active,
           waterfall: workingHour.waterfall,
+          session_time: workingHour.session_time,
         };
 
         // Sync to main database (skip clinic sync to prevent circular sync)

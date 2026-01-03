@@ -56,6 +56,13 @@ export class DoctorWorkingHour {
   end_time: string;
 
   @Column({
+    type: 'time',
+    nullable: true,
+    comment: 'Session duration (e.g., 00:30:00 for 30 minutes)',
+  })
+  session_time: string;
+
+  @Column({
     type: 'boolean',
     default: true,
     comment: 'Whether this working hour is active',

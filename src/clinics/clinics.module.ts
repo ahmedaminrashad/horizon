@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ClinicsService } from './clinics.service';
 import { ClinicsController } from './clinics.controller';
@@ -12,6 +12,7 @@ import { City } from '../cities/entities/city.entity';
 import { Package } from '../packages/entities/package.entity';
 import { DatabaseModule } from '../database/database.module';
 import { UsersModule } from '../users/users.module';
+import { DoctorsModule } from '../doctors/doctors.module';
 import { ClinicWorkingHoursService } from './clinic-working-hours.service';
 import { DoctorWorkingHoursService } from './doctor-working-hours.service';
 import {
@@ -34,6 +35,7 @@ import { DoctorWorkingHoursController } from './doctor-working-hours.controller'
     ]),
     DatabaseModule,
     UsersModule,
+    forwardRef(() => DoctorsModule),
   ],
   controllers: [
     ClinicsController,

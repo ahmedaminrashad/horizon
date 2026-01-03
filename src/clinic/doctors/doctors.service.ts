@@ -313,7 +313,7 @@ export class DoctorsService {
       clinic_id: clinicId,
       branch_id,
       experience_years,
-      number_of_patients,
+      number_of_patients: number_of_patients || 0,
       license_number,
       degree,
       languages,

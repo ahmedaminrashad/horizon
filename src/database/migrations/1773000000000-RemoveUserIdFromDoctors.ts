@@ -11,26 +11,49 @@ export class RemoveUserIdFromDoctors1773000000000
       // Query database directly to find foreign key constraint names
       const databaseName = queryRunner.connection.options.database;
       const foreignKeyResults = await queryRunner.query(
-        `SELECT CONSTRAINT_NAME 
-         FROM information_schema.KEY_COLUMN_USAGE 
-         WHERE TABLE_SCHEMA = ? 
-         AND TABLE_NAME = 'doctors' 
-         AND COLUMN_NAME = 'user_id' 
-         AND REFERENCED_TABLE_NAME IS NOT NULL`,
+        `SELECT kcu.CONSTRAINT_NAME 
+         FROM information_schema.KEY_COLUMN_USAGE kcu
+         INNER JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
+           ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
+           AND kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA
+         WHERE kcu.TABLE_SCHEMA = ? 
+         AND kcu.TABLE_NAME = 'doctors' 
+         AND kcu.COLUMN_NAME = 'user_id' 
+         AND kcu.REFERENCED_TABLE_NAME IS NOT NULL`,
         [databaseName],
       );
 
       // Drop all foreign key constraints found
       for (const fk of foreignKeyResults) {
         try {
-          await queryRunner.query(
-            `ALTER TABLE \`doctors\` DROP FOREIGN KEY \`${fk.CONSTRAINT_NAME}\``,
+          // Verify the foreign key still exists before attempting to drop
+          const fkExists = await queryRunner.query(
+            `SELECT COUNT(*) as count
+             FROM information_schema.REFERENTIAL_CONSTRAINTS
+             WHERE CONSTRAINT_SCHEMA = ?
+             AND CONSTRAINT_NAME = ?`,
+            [databaseName, fk.CONSTRAINT_NAME],
           );
+
+          const count = fkExists && fkExists[0] ? Number(fkExists[0].count) : 0;
+          if (count > 0) {
+            await queryRunner.query(
+              `ALTER TABLE \`doctors\` DROP FOREIGN KEY \`${fk.CONSTRAINT_NAME}\``,
+            );
+          }
         } catch (error) {
-          console.warn(
-            `Could not drop foreign key ${fk.CONSTRAINT_NAME}:`,
-            error,
-          );
+          // Silently ignore if foreign key doesn't exist (error 1091 in MySQL)
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorCode = (error as any)?.code || '';
+          if (
+            !errorMessage.includes("check that it exists") &&
+            errorCode !== 'ER_CANT_DROP_FIELD_OR_KEY'
+          ) {
+            console.warn(
+              `Could not drop foreign key ${fk.CONSTRAINT_NAME}:`,
+              error,
+            );
+          }
         }
       }
 

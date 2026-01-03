@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Doctor } from '../../doctors/entities/doctor.entity';
 import { User } from '../../permissions/entities/user.entity';
+import { DoctorWorkingHour } from '../../working-hours/entities/doctor-working-hour.entity';
 
 export enum ReservationStatus {
   PENDING = 'pending',
@@ -27,6 +28,9 @@ export class Reservation {
 
   @Column({ name: 'patient_id' })
   patient_id: number;
+
+  @Column({ name: 'doctor_working_hour_id', nullable: true })
+  doctor_working_hour_id: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   fees: number;
@@ -51,6 +55,10 @@ export class Reservation {
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'patient_id' })
   patient: User;
+
+  @ManyToOne(() => DoctorWorkingHour, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'doctor_working_hour_id' })
+  doctor_working_hour: DoctorWorkingHour;
 
   @CreateDateColumn()
   createdAt: Date;

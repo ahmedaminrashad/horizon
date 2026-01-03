@@ -18,8 +18,8 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { BranchesService } from './branches.service';
-import { CreateBranchDto } from './dto/create-branch.dto';
-import { UpdateBranchDto } from './dto/update-branch.dto';
+import { CreateClinicBranchDto } from './dto/create-branch.dto';
+import { UpdateClinicBranchDto } from './dto/update-branch.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
@@ -49,7 +49,7 @@ export class BranchesController {
   create(
     @Param('clinicId') clinicId: string,
     @ClinicId() clinicIdFromToken: number,
-    @Body() createBranchDto: CreateBranchDto,
+    @Body() createBranchDto: CreateClinicBranchDto,
   ) {
     const id = clinicIdFromToken || +clinicId;
     return this.branchesService.create(id, createBranchDto);
@@ -113,7 +113,7 @@ export class BranchesController {
     @Param('clinicId') clinicId: string,
     @Param('id') id: string,
     @ClinicId() clinicIdFromToken: number,
-    @Body() updateBranchDto: UpdateBranchDto,
+    @Body() updateBranchDto: UpdateClinicBranchDto,
   ) {
     const clinicIdNum = clinicIdFromToken || +clinicId;
     return this.branchesService.update(clinicIdNum, +id, updateBranchDto);

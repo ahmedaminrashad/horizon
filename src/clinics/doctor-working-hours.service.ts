@@ -170,6 +170,7 @@ export class DoctorWorkingHoursService {
       end_time: createDto.end_time,
       is_active: createDto.is_active ?? true,
       waterfall: createDto.waterfall ?? true,
+      session_time: createDto.session_time,
     };
     if (createDto.branch_id !== undefined) {
       workingHourData.branch_id = createDto.branch_id;
@@ -252,6 +253,7 @@ export class DoctorWorkingHoursService {
           end_time: workingHourDto.end_time,
           is_active: workingHourDto.is_active ?? true,
           waterfall: workingHourDto.waterfall ?? true,
+          session_time: workingHourDto.session_time,
         };
         if (workingHourDto.branch_id !== undefined) {
           workingHourData.branch_id = workingHourDto.branch_id;
@@ -341,6 +343,7 @@ export class DoctorWorkingHoursService {
         updateDto.waterfall !== undefined
           ? updateDto.waterfall
           : workingHour.waterfall,
+      session_time: updateDto.session_time !== undefined ? updateDto.session_time : workingHour.session_time,
     });
 
     const saved = await this.doctorWorkingHoursRepository.save(workingHour);
@@ -450,6 +453,7 @@ export class DoctorWorkingHoursService {
           Object.assign(existing, {
             is_active: workingHour.is_active,
             waterfall: workingHour.waterfall,
+            session_time: workingHour.session_time,
           });
           await clinicWorkingHourRepository.save(existing);
         } else {
@@ -461,6 +465,7 @@ export class DoctorWorkingHoursService {
             end_time: workingHour.end_time,
             is_active: workingHour.is_active,
             waterfall: workingHour.waterfall,
+            session_time: workingHour.session_time,
           };
           if (workingHour.branch_id !== undefined && workingHour.branch_id !== null) {
             clinicWorkingHourData.branch_id = workingHour.branch_id;

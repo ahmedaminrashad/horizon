@@ -16,6 +16,9 @@ import { TenantDataSourceService } from '../database/tenant-data-source.service'
 import { Country } from '../countries/entities/country.entity';
 import { City } from '../cities/entities/city.entity';
 import { Package } from '../packages/entities/package.entity';
+import { Doctor } from '../doctors/entities/doctor.entity';
+import { DoctorsService } from '../doctors/doctors.service';
+import { Inject, forwardRef } from '@nestjs/common';
 
 @Injectable()
 export class ClinicsService {
@@ -28,9 +31,13 @@ export class ClinicsService {
     private citiesRepository: Repository<City>,
     @InjectRepository(Package)
     private packagesRepository: Repository<Package>,
+    @InjectRepository(Doctor)
+    private doctorsRepository: Repository<Doctor>,
     private databaseService: DatabaseService,
     private clinicMigrationService: ClinicMigrationService,
     private tenantDataSourceService: TenantDataSourceService,
+    @Inject(forwardRef(() => DoctorsService))
+    private doctorsService: DoctorsService,
   ) {}
 
   async create(createClinicDto: CreateClinicDto): Promise<Clinic> {
@@ -104,10 +111,37 @@ export class ClinicsService {
       },
     });
 
+    // Fetch doctors for each clinic with next available slot
+    const clinicsWithDoctors = await Promise.all(
+      data.map(async (clinic) => {
+        const doctors = await this.doctorsRepository.find({
+          where: { clinic_id: clinic.id },
+          order: { createdAt: 'DESC' },
+        });
+
+        // Calculate next available slot for each doctor
+        const doctorsWithNextAvailable = await Promise.all(
+          doctors.map(async (doctor) => {
+            const nextAvailableSlot =
+              await this.doctorsService.getNextAvailableSlot(doctor);
+            return {
+              ...doctor,
+              next_available_slot: nextAvailableSlot,
+            };
+          }),
+        );
+
+        return {
+          ...clinic,
+          doctors: doctorsWithNextAvailable,
+        };
+      }),
+    );
+
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data,
+      data: clinicsWithDoctors,
       meta: {
         total,
         page,

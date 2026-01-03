@@ -58,6 +58,19 @@ export class CreateDoctorWorkingHoursDto {
   end_time: string;
 
   @ApiProperty({
+    description:
+      'Session duration in HH:MM:SS format (e.g., 00:30:00 for 30 minutes)',
+    example: '00:30:00',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/, {
+    message: 'session_time must be in HH:MM:SS format',
+  })
+  session_time?: string;
+
+  @ApiProperty({
     description: 'Whether this working hour is active',
     type: Boolean,
     default: true,
@@ -100,4 +113,3 @@ export class CreateBulkDoctorWorkingHoursDto {
   @IsNotEmpty()
   working_hours: CreateDoctorWorkingHoursDto[];
 }
-
