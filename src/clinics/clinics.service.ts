@@ -123,7 +123,10 @@ export class ClinicsService {
         const doctorsWithNextAvailable = await Promise.all(
           doctors.map(async (doctor) => {
             const nextAvailableSlot =
-              await this.doctorsService.getNextAvailableSlot(doctor);
+              await this.doctorsService.getNextAvailableSlot(
+                doctor,
+                clinic.database_name,
+              );
             return {
               ...doctor,
               next_available_slot: nextAvailableSlot,
@@ -153,7 +156,7 @@ export class ClinicsService {
     };
   }
 
-  async findOne(id: number): Promise<Clinic> {
+  async findOne(id: number): Promise<Clinic & { doctors?: any[] }> {
     const clinic = await this.clinicsRepository.findOne({
       where: { id },
       relations: ['country', 'city', 'branches', 'package'],
@@ -163,7 +166,31 @@ export class ClinicsService {
       throw new NotFoundException(`Clinic with ID ${id} not found`);
     }
 
-    return clinic;
+    // Fetch doctors for the clinic with next available slot
+    const doctors = await this.doctorsRepository.find({
+      where: { clinic_id: clinic.id },
+      order: { createdAt: 'DESC' },
+    });
+
+    // Calculate next available slot for each doctor
+    const doctorsWithNextAvailable = await Promise.all(
+      doctors.map(async (doctor) => {
+        const nextAvailableSlot =
+          await this.doctorsService.getNextAvailableSlot(
+            doctor,
+            clinic.database_name,
+          );
+        return {
+          ...doctor,
+          next_available_slot: nextAvailableSlot,
+        };
+      }),
+    );
+
+    return {
+      ...clinic,
+      doctors: doctorsWithNextAvailable,
+    };
   }
 
   async update(id: number, updateClinicDto: UpdateClinicDto): Promise<Clinic> {

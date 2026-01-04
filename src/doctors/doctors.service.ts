@@ -192,18 +192,23 @@ export class DoctorsService {
    */
   async getNextAvailableSlot(
     doctor: Doctor,
+    databaseName?: string,
   ): Promise<NextAvailableSlot | null> {
     try {
       // Get clinic database name
-      const clinic = await this.clinicsService.findOne(doctor.clinic_id);
-      if (!clinic?.database_name) {
-        return null;
+      let dbName = databaseName;
+      if (!dbName) {
+        const clinic = await this.clinicsService.findOne(doctor.clinic_id);
+        if (!clinic?.database_name) {
+          return null;
+        }
+        dbName = clinic.database_name;
       }
 
       // Get clinic database
       const clinicDataSource =
         await this.tenantDataSourceService.getTenantDataSource(
-          clinic.database_name,
+          dbName,
         );
       if (!clinicDataSource) {
         return null;

@@ -23,6 +23,7 @@ import { CreateDoctorWorkingHoursTable1775000000002 } from './1775000000002-Crea
 import { AddBranchIdToWorkingHours1776000000000 } from './1776000000000-AddBranchIdToWorkingHours';
 import { AddBranchIdToBreakHours1776000000001 } from './1776000000001-AddBranchIdToBreakHours';
 import { AddSessionTimeToDoctorWorkingHours1776000000002 } from './1776000000002-AddSessionTimeToDoctorWorkingHours';
+import { AddDoctorWorkingHourIdToReservations1776000000003 } from './1776000000003-AddDoctorWorkingHourIdToReservations';
 
 /**
  * List of all clinic migrations in order
@@ -53,4 +54,5 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   AddBranchIdToWorkingHours1776000000000,
   AddBranchIdToBreakHours1776000000001,
   AddSessionTimeToDoctorWorkingHours1776000000002,
+  AddDoctorWorkingHourIdToReservations1776000000003,
 ];
