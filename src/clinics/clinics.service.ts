@@ -19,6 +19,7 @@ import { Package } from '../packages/entities/package.entity';
 import { Doctor } from '../doctors/entities/doctor.entity';
 import { DoctorsService } from '../doctors/doctors.service';
 import { Inject, forwardRef } from '@nestjs/common';
+import { WorkingHour } from '../clinic/working-hours/entities/working-hour.entity';
 
 @Injectable()
 export class ClinicsService {
@@ -187,9 +188,44 @@ export class ClinicsService {
       }),
     );
 
+    // Fetch working hours for branches from clinic database
+    let branchesWithWorkingHours = clinic.branches || [];
+    if (clinic.database_name && clinic.branches && clinic.branches.length > 0) {
+      const clinicDataSource =
+        await this.tenantDataSourceService.getTenantDataSource(
+          clinic.database_name,
+        );
+
+      if (clinicDataSource) {
+        const workingHoursRepository =
+          clinicDataSource.getRepository(WorkingHour);
+
+        branchesWithWorkingHours = await Promise.all(
+          clinic.branches.map(async (branch) => {
+            // Use clinic_branch_id to match with branch_id in clinic database
+            // Main database branches have clinic_branch_id that references clinic database branch id
+            const branchId =
+              'clinic_branch_id' in branch && branch.clinic_branch_id
+                ? branch.clinic_branch_id
+                : branch.id;
+            const workingHours = await workingHoursRepository.find({
+              where: { branch_id: branchId, is_active: true },
+              order: { day: 'ASC', range_order: 'ASC' },
+            });
+
+            return {
+              ...branch,
+              working_hours: workingHours,
+            };
+          }),
+        );
+      }
+    }
+
     return {
       ...clinic,
       doctors: doctorsWithNextAvailable,
+      branches: branchesWithWorkingHours,
     };
   }
 
