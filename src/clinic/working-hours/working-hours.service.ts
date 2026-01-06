@@ -1173,6 +1173,9 @@ export class WorkingHoursService {
           is_active: createDto.is_active ?? true,
           waterfall: false,
           session_time: sessionTime,
+          fees: createDto.fees,
+          busy: createDto.busy ?? false,
+          patients_limit: createDto.patients_limit ?? 1, // If not waterfall, default to 1
         };
         if (createDto.branch_id !== undefined) {
           workingHourData.branch_id = createDto.branch_id;
@@ -1218,6 +1221,9 @@ export class WorkingHoursService {
       is_active: createDto.is_active ?? true,
       waterfall: waterfall,
       session_time: sessionTime,
+      fees: createDto.fees,
+      busy: createDto.busy ?? false,
+      patients_limit: waterfall ? (createDto.patients_limit ?? null) : 1, // If not waterfall, set to 1
     };
     if (createDto.branch_id !== undefined) {
       workingHourData.branch_id = createDto.branch_id;
@@ -1310,6 +1316,9 @@ export class WorkingHoursService {
               is_active: workingHourDto.is_active ?? true,
               waterfall: false,
               session_time: sessionTime,
+              fees: workingHourDto.fees,
+              busy: workingHourDto.busy ?? false,
+              patients_limit: workingHourDto.patients_limit ?? 1, // If not waterfall, default to 1
             };
             if (workingHourDto.branch_id !== undefined) {
               workingHourData.branch_id = workingHourDto.branch_id;
@@ -1348,6 +1357,9 @@ export class WorkingHoursService {
             is_active: workingHourDto.is_active ?? true,
             waterfall: waterfall,
             session_time: sessionTime,
+            fees: workingHourDto.fees,
+            busy: workingHourDto.busy ?? false,
+            patients_limit: waterfall ? (workingHourDto.patients_limit ?? null) : 1, // If not waterfall, set to 1
           };
           if (workingHourDto.branch_id !== undefined) {
             workingHourData.branch_id = workingHourDto.branch_id;
@@ -1423,6 +1435,21 @@ export class WorkingHoursService {
       }
     }
 
+    // Determine waterfall value
+    const waterfall = updateDto.waterfall !== undefined
+      ? updateDto.waterfall
+      : workingHour.waterfall;
+
+    // Determine patients_limit: if waterfall is false, set to 1; otherwise use provided value or keep existing
+    let patientsLimit: number | null;
+    if (!waterfall) {
+      patientsLimit = 1;
+    } else {
+      patientsLimit = updateDto.patients_limit !== undefined
+        ? updateDto.patients_limit
+        : workingHour.patients_limit;
+    }
+
     // Update fields
     Object.assign(workingHour, {
       day: updateDto.day ?? workingHour.day,
@@ -1433,14 +1460,20 @@ export class WorkingHoursService {
         updateDto.is_active !== undefined
           ? updateDto.is_active
           : workingHour.is_active,
-      waterfall:
-        updateDto.waterfall !== undefined
-          ? updateDto.waterfall
-          : workingHour.waterfall,
+      waterfall: waterfall,
       session_time:
         updateDto.session_time !== undefined
           ? updateDto.session_time
           : workingHour.session_time,
+      fees:
+        updateDto.fees !== undefined
+          ? updateDto.fees
+          : workingHour.fees,
+      busy:
+        updateDto.busy !== undefined
+          ? updateDto.busy
+          : workingHour.busy,
+      patients_limit: patientsLimit,
     });
 
     const saved = await repository.save(workingHour);
@@ -1531,6 +1564,9 @@ export class WorkingHoursService {
           is_active: workingHour.is_active,
           waterfall: workingHour.waterfall,
           session_time: workingHour.session_time,
+          fees: workingHour.fees ?? 0,
+          busy: workingHour.busy ?? false,
+          patients_limit: workingHour.patients_limit ?? null,
         };
 
         // Sync to main database (skip clinic sync to prevent circular sync)

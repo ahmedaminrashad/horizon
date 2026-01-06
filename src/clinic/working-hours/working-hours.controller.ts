@@ -96,7 +96,6 @@ export class WorkingHoursController {
     @Query('start_time') start_time?: string,
     @Query('end_time') end_time?: string,
   ): Promise<WorkingHour[]> {
-   
     return await this.workingHoursService.getWorkingHoursWithFilters(
       clinicId,
       day ? (day as DayOfWeek) : undefined,
@@ -107,6 +106,7 @@ export class WorkingHoursController {
 
   @Post()
   @Permissions(ClinicPermission.UPDATE_SETTING as string)
+
   @ApiOperation({
     summary: 'Set working hours for the clinic',
     description:

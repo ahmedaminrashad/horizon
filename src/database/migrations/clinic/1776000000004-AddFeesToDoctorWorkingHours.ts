@@ -20,7 +20,8 @@ export class AddFeesToDoctorWorkingHours1776000000004
           type: 'decimal',
           precision: 10,
           scale: 2,
-          isNullable: true,
+          isNullable: false,
+          default: 0,
           comment: 'Fees for this working hour slot',
         }),
       );

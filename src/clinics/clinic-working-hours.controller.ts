@@ -36,8 +36,8 @@ export class ClinicWorkingHoursController {
   ) {}
 
   @Get()
-  @Roles('admin')
-  @ApiOperation({ summary: 'Get default working hours for a clinic' })
+  @Public()
+  @ApiOperation({ summary: 'Get default working hours for a clinic (public)' })
   @ApiParam({
     name: 'clinicId',
     type: Number,

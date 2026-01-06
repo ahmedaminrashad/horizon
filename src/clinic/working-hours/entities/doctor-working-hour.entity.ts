@@ -81,10 +81,24 @@ export class DoctorWorkingHour {
     type: 'decimal',
     precision: 10,
     scale: 2,
-    nullable: true,
+    nullable: false,
     comment: 'Fees for this working hour slot',
   })
   fees: number;
+
+  @Column({
+    type: 'boolean',
+    default: false,
+    comment: 'Whether this working hour slot is busy',
+  })
+  busy: boolean;
+
+  @Column({
+    type: 'int',
+    nullable: true,
+    comment: 'Maximum number of patients allowed for this slot. If null, no limit.',
+  })
+  patients_limit: number;
 
   @CreateDateColumn()
   createdAt: Date;

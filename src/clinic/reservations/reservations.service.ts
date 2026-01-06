@@ -37,25 +37,44 @@ export class ReservationsService {
     return repository;
   }
 
-  async create(clinicId: number, createReservationDto: CreateReservationDto): Promise<Reservation> {
+  async create(clinicId: number, createReservationDto: CreateReservationDto, patientId: number): Promise<Reservation> {
     const repository = await this.getRepository();
     
-    // Validate and enforce waterfall rules for working hour, and get working hour with fees
-    const workingHour = await this.validateWorkingHourReservation(
+    // Parse the date from the request
+    const reservationDateOnly = new Date(createReservationDto.date);
+    
+    // Validate that reservation date is not in the past
+    this.validateReservationDate(reservationDateOnly);
+    
+    // Get working hour first to extract time
+    const workingHour = await this.getWorkingHourForValidation(
       createReservationDto.doctor_working_hour_id,
       createReservationDto.doctor_id,
-      new Date(createReservationDto.date_time),
     );
     
-    // Get fees from working hour, default to 0 if not set
+    // Combine date from request with start_time from working hour
+    const reservationDateTime = this.combineDateAndTime(
+      reservationDateOnly,
+      workingHour.start_time,
+    );
+    
+    // Validate and enforce waterfall rules for working hour
+    await this.validateWorkingHourReservation(
+      createReservationDto.doctor_working_hour_id,
+      createReservationDto.doctor_id,
+      reservationDateTime,
+    );
+    
+    // Get fees from working hour
     const fees = workingHour.fees ?? 0;
     
     const reservation = repository.create({
       ...createReservationDto,
-      date_time: new Date(createReservationDto.date_time),
-      status: createReservationDto.status || ReservationStatus.PENDING,
+      patient_id: patientId, // Set from authenticated user
+      date_time: reservationDateTime, // Combined date and time
+      status: ReservationStatus.PENDING, // Always default to PENDING
       paid: false, // Default to false
-      fees: fees,
+      fees: fees, // Set from working hour
     });
 
     const savedReservation = await repository.save(reservation);
@@ -63,18 +82,41 @@ export class ReservationsService {
     // Increment doctor's number_of_patients
     await this.incrementDoctorPatientCount(clinicId, createReservationDto.doctor_id);
 
-    return savedReservation;
+    // Reload reservation with working hour relation
+    const reservationWithWorkingHour = await repository.findOne({
+      where: { id: savedReservation.id },
+      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
+    });
+
+    return reservationWithWorkingHour || savedReservation;
   }
 
   /**
-   * Validate working hour reservation based on waterfall setting
-   * Returns the working hour object for use in reservation creation
+   * Validate that reservation date is not in the past
    */
-  private async validateWorkingHourReservation(
+  private validateReservationDate(reservationDate: Date): void {
+    const now = new Date();
+    // Set time to start of day for comparison (ignore time component)
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const reservationDay = new Date(
+      reservationDate.getFullYear(),
+      reservationDate.getMonth(),
+      reservationDate.getDate(),
+    );
+
+    if (reservationDay < today) {
+      throw new BadRequestException(
+        'Reservation date cannot be in the past. Please select today or a future date.',
+      );
+    }
+  }
+
+  /**
+   * Get working hour for validation (without full validation)
+   */
+  private async getWorkingHourForValidation(
     workingHourId: number,
     doctorId: number,
-    reservationDateTime: Date,
-    excludeReservationId?: number, // For update operations, exclude current reservation
   ): Promise<DoctorWorkingHour> {
     // Get working hour repository
     const workingHourRepository = await this.tenantRepositoryService.getRepository<DoctorWorkingHour>(
@@ -112,24 +154,42 @@ export class ReservationsService {
       );
     }
 
-    // Validate that reservation date_time matches the working hour time slot
-    const reservationTime = this.extractTimeFromDate(reservationDateTime);
+    return workingHour;
+  }
+
+  /**
+   * Combine date and time string into a Date object
+   */
+  private combineDateAndTime(date: Date, timeString: string): Date {
+    const [hours, minutes, seconds] = timeString.split(':').map(Number);
+    const combined = new Date(date);
+    combined.setHours(hours, minutes, seconds || 0, 0);
+    return combined;
+  }
+
+  /**
+   * Validate working hour reservation based on waterfall setting
+   * Returns the working hour object for use in reservation creation
+   */
+  private async validateWorkingHourReservation(
+    workingHourId: number,
+    doctorId: number,
+    reservationDateTime: Date,
+    excludeReservationId?: number, // For update operations, exclude current reservation
+  ): Promise<DoctorWorkingHour> {
+    // Get working hour
+    const workingHour = await this.getWorkingHourForValidation(
+      workingHourId,
+      doctorId,
+    );
+
+    // Validate that reservation date matches the working hour day
     const reservationDay = this.getDayOfWeek(reservationDateTime);
 
     // Check if reservation day matches working hour day
     if (reservationDay !== workingHour.day) {
       throw new BadRequestException(
         `Reservation day (${reservationDay}) does not match working hour day (${workingHour.day})`,
-      );
-    }
-
-    // Check if reservation time is within working hour time range
-    if (
-      reservationTime < workingHour.start_time ||
-      reservationTime >= workingHour.end_time
-    ) {
-      throw new BadRequestException(
-        `Reservation time (${reservationTime}) is not within working hour range (${workingHour.start_time} - ${workingHour.end_time})`,
       );
     }
 
@@ -250,7 +310,7 @@ export class ReservationsService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await repository.findAndCount({
-      relations: ['doctor', 'doctor.user', 'patient'],
+      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
       skip,
       take: limit,
       order: {
@@ -277,7 +337,7 @@ export class ReservationsService {
     const repository = await this.getRepository();
     const reservation = await repository.findOne({
       where: { id },
-      relations: ['doctor', 'doctor.user', 'patient'],
+      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
     });
 
     if (!reservation) {
@@ -291,36 +351,62 @@ export class ReservationsService {
     const repository = await this.getRepository();
     const reservation = await this.findOne(clinicId, id);
 
-    // If doctor_working_hour_id is being updated or changed, validate it
+    // Determine which working hour to use (updated or existing)
     const workingHourId = updateReservationDto.doctor_working_hour_id ?? reservation.doctor_working_hour_id;
     const doctorId = updateReservationDto.doctor_id ?? reservation.doctor_id;
-    const dateTime = updateReservationDto.date_time 
-      ? new Date(updateReservationDto.date_time) 
-      : reservation.date_time;
+    
+    // Get the working hour to extract time
+    const workingHour = await this.getWorkingHourForValidation(workingHourId, doctorId);
+    
+    // Determine the date to use (updated or existing)
+    let reservationDateOnly: Date;
+    if (updateReservationDto.date) {
+      reservationDateOnly = new Date(updateReservationDto.date);
+      // Validate that reservation date is not in the past
+      this.validateReservationDate(reservationDateOnly);
+    } else {
+      // Use existing reservation date
+      reservationDateOnly = new Date(reservation.date_time);
+      reservationDateOnly.setHours(0, 0, 0, 0);
+    }
+    
+    // Combine date with working hour start_time
+    const reservationDateTime = this.combineDateAndTime(reservationDateOnly, workingHour.start_time);
 
-    // If working hour ID is provided and either working hour or date_time is being updated, validate
-    if (workingHourId && (updateReservationDto.doctor_working_hour_id !== undefined || updateReservationDto.date_time)) {
-      const workingHour = await this.validateWorkingHourReservation(
+    // If working hour ID or date is being updated, validate
+    if (updateReservationDto.doctor_working_hour_id !== undefined || updateReservationDto.date) {
+      await this.validateWorkingHourReservation(
         workingHourId,
         doctorId,
-        dateTime,
+        reservationDateTime,
         reservation.id, // Exclude current reservation from conflict check
       );
-      
-      // Update fees from working hour if working hour changed
-      if (updateReservationDto.doctor_working_hour_id !== undefined) {
-        const updateData = updateReservationDto as any;
-        updateData.fees = workingHour.fees ?? reservation.fees;
-      }
     }
+    
+    // Update fees from working hour if working hour changed
+    const updatedFees = updateReservationDto.doctor_working_hour_id !== undefined 
+      ? (workingHour.fees ?? reservation.fees)
+      : reservation.fees;
 
-    const updateData: any = { ...updateReservationDto };
-    if (updateReservationDto.date_time) {
-      updateData.date_time = new Date(updateReservationDto.date_time);
-    }
+    const updateData: Partial<Reservation> = {
+      ...updateReservationDto,
+      date_time: reservationDateTime,
+      fees: updatedFees,
+    };
+    
+    // Remove 'date' from updateData as it's not a column in the entity
+    delete (updateData as any).date;
 
     Object.assign(reservation, updateData);
-    return repository.save(reservation);
+    const updatedReservation = await repository.save(reservation);
+
+    // Reload reservation with working hour relation
+    const reservationWithWorkingHour = await repository.findOne({
+      where: { id: updatedReservation.id },
+      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
+    });
+
+    return reservationWithWorkingHour || updatedReservation;
   }
 
   async remove(clinicId: number, id: number): Promise<void> {

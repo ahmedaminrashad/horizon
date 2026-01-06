@@ -25,6 +25,8 @@ import { AddBranchIdToBreakHours1776000000001 } from './1776000000001-AddBranchI
 import { AddSessionTimeToDoctorWorkingHours1776000000002 } from './1776000000002-AddSessionTimeToDoctorWorkingHours';
 import { AddDoctorWorkingHourIdToReservations1776000000003 } from './1776000000003-AddDoctorWorkingHourIdToReservations';
 import { AddFeesToDoctorWorkingHours1776000000004 } from './1776000000004-AddFeesToDoctorWorkingHours';
+import { MakeFeesRequiredInDoctorWorkingHours1776000000005 } from './1776000000005-MakeFeesRequiredInDoctorWorkingHours';
+import { AddBusyAndPatientsLimitToDoctorWorkingHours1776000000006 } from './1776000000006-AddBusyAndPatientsLimitToDoctorWorkingHours';
 
 /**
  * List of all clinic migrations in order
@@ -57,4 +59,6 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   AddSessionTimeToDoctorWorkingHours1776000000002,
   AddDoctorWorkingHourIdToReservations1776000000003,
   AddFeesToDoctorWorkingHours1776000000004,
+  MakeFeesRequiredInDoctorWorkingHours1776000000005,
+  AddBusyAndPatientsLimitToDoctorWorkingHours1776000000006,
 ];

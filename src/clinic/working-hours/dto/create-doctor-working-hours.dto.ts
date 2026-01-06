@@ -93,15 +93,35 @@ export class CreateDoctorWorkingHoursDto {
   waterfall?: boolean;
 
   @ApiProperty({
-    description: 'Fees for this working hour slot',
+    description: 'Fees for this working hour slot (required)',
     type: Number,
-    required: false,
     example: 100.5,
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsNumber()
   @Min(0)
-  fees?: number;
+  fees: number;
+
+  @ApiProperty({
+    description: 'Whether this working hour slot is busy',
+    type: Boolean,
+    default: false,
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  busy?: boolean;
+
+  @ApiProperty({
+    description: 'Maximum number of patients allowed for this slot. If not provided, will be set to 1 when waterfall is false.',
+    type: Number,
+    required: false,
+    example: 5,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  patients_limit?: number;
 }
 
 /**

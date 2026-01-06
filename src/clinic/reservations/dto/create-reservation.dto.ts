@@ -1,23 +1,10 @@
-import {
-  IsInt,
-  IsNumber,
-  IsBoolean,
-  IsDateString,
-  IsEnum,
-  IsOptional,
-  Min,
-} from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ReservationStatus } from '../entities/reservation.entity';
+import { IsInt, IsDateString } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateReservationDto {
   @ApiProperty({ example: 1, description: 'Doctor ID' })
   @IsInt()
   doctor_id: number;
-
-  @ApiProperty({ example: 1, description: 'Patient ID' })
-  @IsInt()
-  patient_id: number;
 
   @ApiProperty({
     example: 1,
@@ -25,21 +12,11 @@ export class CreateReservationDto {
   })
   @IsInt()
   doctor_working_hour_id: number;
-  
+
   @ApiProperty({
-    example: '2024-01-15T10:00:00',
-    description: 'Reservation date and time',
+    example: '2024-01-15',
+    description: 'Reservation date (time will be taken from working hour)',
   })
   @IsDateString()
-  date_time: string;
-
-  @ApiPropertyOptional({
-    example: ReservationStatus.PENDING,
-    description: 'Reservation status',
-    enum: ReservationStatus,
-    default: ReservationStatus.PENDING,
-  })
-  @IsOptional()
-  @IsEnum(ReservationStatus)
-  status?: ReservationStatus;
+  date: string;
 }

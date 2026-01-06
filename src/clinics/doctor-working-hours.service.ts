@@ -233,6 +233,9 @@ export class DoctorWorkingHoursService {
           is_active: createDto.is_active ?? true,
           waterfall: false,
           session_time: sessionTime,
+          fees: createDto.fees ?? 0,
+          busy: createDto.busy ?? false,
+          patients_limit: createDto.patients_limit ?? 1, // If not waterfall, default to 1
         };
         if (createDto.branch_id !== undefined) {
           workingHourData.branch_id = createDto.branch_id;
@@ -278,6 +281,9 @@ export class DoctorWorkingHoursService {
       is_active: createDto.is_active ?? true,
       waterfall: waterfall,
       session_time: sessionTime,
+      fees: createDto.fees ?? 0,
+      busy: createDto.busy ?? false,
+      patients_limit: waterfall ? (createDto.patients_limit ?? null) : 1, // If not waterfall, set to 1
     };
     if (createDto.branch_id !== undefined) {
       workingHourData.branch_id = createDto.branch_id;
@@ -382,6 +388,9 @@ export class DoctorWorkingHoursService {
               is_active: workingHourDto.is_active ?? true,
               waterfall: false,
               session_time: sessionTime,
+              fees: workingHourDto.fees ?? 0,
+              busy: workingHourDto.busy ?? false,
+              patients_limit: workingHourDto.patients_limit ?? 1, // If not waterfall, default to 1
             };
             if (workingHourDto.branch_id !== undefined) {
               workingHourData.branch_id = workingHourDto.branch_id;
@@ -424,6 +433,9 @@ export class DoctorWorkingHoursService {
             is_active: workingHourDto.is_active ?? true,
             waterfall: waterfall,
             session_time: sessionTime,
+            fees: workingHourDto.fees ?? 0,
+            busy: workingHourDto.busy ?? false,
+            patients_limit: waterfall ? (workingHourDto.patients_limit ?? null) : 1, // If not waterfall, set to 1
           };
           if (workingHourDto.branch_id !== undefined) {
             workingHourData.branch_id = workingHourDto.branch_id;
