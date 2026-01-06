@@ -34,12 +34,20 @@ export class ClinicPermissionsGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
+    const handler = context.getHandler();
+    const controller = context.getClass();
+    const route = `${controller.name}.${handler.name}`;
+    const method = request.method;
+    const path = request.url;
+
     const user = request.user as
       | { userId: number; clinic_id?: number }
       | undefined;
 
     if (!user || !user.userId) {
-      this.logger.warn('No user found in request');
+      this.logger.warn(
+        `Forbidden resource access - Reason: No user found in request | Route: ${method} ${path} | Handler: ${route}`,
+      );
       return false;
     }
 
@@ -63,7 +71,7 @@ export class ClinicPermissionsGuard implements CanActivate {
 
     if (!clinicId) {
       this.logger.warn(
-        'No clinicId found in JWT token, route params, or request',
+        `Forbidden resource access - Reason: No clinicId found in JWT token, route params, or request | User ID: ${user.userId} | Route: ${method} ${path} | Handler: ${route}`,
       );
       return false;
     }
@@ -89,6 +97,9 @@ export class ClinicPermissionsGuard implements CanActivate {
       await this.tenantRepositoryService.getRepository<User>(User);
 
     if (!userRepository) {
+      this.logger.warn(
+        `Forbidden resource access - Reason: Cannot get user repository from clinic database | User ID: ${user.userId} | Clinic ID: ${clinicId} | Tenant DB: ${tenantDatabase} | Route: ${method} ${path} | Handler: ${route}`,
+      );
       return false;
     }
 
@@ -99,6 +110,9 @@ export class ClinicPermissionsGuard implements CanActivate {
     });
 
     if (!clinicDbUser || !clinicDbUser.role) {
+      this.logger.warn(
+        `Forbidden resource access - Reason: User not found in clinic database or has no role | User ID: ${user.userId} | Clinic ID: ${clinicId} | Tenant DB: ${tenantDatabase} | Route: ${method} ${path} | Handler: ${route}`,
+      );
       return false;
     }
 
@@ -118,6 +132,9 @@ export class ClinicPermissionsGuard implements CanActivate {
     }
 
     if (!clinicDbUser.role.permissions) {
+      this.logger.warn(
+        `Forbidden resource access - Reason: User role has no permissions | User ID: ${clinicDbUser.id} | Role: ${clinicDbUser.role.name || 'N/A'} | Clinic ID: ${clinicId} | Route: ${method} ${path} | Handler: ${route}`,
+      );
       return false;
     }
 
@@ -136,7 +153,7 @@ export class ClinicPermissionsGuard implements CanActivate {
         (permission) => !userPermissions.includes(permission),
       );
       this.logger.warn(
-        `Permission denied - User ID: ${clinicDbUser.id}, Required: [${requiredPermissions.join(', ')}], Missing: [${missingPermissions.join(', ')}]`,
+        `Forbidden resource access - Reason: Missing required permissions | User ID: ${clinicDbUser.id} | Role: ${clinicDbUser.role.name || 'N/A'} | Clinic ID: ${clinicId} | Required: [${requiredPermissions.join(', ')}] | Missing: [${missingPermissions.join(', ')}] | User has: [${userPermissions.join(', ')}] | Route: ${method} ${path} | Handler: ${route}`,
       );
     }
 

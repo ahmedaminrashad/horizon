@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsBoolean,
   IsInt,
+  IsNumber,
   Min,
 } from 'class-validator';
 import { DayOfWeek } from '../entities/working-hour.entity';
@@ -90,6 +91,17 @@ export class CreateDoctorWorkingHoursDto {
   @IsOptional()
   @IsBoolean()
   waterfall?: boolean;
+
+  @ApiProperty({
+    description: 'Fees for this working hour slot',
+    type: Number,
+    required: false,
+    example: 100.5,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  fees?: number;
 }
 
 /**

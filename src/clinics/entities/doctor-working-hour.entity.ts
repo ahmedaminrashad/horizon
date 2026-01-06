@@ -73,6 +73,15 @@ export class DoctorWorkingHour {
   })
   waterfall: boolean;
 
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    comment: 'Fees for this working hour slot',
+  })
+  fees: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

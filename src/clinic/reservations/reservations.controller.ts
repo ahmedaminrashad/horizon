@@ -36,8 +36,6 @@ export class ReservationsController {
   constructor(private readonly reservationsService: ReservationsService) {}
 
   @Post()
-  @UseGuards(ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.CREATE_RESERVATION as string)
   @ApiOperation({ summary: 'Create a new reservation' })
   @ApiResponse({ status: 201, description: 'Reservation created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input' })

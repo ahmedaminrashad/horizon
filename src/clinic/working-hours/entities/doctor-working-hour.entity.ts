@@ -72,9 +72,19 @@ export class DoctorWorkingHour {
   @Column({
     type: 'boolean',
     default: true,
-    comment: 'Waterfall scheduling: if true, appointments cascade to next available slot',
+    comment: `Waterfall scheduling: if true, appointments cascade to next available slot
+    if false, appointments will be rejected if the slot is not available`,
   })
   waterfall: boolean;
+
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    comment: 'Fees for this working hour slot',
+  })
+  fees: number;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -82,4 +92,3 @@ export class DoctorWorkingHour {
   @UpdateDateColumn()
   updatedAt: Date;
 }
-

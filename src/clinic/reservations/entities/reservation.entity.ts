@@ -29,7 +29,7 @@ export class Reservation {
   @Column({ name: 'patient_id' })
   patient_id: number;
 
-  @Column({ name: 'doctor_working_hour_id', nullable: true })
+  @Column({ name: 'doctor_working_hour_id' })
   doctor_working_hour_id: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
@@ -56,7 +56,7 @@ export class Reservation {
   @JoinColumn({ name: 'patient_id' })
   patient: User;
 
-  @ManyToOne(() => DoctorWorkingHour, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => DoctorWorkingHour, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'doctor_working_hour_id' })
   doctor_working_hour: DoctorWorkingHour;
 
