@@ -38,8 +38,8 @@ export class Reservation {
   @Column({ type: 'boolean', default: false })
   paid: boolean;
 
-  @Column({ type: 'datetime', name: 'date_time' })
-  date_time: Date;
+  @Column({ type: 'date', name: 'date' })
+  date: Date;
 
   @Column({
     type: 'enum',

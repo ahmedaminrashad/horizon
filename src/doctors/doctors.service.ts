@@ -318,7 +318,7 @@ export class DoctorsService {
   private async getDoctorReservations(
     dataSource: DataSource,
     clinicDoctorId: number,
-  ): Promise<Array<{ date_time: Date }>> {
+  ): Promise<Array<{ date: Date }>> {
     const reservationRepo = dataSource.getRepository(Reservation);
 
     // Get reservations that block slots (all except cancelled)
@@ -331,10 +331,10 @@ export class DoctorsService {
           ReservationStatus.PENDING,
         ]),
       },
-      order: { date_time: 'ASC' },
+      order: { date: 'ASC' },
     });
 
-    return reservations.map((r) => ({ date_time: r.date_time }));
+    return reservations.map((r) => ({ date: r.date }));
   }
 
   /**
@@ -348,7 +348,7 @@ export class DoctorsService {
       session_time?: string | null;
       branch_id?: number | null;
     }>,
-    reservations: Array<{ date_time: Date }>,
+    reservations: Array<{ date: Date }>,
   ): NextAvailableSlot | null {
     const now = new Date();
     const defaultSlotDurationMinutes = 30; // Default slot duration in minutes if session_time not specified
@@ -397,11 +397,11 @@ export class DoctorsService {
     // Group reservations by date (YYYY-MM-DD)
     const reservationsByDate = new Map<string, Date[]>();
     for (const res of reservations) {
-      const dateKey = res.date_time.toISOString().split('T')[0];
+      const dateKey = res.date.toISOString().split('T')[0];
       if (!reservationsByDate.has(dateKey)) {
         reservationsByDate.set(dateKey, []);
       }
-      reservationsByDate.get(dateKey)!.push(res.date_time);
+      reservationsByDate.get(dateKey)!.push(res.date);
     }
 
     // Check each day for the next 30 days
