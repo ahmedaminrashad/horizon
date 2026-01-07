@@ -125,7 +125,7 @@ async function bootstrap() {
 
   // Disable caching for Swagger JSON endpoint using Express middleware
   app.use(
-    '/api/docs',
+    '/api/documentation',
     (req: Request, res: Response, next: NextFunction) => {
       if (req.path.endsWith('-json') || req.path.includes('swagger')) {
         res.setHeader(
@@ -139,7 +139,7 @@ async function bootstrap() {
     },
   );
 
-  SwaggerModule.setup('api/docs', app, document, {
+  SwaggerModule.setup('api/documentation', app, document, {
     swaggerOptions: {
       persistAuthorization: false,
       tagsSorter: 'alpha',
