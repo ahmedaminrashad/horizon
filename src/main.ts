@@ -92,7 +92,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('Horizon Backend API')
     .setDescription('API documentation for Horizon Backend')
-    .setVersion('1.4')
+    .setVersion('1.5')
     .addBearerAuth(
       {
         type: 'http',
