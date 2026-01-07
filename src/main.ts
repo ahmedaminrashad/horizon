@@ -125,7 +125,7 @@ async function bootstrap() {
 
   // Disable caching for Swagger JSON endpoint using Express middleware
   app.use(
-    '/api/documentation',
+    '/api/docs',
     (req: Request, res: Response, next: NextFunction) => {
       if (req.path.endsWith('-json') || req.path.includes('swagger')) {
         res.setHeader(
