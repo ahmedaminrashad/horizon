@@ -1100,6 +1100,24 @@ export class WorkingHoursService {
   }
 
   /**
+   * Get doctor working hours by branch and day
+   */
+  async getDoctorWorkingHoursByBranchAndDay(
+    doctorId: number,
+    branchId: number,
+    day: DayOfWeek,
+  ): Promise<DoctorWorkingHour[]> {
+    const repository = await this.getDoctorWorkingHoursRepository();
+    return repository.find({
+      where: { doctor_id: doctorId, branch_id: branchId, day },
+      relations: ['branch'],
+      order: {
+        start_time: 'ASC',
+      },
+    });
+  }
+
+  /**
    * Create or update doctor working hours
    */
   async setDoctorWorkingHours(

@@ -14,6 +14,7 @@ import {
   MaxFileSizeValidator,
   FileTypeValidator,
   ParseIntPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -43,6 +44,7 @@ import { ClinicId } from '../decorators/clinic-id.decorator';
 import { RegisterDoctorDto } from './dto/register-doctor.dto';
 import { WorkingHoursService } from '../working-hours/working-hours.service';
 import { DoctorWorkingHour } from '../working-hours/entities/doctor-working-hour.entity';
+import { DayOfWeek } from '../working-hours/entities/working-hour.entity';
 
 @ApiTags('clinic/doctors')
 @Controller('clinic/:clinicId/doctors')
@@ -268,6 +270,13 @@ export class DoctorsController {
     description: 'Filter by branch ID',
     example: 1,
   })
+  @ApiQuery({
+    name: 'day',
+    required: false,
+    enum: DayOfWeek,
+    description: 'Filter by day of the week',
+    example: DayOfWeek.MONDAY,
+  })
   @ApiResponse({
     status: 200,
     description: 'Doctor working hours retrieved successfully',
@@ -277,16 +286,46 @@ export class DoctorsController {
     @ClinicId() clinicId: number,
     @Param('doctorId', ParseIntPipe) doctorId: number,
     @Query('branchId', new ParseIntPipe({ optional: true })) branchId?: number,
+    @Query('day') day?: string,
   ) {
     if (!clinicId) {
       throw new Error('Clinic ID is required');
     }
+
+    // Validate and parse day if provided
+    let dayEnum: DayOfWeek | undefined;
+    if (day) {
+      if (!Object.values(DayOfWeek).includes(day as DayOfWeek)) {
+        throw new BadRequestException(
+          `Invalid day value. Must be one of: ${Object.values(DayOfWeek).join(', ')}`,
+        );
+      }
+      dayEnum = day as DayOfWeek;
+    }
+
+    // If both branchId and day are provided, we need to filter by both
+    if (branchId && dayEnum) {
+      return this.workingHoursService.getDoctorWorkingHoursByBranchAndDay(
+        doctorId,
+        branchId,
+        dayEnum,
+      );
+    }
+
+    // If only branchId is provided
     if (branchId) {
       return this.workingHoursService.getDoctorWorkingHoursByBranch(
         doctorId,
         branchId,
       );
     }
+
+    // If only day is provided
+    if (dayEnum) {
+      return this.workingHoursService.getDoctorWorkingHoursByDay(doctorId, dayEnum);
+    }
+
+    // Return all working hours if no filters
     return this.workingHoursService.getDoctorWorkingHours(doctorId);
   }
 
