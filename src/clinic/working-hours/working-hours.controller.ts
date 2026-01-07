@@ -381,14 +381,14 @@ export class WorkingHoursController {
 
   // ==================== Doctor Working Hours Endpoints ====================
 
-  @Get('doctors/:doctorId')
+  @Get('doctors/:id')
   @Permissions(ClinicPermission.READ_SETTING as string)
   @ApiOperation({
     summary: 'Get all working hours for a doctor',
     description: 'Retrieve all working hours for a specific doctor',
   })
   @ApiParam({
-    name: 'doctorId',
+    name: 'id',
     type: Number,
     description: 'Doctor ID',
     example: 1,
@@ -398,8 +398,8 @@ export class WorkingHoursController {
     description: 'Doctor working hours retrieved successfully',
     type: [DoctorWorkingHour],
   })
-  getDoctorWorkingHours(@Param('doctorId', ParseIntPipe) doctorId: number) {
-    return this.workingHoursService.getDoctorWorkingHours(doctorId);
+  getDoctorWorkingHours(@Param('id', ParseIntPipe) id: number) {
+    return this.workingHoursService.getDoctorWorkingHours(id);
   }
 
   @Get('doctors/:doctorId/day/:day')

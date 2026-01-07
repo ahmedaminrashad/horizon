@@ -13,6 +13,7 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -40,13 +41,18 @@ import { ClinicPermission } from '../permissions/enums/clinic-permission.enum';
 import { Department } from './entities/doctor.entity';
 import { ClinicId } from '../decorators/clinic-id.decorator';
 import { RegisterDoctorDto } from './dto/register-doctor.dto';
+import { WorkingHoursService } from '../working-hours/working-hours.service';
+import { DoctorWorkingHour } from '../working-hours/entities/doctor-working-hour.entity';
 
 @ApiTags('clinic/doctors')
 @Controller('clinic/:clinicId/doctors')
 @UseGuards(ClinicTenantGuard, JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class DoctorsController {
-  constructor(private readonly doctorsService: DoctorsService) {}
+  constructor(
+    private readonly doctorsService: DoctorsService,
+    private readonly workingHoursService: WorkingHoursService,
+  ) {}
 
   @Post()
   @UseGuards(ClinicPermissionsGuard)
@@ -244,6 +250,44 @@ export class DoctorsController {
       throw new Error('Clinic ID is required');
     }
     return this.doctorsService.findOne(clinicId, +doctorId);
+  }
+
+  @Get(':doctorId/working-hours')
+  @Public()
+  @ApiOperation({ summary: 'Get working hours for a doctor (public)' })
+  @ApiParam({
+    name: 'clinicId',
+    type: Number,
+    description: 'Clinic ID',
+  })
+  @ApiParam({ name: 'doctorId', type: Number, description: 'Doctor ID' })
+  @ApiQuery({
+    name: 'branchId',
+    required: false,
+    type: Number,
+    description: 'Filter by branch ID',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Doctor working hours retrieved successfully',
+    type: [DoctorWorkingHour],
+  })
+  getDoctorWorkingHours(
+    @ClinicId() clinicId: number,
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Query('branchId', new ParseIntPipe({ optional: true })) branchId?: number,
+  ) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    if (branchId) {
+      return this.workingHoursService.getDoctorWorkingHoursByBranch(
+        doctorId,
+        branchId,
+      );
+    }
+    return this.workingHoursService.getDoctorWorkingHours(doctorId);
   }
 
   @Patch(':doctorId')
