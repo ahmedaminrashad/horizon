@@ -131,6 +131,14 @@ export class ClinicPermissionsGuard implements CanActivate {
       }
     }
 
+    // Check if user is admin - if so, allow access to all resources
+    if (clinicDbUser.role.slug === 'admin' || clinicDbUser.role.slug === 'clinic-admin') {
+      this.logger.debug(
+        `Admin access granted - User ID: ${clinicDbUser.id} | Role: ${clinicDbUser.role.name || clinicDbUser.role.slug} | Clinic ID: ${clinicId} | Route: ${method} ${path} | Handler: ${route}`,
+      );
+      return true;
+    }
+
     if (!clinicDbUser.role.permissions) {
       this.logger.warn(
         `Forbidden resource access - Reason: User role has no permissions | User ID: ${clinicDbUser.id} | Role: ${clinicDbUser.role.name || 'N/A'} | Clinic ID: ${clinicId} | Route: ${method} ${path} | Handler: ${route}`,
