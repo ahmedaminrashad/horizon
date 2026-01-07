@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Repository, In, Between, Not } from 'typeorm';
+import { Repository, In, Not } from 'typeorm';
 import { TenantRepositoryService } from '../../database/tenant-repository.service';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
 import { CreateReservationDto } from './dto/create-reservation.dto';
@@ -77,6 +77,15 @@ export class ReservationsService {
 
     // Increment doctor's number_of_patients
     await this.incrementDoctorPatientCount(clinicId, createReservationDto.doctor_id);
+
+    // If working hour is waterfall, set busy to true
+    if (!workingHour.waterfall) {
+      await this.updateWorkingHourBusyStatus(
+        createReservationDto.doctor_working_hour_id,
+        true,
+      );
+    }
+    
 
     // Reload reservation with working hour relation
     const reservationWithWorkingHour = await repository.findOne({
@@ -215,6 +224,44 @@ export class ReservationsService {
     }
     // Return the working hour so fees can be used
     return workingHour;
+  }
+
+  /**
+   * Update working hour busy status
+   */
+  private async updateWorkingHourBusyStatus(
+    workingHourId: number,
+    busy: boolean,
+  ): Promise<void> {
+    try {
+      // Get working hour repository
+      const workingHourRepository = await this.tenantRepositoryService.getRepository<DoctorWorkingHour>(
+        DoctorWorkingHour,
+      );
+
+      if (!workingHourRepository) {
+        return; // Silently fail if repository not available
+      }
+
+      // Get the working hour
+      const workingHour = await workingHourRepository.findOne({
+        where: { id: workingHourId },
+      });
+
+      if (!workingHour) {
+        return; // Silently fail if working hour not found
+      }
+
+      // Update busy status
+      workingHour.busy = busy;
+      await workingHourRepository.save(workingHour);
+    } catch (error) {
+      // Log error but don't fail the reservation creation
+      console.error(
+        `Failed to update working hour busy status for working hour ${workingHourId}:`,
+        error,
+      );
+    }
   }
 
   /**
