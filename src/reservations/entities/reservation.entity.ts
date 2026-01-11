@@ -52,6 +52,22 @@ export class Reservation {
   date: Date;
 
   @Column({
+    type: 'time',
+    name: 'from_time',
+    nullable: true,
+    comment: 'Start time from working hour (e.g., 09:00:00)',
+  })
+  from_time: string;
+
+  @Column({
+    type: 'time',
+    name: 'to_time',
+    nullable: true,
+    comment: 'End time from working hour (e.g., 17:00:00)',
+  })
+  to_time: string;
+
+  @Column({
     type: 'enum',
     enum: ReservationStatus,
     default: ReservationStatus.PENDING,

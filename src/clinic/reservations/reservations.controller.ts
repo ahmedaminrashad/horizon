@@ -36,6 +36,32 @@ import { ClinicId } from '../decorators/clinic-id.decorator';
 export class ReservationsController {
   constructor(private readonly reservationsService: ReservationsService) {}
 
+  @Get('reservation')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get all reservations for main user' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({ status: 200, description: 'List of reservations for main user' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  findAllForMainUser(
+    @Query() paginationQuery: PaginationQueryDto,
+    @Request() req: { user?: { userId: number; name?: string; phone: string; email?: string } },
+  ) {
+    if (!req.user?.userId) {
+      throw new BadRequestException('User authentication required');
+    }
+
+    const page = paginationQuery.page || 1;
+    const limit = paginationQuery.limit || 10;
+
+    return this.reservationsService.findAllForMainUser(
+      req.user.userId,
+      page,
+      limit,
+    );
+  }
+
   @Post('reservation')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')

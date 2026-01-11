@@ -382,6 +382,39 @@ export class ReservationsService {
     };
   }
 
+  /**
+   * Get all reservations for a main user from main reservations table
+   */
+  async findAllForMainUser(
+    mainUserId: number,
+    page: number = 1,
+    limit: number = 10,
+  ) {
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await this.mainReservationRepository.findAndCount({
+      where: { main_user_id: mainUserId },
+      relations: ['doctor', 'mainUser'],
+      skip,
+      take: limit,
+      order: { date: 'DESC', createdAt: 'DESC' },
+    });
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    };
+  }
+
   async findOne(clinicId: number, id: number): Promise<Reservation> {
     const repository = await this.getRepository();
     // Note: We avoid loading 'doctor.user' and 'patient' to prevent TypeORM from
@@ -642,10 +675,22 @@ export class ReservationsService {
     });
 
     // Sync to main reservations table
-    await this.syncToMainReservations(
-      createMainUserReservationDto.clinic_id,
-      reservationWithRelations || savedReservation,
-    );
+    try {
+      await this.syncToMainReservations(
+        createMainUserReservationDto.clinic_id,
+        reservationWithRelations || savedReservation,
+      );
+    } catch (syncError) {
+      // Log sync error but don't fail the reservation creation
+      const errorMessage =
+        syncError instanceof Error ? syncError.message : String(syncError);
+      // eslint-disable-next-line no-console
+      console.error(
+        `[SYNC ERROR] Failed to sync main user reservation ${savedReservation.id} to main database:`,
+        errorMessage,
+      );
+      // Continue - the clinic reservation was created successfully
+    }
 
     return reservationWithRelations || savedReservation;
   }
@@ -720,17 +765,149 @@ export class ReservationsService {
   ): Promise<void> {
     try {
       // Find main doctor by clinic_id and clinic_doctor_id
-      const mainDoctor = await this.mainDoctorsService.findByClinicDoctorId(
+      let mainDoctor = await this.mainDoctorsService.findByClinicDoctorId(
         clinicId,
         clinicReservation.doctor_id,
       );
 
       if (!mainDoctor) {
+        // Try to get clinic doctor and sync it to main database
         // eslint-disable-next-line no-console
         console.warn(
-          `Main doctor not found for clinic ${clinicId}, doctor ${clinicReservation.doctor_id}. Skipping sync.`,
+          `Main doctor not found for clinic ${clinicId}, clinic doctor ID ${clinicReservation.doctor_id}. Attempting to fetch and sync doctor from clinic database...`,
         );
-        return;
+
+        // Get clinic database to fetch doctor info
+        const clinic = await this.clinicsService.findOne(clinicId);
+        if (!clinic || !clinic.database_name) {
+          // eslint-disable-next-line no-console
+          console.error(
+            `[SYNC ERROR] Cannot sync reservation ${clinicReservation.id}: Clinic ${clinicId} not found or has no database.`,
+          );
+          return;
+        }
+
+        const clinicDataSource =
+          await this.tenantDataSourceService.getTenantDataSource(
+            clinic.database_name,
+          );
+        if (!clinicDataSource) {
+          // eslint-disable-next-line no-console
+          console.error(
+            `[SYNC ERROR] Cannot sync reservation ${clinicReservation.id}: Cannot connect to clinic database.`,
+          );
+          return;
+        }
+
+        // Get clinic doctor
+        const clinicDoctorRepository =
+          clinicDataSource.getRepository(Doctor);
+        const clinicDoctor = await clinicDoctorRepository.findOne({
+          where: { id: clinicReservation.doctor_id },
+          relations: ['user'],
+        });
+
+        if (!clinicDoctor) {
+          // eslint-disable-next-line no-console
+          console.error(
+            `[SYNC ERROR] Cannot sync reservation ${clinicReservation.id}: Clinic doctor ${clinicReservation.doctor_id} not found in clinic database.`,
+          );
+          return;
+        }
+
+        // Sync doctor to main database
+        try {
+          await this.mainDoctorsService.syncDoctor(
+            clinicId,
+            clinicReservation.doctor_id,
+            {
+              name: clinicDoctor.user?.name || 'Unknown',
+              age: clinicDoctor.age,
+              avatar: clinicDoctor.avatar,
+              email: clinicDoctor.user?.email,
+              phone: clinicDoctor.user?.phone,
+              department: clinicDoctor.department,
+              license_number: clinicDoctor.license_number,
+              degree: clinicDoctor.degree,
+              languages: clinicDoctor.languages,
+              bio: clinicDoctor.bio,
+              appoint_type: clinicDoctor.appoint_type,
+              is_active: clinicDoctor.is_active,
+              branch_id: clinicDoctor.branch_id,
+              experience_years: clinicDoctor.experience_years,
+              number_of_patients: clinicDoctor.number_of_patients,
+            },
+          );
+
+          // Retry lookup after sync
+          mainDoctor = await this.mainDoctorsService.findByClinicDoctorId(
+            clinicId,
+            clinicReservation.doctor_id,
+          );
+
+          if (!mainDoctor) {
+            // eslint-disable-next-line no-console
+            console.error(
+              `[SYNC ERROR] Doctor sync succeeded but lookup still failed. Cannot sync reservation ${clinicReservation.id}.`,
+            );
+            return;
+          }
+
+          // eslint-disable-next-line no-console
+          console.log(
+            `Successfully synced doctor ${clinicReservation.doctor_id} to main database (main doctor ID: ${mainDoctor.id}). Continuing with reservation sync...`,
+          );
+        } catch (doctorSyncError) {
+          const errorMessage =
+            doctorSyncError instanceof Error
+              ? doctorSyncError.message
+              : String(doctorSyncError);
+          // eslint-disable-next-line no-console
+          console.error(
+            `[SYNC ERROR] Failed to sync doctor ${clinicReservation.doctor_id} to main database:`,
+            errorMessage,
+          );
+          // eslint-disable-next-line no-console
+          console.error(
+            `[SYNC ERROR] Cannot sync reservation ${clinicReservation.id} without main doctor.`,
+          );
+          return;
+        }
+      }
+
+      // Get working hour from clinic database to extract times
+      let fromTime: string | undefined;
+      let toTime: string | undefined;
+
+      try {
+        const clinic = await this.clinicsService.findOne(clinicId);
+        if (clinic && clinic.database_name) {
+          const clinicDataSource =
+            await this.tenantDataSourceService.getTenantDataSource(
+              clinic.database_name,
+            );
+          if (clinicDataSource) {
+            const workingHourRepository =
+              clinicDataSource.getRepository(DoctorWorkingHour);
+            const workingHour = await workingHourRepository.findOne({
+              where: { id: clinicReservation.doctor_working_hour_id },
+            });
+
+            if (workingHour) {
+              fromTime = workingHour.start_time;
+              toTime = workingHour.end_time;
+            }
+          }
+        }
+      } catch (error) {
+        // Log error but continue - times are optional
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[SYNC WARNING] Could not fetch working hour times for reservation ${clinicReservation.id}:`,
+          errorMessage,
+        );
       }
 
       // Check if main reservation already exists
@@ -753,6 +930,8 @@ export class ReservationsService {
         date: clinicReservation.date instanceof Date
           ? clinicReservation.date
           : new Date(clinicReservation.date),
+        from_time: fromTime,
+        to_time: toTime,
         status: clinicReservation.status,
       };
 
