@@ -36,9 +36,6 @@ export class User {
   @JoinColumn({ name: 'role_id' })
   role: Role;
 
-  @Column({ nullable: true })
-  main_user_id: number;
-
   @CreateDateColumn()
   createdAt: Date;
 
