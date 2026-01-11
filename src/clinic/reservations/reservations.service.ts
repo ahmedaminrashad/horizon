@@ -102,9 +102,11 @@ export class ReservationsService {
     
 
     // Reload reservation with working hour relation
+    // Note: We avoid loading 'doctor.user' and 'patient' to prevent TypeORM from
+    // trying to query the main users table which doesn't have main_user_id
     const reservationWithWorkingHour = await repository.findOne({
       where: { id: savedReservation.id },
-      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
+      relations: ['doctor', 'doctor_working_hour'],
     });
 
     // Sync to main reservations table
@@ -355,7 +357,9 @@ export class ReservationsService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await repository.findAndCount({
-      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
+      // Note: We avoid loading 'doctor.user' and 'patient' to prevent TypeORM from
+      // trying to query the main users table which doesn't have main_user_id
+      relations: ['doctor', 'doctor_working_hour'],
       skip,
       take: limit,
       order: {
@@ -380,9 +384,11 @@ export class ReservationsService {
 
   async findOne(clinicId: number, id: number): Promise<Reservation> {
     const repository = await this.getRepository();
+    // Note: We avoid loading 'doctor.user' and 'patient' to prevent TypeORM from
+    // trying to query the main users table which doesn't have main_user_id
     const reservation = await repository.findOne({
       where: { id },
-      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
+      relations: ['doctor', 'doctor_working_hour'],
     });
 
     if (!reservation) {
@@ -442,9 +448,11 @@ export class ReservationsService {
     const updatedReservation = await repository.save(reservation);
 
     // Reload reservation with working hour relation
+    // Note: We avoid loading 'doctor.user' and 'patient' to prevent TypeORM from
+    // trying to query the main users table which doesn't have main_user_id
     const reservationWithWorkingHour = await repository.findOne({
       where: { id: updatedReservation.id },
-      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
+      relations: ['doctor', 'doctor_working_hour'],
     });
 
     // Sync to main reservations table
@@ -626,9 +634,11 @@ export class ReservationsService {
     }
 
     // Reload reservation with relations
+    // Note: We avoid loading 'doctor.user' and 'patient' to prevent TypeORM from
+    // trying to query the main users table which doesn't have main_user_id
     const reservationWithRelations = await reservationRepository.findOne({
       where: { id: savedReservation.id },
-      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
+      relations: ['doctor', 'doctor_working_hour'],
     });
 
     // Sync to main reservations table
