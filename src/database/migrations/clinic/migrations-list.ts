@@ -28,6 +28,7 @@ import { AddFeesToDoctorWorkingHours1776000000004 } from './1776000000004-AddFee
 import { MakeFeesRequiredInDoctorWorkingHours1776000000005 } from './1776000000005-MakeFeesRequiredInDoctorWorkingHours';
 import { AddBusyAndPatientsLimitToDoctorWorkingHours1776000000006 } from './1776000000006-AddBusyAndPatientsLimitToDoctorWorkingHours';
 import { ChangeReservationDateTimeToDate1776000000007 } from './1776000000007-ChangeReservationDateTimeToDate';
+import { AddMainUserIdToReservations1776000000008 } from './1776000000008-AddMainUserIdToReservations';
 
 /**
  * List of all clinic migrations in order
@@ -63,4 +64,5 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   MakeFeesRequiredInDoctorWorkingHours1776000000005,
   AddBusyAndPatientsLimitToDoctorWorkingHours1776000000006,
   ChangeReservationDateTimeToDate1776000000007,
+  AddMainUserIdToReservations1776000000008,
 ];

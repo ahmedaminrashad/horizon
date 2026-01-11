@@ -48,6 +48,9 @@ export class Reservation {
   })
   status: ReservationStatus;
 
+  @Column({ name: 'main_user_id', nullable: true })
+  main_user_id: number;
+
   @ManyToOne(() => Doctor, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'doctor_id' })
   doctor: Doctor;

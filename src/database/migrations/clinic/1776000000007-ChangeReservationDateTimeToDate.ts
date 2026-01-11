@@ -10,7 +10,7 @@ export class ChangeReservationDateTimeToDate1776000000007
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const table = await queryRunner.getTable('reservations');
-    
+
     if (!table) {
       return;
     }
@@ -23,30 +23,79 @@ export class ChangeReservationDateTimeToDate1776000000007
       await queryRunner.dropIndex('reservations', 'IDX_reservations_date_time');
     }
 
-    // Change column type from datetime to date and rename
-    await queryRunner.changeColumn(
-      'reservations',
-      'date_time',
-      new TableColumn({
-        name: 'date',
-        type: 'date',
-        isNullable: false,
-      }),
-    );
+    // Check if the column exists before trying to change it
+    const dateTimeColumn = table.findColumnByName('date_time');
+    if (!dateTimeColumn) {
+      // Column might already be renamed to 'date'
+      const dateColumn = table.findColumnByName('date');
+      if (dateColumn && dateColumn.type === 'date') {
+        // Column already changed, just ensure index exists
+        const dateIndex = table.indices.find(
+          (index) => index.name === 'IDX_reservations_date',
+        );
+        if (!dateIndex) {
+          await queryRunner.createIndex(
+            'reservations',
+            new TableIndex({
+              name: 'IDX_reservations_date',
+              columnNames: ['date'],
+            }),
+          );
+        }
+        return;
+      }
+      return;
+    }
 
-    // Create new index for date column
-    await queryRunner.createIndex(
-      'reservations',
-      new TableIndex({
-        name: 'IDX_reservations_date',
-        columnNames: ['date'],
-      }),
+    // Change column type from datetime to date and rename
+    // Using raw SQL to avoid foreign key issues that TypeORM might have
+    try {
+      await queryRunner.query(
+        `ALTER TABLE \`reservations\` CHANGE \`date_time\` \`date\` DATE NOT NULL`,
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      // If error is about foreign key that doesn't exist, try to continue
+      if (
+        errorMessage.includes("Can't DROP FOREIGN KEY") ||
+        errorMessage.includes('check that it exists')
+      ) {
+        // Try with a different approach - check if column already changed
+        const updatedTable = await queryRunner.getTable('reservations');
+        const dateColumn = updatedTable?.findColumnByName('date');
+        if (dateColumn && dateColumn.type === 'date') {
+          // Column already changed, continue
+          // Column already changed, no need to log
+        } else {
+          // Column not changed, rethrow error
+          throw error;
+        }
+      } else {
+        // Re-throw other errors
+        throw error;
+      }
+    }
+
+    // Create new index for date column (if it doesn't exist)
+    const updatedTable = await queryRunner.getTable('reservations');
+    const dateIndex = updatedTable?.indices.find(
+      (index) => index.name === 'IDX_reservations_date',
     );
+    if (!dateIndex) {
+      await queryRunner.createIndex(
+        'reservations',
+        new TableIndex({
+          name: 'IDX_reservations_date',
+          columnNames: ['date'],
+        }),
+      );
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     const table = await queryRunner.getTable('reservations');
-    
+
     if (!table) {
       return;
     }
@@ -80,4 +129,3 @@ export class ChangeReservationDateTimeToDate1776000000007
     );
   }
 }
-

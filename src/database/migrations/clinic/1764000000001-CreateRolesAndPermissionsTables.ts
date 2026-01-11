@@ -233,28 +233,85 @@ export class CreateRolesAndPermissionsTables1764000000001
           ADD COLUMN \`role_id\` INT NULL
         `);
 
-        // Add foreign key for role_id
-        await queryRunner.createForeignKey(
-          'users',
-          new TableForeignKey({
-            columnNames: ['role_id'],
-            referencedColumnNames: ['id'],
-            referencedTableName: 'roles',
-            onDelete: 'SET NULL',
-          }),
+        // Check if foreign key already exists before creating
+        const existingForeignKeys = usersTable.foreignKeys.filter(
+          (fk) =>
+            fk.columnNames.includes('role_id') &&
+            fk.referencedTableName === 'roles',
         );
 
-        // Add index for role_id
-        await queryRunner.createIndex(
-          'users',
-          new TableIndex({
-            name: 'IDX_users_role_id',
-            columnNames: ['role_id'],
-          }),
+        // Add foreign key for role_id only if it doesn't exist
+        if (existingForeignKeys.length === 0) {
+          try {
+            await queryRunner.createForeignKey(
+              'users',
+              new TableForeignKey({
+                columnNames: ['role_id'],
+                referencedColumnNames: ['id'],
+                referencedTableName: 'roles',
+                onDelete: 'SET NULL',
+              }),
+            );
+          } catch (error) {
+            // Ignore if foreign key already exists
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            if (
+              !errorMessage.includes('Duplicate foreign key') &&
+              !errorMessage.includes('already exists')
+            ) {
+              throw error;
+            }
+          }
+        }
+
+        // Add index for role_id (check if it exists first)
+        const existingIndex = usersTable.indices.find(
+          (idx) => idx.name === 'IDX_users_role_id',
         );
+        if (!existingIndex) {
+          await queryRunner.createIndex(
+            'users',
+            new TableIndex({
+              name: 'IDX_users_role_id',
+              columnNames: ['role_id'],
+            }),
+          );
+        }
 
         console.log('Added role_id column to users table');
       } else {
+        // Column exists, but check if foreign key exists
+        const existingForeignKeys = usersTable.foreignKeys.filter(
+          (fk) =>
+            fk.columnNames.includes('role_id') &&
+            fk.referencedTableName === 'roles',
+        );
+        if (existingForeignKeys.length === 0) {
+          // Column exists but foreign key doesn't, try to create it
+          try {
+            await queryRunner.createForeignKey(
+              'users',
+              new TableForeignKey({
+                columnNames: ['role_id'],
+                referencedColumnNames: ['id'],
+                referencedTableName: 'roles',
+                onDelete: 'SET NULL',
+              }),
+            );
+          } catch (error) {
+            // Ignore if foreign key already exists or can't be created
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            if (
+              !errorMessage.includes('Duplicate foreign key') &&
+              !errorMessage.includes('already exists') &&
+              !errorMessage.includes("Can't DROP FOREIGN KEY")
+            ) {
+              throw error;
+            }
+          }
+        }
         console.log('role_id column already exists in users table');
       }
     }
@@ -285,6 +342,30 @@ export class CreateRolesAndPermissionsTables1764000000001
       // Drop table
       await queryRunner.dropTable('role_permissions');
       console.log('Role_permissions table dropped');
+    }
+
+    // Drop foreign key from users table that references roles before dropping roles table
+    const usersTable = await queryRunner.getTable('users');
+    if (usersTable) {
+      // Find and drop foreign key that references roles table
+      const foreignKeys = usersTable.foreignKeys.filter(
+        (fk) => fk.referencedTableName === 'roles',
+      );
+      for (const foreignKey of foreignKeys) {
+        try {
+          await queryRunner.dropForeignKey('users', foreignKey);
+        } catch (error) {
+          // Ignore if foreign key doesn't exist or already dropped
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          if (
+            !errorMessage.includes("Can't DROP FOREIGN KEY") &&
+            !errorMessage.includes('check that it exists')
+          ) {
+            throw error;
+          }
+        }
+      }
     }
 
     // Drop roles table

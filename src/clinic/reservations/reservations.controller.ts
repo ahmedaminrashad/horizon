@@ -9,6 +9,7 @@ import {
   UseGuards,
   Query,
   Request,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,6 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { ReservationsService } from './reservations.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
+import { CreateMainUserReservationDto } from './dto/create-main-user-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -30,14 +32,50 @@ import { ClinicPermission } from '../permissions/enums/clinic-permission.enum';
 import { ClinicId } from '../decorators/clinic-id.decorator';
 
 @ApiTags('clinic/reservations')
-@Controller('clinic/:clinicId/reservations')
-@UseGuards(ClinicTenantGuard, JwtAuthGuard)
-@ApiBearerAuth('JWT-auth')
+@Controller()
 export class ReservationsController {
   constructor(private readonly reservationsService: ReservationsService) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new reservation' })
+  @Post('reservation')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Create a reservation for main user' })
+  @ApiResponse({
+    status: 201,
+    description: 'Reservation created successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({
+    status: 404,
+    description: 'Clinic or working hour not found',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  createMainUserReservation(
+    @Body() createMainUserReservationDto: CreateMainUserReservationDto,
+    @Request() req: { user?: { userId: number; name?: string; phone: string; email?: string } },
+  ) {
+    // Get main user from authenticated user
+    const mainUser = {
+      id: req.user?.userId || 0,
+      name: req.user?.name,
+      phone: req.user?.phone || '',
+      email: req.user?.email,
+    };
+
+    if (!req.user?.userId || !req.user?.phone) {
+      throw new BadRequestException('User authentication required');
+    }
+
+    return this.reservationsService.createMainUserReservation(
+      createMainUserReservationDto,
+      mainUser,
+    );
+  }
+
+  @Post('clinic/:clinicId/reservations')
+  @UseGuards(ClinicTenantGuard, JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Create a new reservation (for clinic users)' })
   @ApiParam({
     name: 'clinicId',
     type: Number,
@@ -60,8 +98,9 @@ export class ReservationsController {
     return this.reservationsService.create(clinicId, createReservationDto, patientId);
   }
 
-  @Get()
-  @UseGuards(ClinicPermissionsGuard)
+  @Get('clinic/:clinicId/reservations')
+  @UseGuards(ClinicTenantGuard, JwtAuthGuard, ClinicPermissionsGuard)
+  @ApiBearerAuth('JWT-auth')
   @Permissions(ClinicPermission.READ_RESERVATION as string)
   @ApiOperation({ summary: 'Get all reservations with pagination' })
   @ApiParam({
@@ -85,8 +124,9 @@ export class ReservationsController {
     return this.reservationsService.findAll(clinicId, page, limit);
   }
 
-  @Get(':id')
-  @UseGuards(ClinicPermissionsGuard)
+  @Get('clinic/:clinicId/reservations/:id')
+  @UseGuards(ClinicTenantGuard, JwtAuthGuard, ClinicPermissionsGuard)
+  @ApiBearerAuth('JWT-auth')
   @Permissions(ClinicPermission.READ_RESERVATION as string)
   @ApiOperation({ summary: 'Get a reservation by ID' })
   @ApiParam({
@@ -113,8 +153,9 @@ export class ReservationsController {
     return this.reservationsService.findOne(clinicId, +id);
   }
 
-  @Patch(':id')
-  @UseGuards(ClinicPermissionsGuard)
+  @Patch('clinic/:clinicId/reservations/:id')
+  @UseGuards(ClinicTenantGuard, JwtAuthGuard, ClinicPermissionsGuard)
+  @ApiBearerAuth('JWT-auth')
   @Permissions(ClinicPermission.UPDATE_RESERVATION as string)
   @ApiOperation({ summary: 'Update a reservation' })
   @ApiParam({
@@ -143,8 +184,9 @@ export class ReservationsController {
     return this.reservationsService.update(clinicId, +id, updateReservationDto);
   }
 
-  @Delete(':id')
-  @UseGuards(ClinicPermissionsGuard)
+  @Delete('clinic/:clinicId/reservations/:id')
+  @UseGuards(ClinicTenantGuard, JwtAuthGuard, ClinicPermissionsGuard)
+  @ApiBearerAuth('JWT-auth')
   @Permissions(ClinicPermission.DELETE_RESERVATION as string)
   @ApiOperation({ summary: 'Delete a reservation' })
   @ApiParam({

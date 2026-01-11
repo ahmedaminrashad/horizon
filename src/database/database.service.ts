@@ -104,7 +104,7 @@ export class DatabaseService {
       password: this.configService.get('DB_PASSWORD', ''),
       database: sanitizedDbName,
       entities: clinicEntities,
-      synchronize: this.configService.get('NODE_ENV') === 'development',
+      synchronize: false, // Always false - use migrations instead
       autoLoadEntities: false,
       logging:
         this.configService.get('NODE_ENV') === 'development'

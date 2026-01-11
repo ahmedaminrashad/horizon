@@ -5,19 +5,28 @@ import {
 } from '@nestjs/common';
 import { Repository, In, Not } from 'typeorm';
 import { TenantRepositoryService } from '../../database/tenant-repository.service';
+import { TenantDataSourceService } from '../../database/tenant-data-source.service';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
 import { CreateReservationDto } from './dto/create-reservation.dto';
+import { CreateMainUserReservationDto } from './dto/create-main-user-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { Doctor } from '../doctors/entities/doctor.entity';
 import { DoctorsService as MainDoctorsService } from '../../doctors/doctors.service';
 import { DoctorWorkingHour } from '../working-hours/entities/doctor-working-hour.entity';
 import { DayOfWeek } from '../working-hours/entities/working-hour.entity';
+import { User as ClinicUser } from '../permissions/entities/user.entity';
+import { ClinicsService } from '../../clinics/clinics.service';
+import { UsersService } from '../../users/users.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class ReservationsService {
   constructor(
     private tenantRepositoryService: TenantRepositoryService,
+    private tenantDataSourceService: TenantDataSourceService,
     private mainDoctorsService: MainDoctorsService,
+    private clinicsService: ClinicsService,
+    private usersService: UsersService,
   ) {}
 
   /**
@@ -434,5 +443,234 @@ export class ReservationsService {
     const repository = await this.getRepository();
     const reservation = await this.findOne(clinicId, id);
     await repository.remove(reservation);
+  }
+
+  /**
+   * Create reservation for main user
+   * This method is used when a main user (not clinic user) creates a reservation
+   * It will auto-create a clinic user if the phone doesn't exist
+   */
+  async createMainUserReservation(
+    createMainUserReservationDto: CreateMainUserReservationDto,
+    mainUserData: { id: number; name?: string; phone: string; email?: string },
+  ): Promise<Reservation> {
+    // Get clinic by ID
+    const clinic = await this.clinicsService.findOne(
+      createMainUserReservationDto.clinic_id,
+    );
+
+    if (!clinic || !clinic.database_name) {
+      throw new NotFoundException(
+        `Clinic with ID ${createMainUserReservationDto.clinic_id} not found or has no database`,
+      );
+    }
+
+    // Get clinic database connection
+    const clinicDataSource = await this.tenantDataSourceService.getTenantDataSource(
+      clinic.database_name,
+    );
+
+    if (!clinicDataSource) {
+      throw new BadRequestException(
+        `Cannot connect to clinic database: ${clinic.database_name}`,
+      );
+    }
+
+    // Get main user from main database (should exist since user is authenticated)
+    const mainUser = await this.usersService.findOne(mainUserData.id);
+
+    if (!mainUser) {
+      throw new NotFoundException('Main user not found');
+    }
+
+    // Get clinic user repository
+    const clinicUserRepository = clinicDataSource.getRepository<ClinicUser>(
+      ClinicUser,
+    );
+
+    // Check if phone exists in clinic users
+    let clinicUser = await clinicUserRepository.findOne({
+      where: { phone: mainUserData.phone },
+    });
+
+    // If phone doesn't exist, create a new clinic user
+    if (!clinicUser) {
+      // Check if email already exists (if provided)
+      if (mainUserData.email) {
+        const existingUserByEmail = await clinicUserRepository.findOne({
+          where: { email: mainUserData.email },
+        });
+
+        if (existingUserByEmail) {
+          throw new BadRequestException(
+            'User with this email already exists in clinic',
+          );
+        }
+      }
+
+      // Generate a random password for clinic user (they won't use it for main user reservations)
+      const randomPassword = await bcrypt.hash(
+        Math.random().toString(36).slice(-8),
+        10,
+      );
+
+      clinicUser = clinicUserRepository.create({
+        name: mainUserData.name || mainUser.name,
+        phone: mainUserData.phone,
+        email: mainUserData.email || mainUser.email,
+        password: randomPassword,
+        package_id: 0,
+      });
+
+      clinicUser = await clinicUserRepository.save(clinicUser);
+    }
+
+    // Get reservation repository for clinic database
+    const reservationRepository = clinicDataSource.getRepository<Reservation>(
+      Reservation,
+    );
+
+    // Parse the date from the request
+    const reservationDate = new Date(createMainUserReservationDto.date);
+    reservationDate.setHours(0, 0, 0, 0);
+
+    // Validate that reservation date is not in the past
+    this.validateReservationDate(reservationDate);
+
+    // Get working hour for validation
+    const workingHourRepository = clinicDataSource.getRepository<DoctorWorkingHour>(
+      DoctorWorkingHour,
+    );
+
+    const workingHour = await workingHourRepository.findOne({
+      where: { id: createMainUserReservationDto.doctor_working_hour_id },
+    });
+
+    if (!workingHour) {
+      throw new NotFoundException(
+        `Working hour with ID ${createMainUserReservationDto.doctor_working_hour_id} not found`,
+      );
+    }
+
+    // Verify the working hour belongs to the doctor
+    if (workingHour.doctor_id !== createMainUserReservationDto.doctor_id) {
+      throw new BadRequestException(
+        `Working hour ${createMainUserReservationDto.doctor_working_hour_id} does not belong to doctor ${createMainUserReservationDto.doctor_id}`,
+      );
+    }
+
+    // Check if working hour is active
+    if (!workingHour.is_active) {
+      throw new BadRequestException(
+        `Working hour ${createMainUserReservationDto.doctor_working_hour_id} is not active`,
+      );
+    }
+
+    // Validate working hour reservation
+    await this.validateWorkingHourReservationForClinic(
+      reservationRepository,
+      workingHourRepository,
+      createMainUserReservationDto.doctor_working_hour_id,
+      createMainUserReservationDto.doctor_id,
+      reservationDate,
+    );
+
+    // Get fees from working hour
+    const fees = workingHour.fees ?? 0;
+
+    // Create reservation
+    const reservation = reservationRepository.create({
+      doctor_id: createMainUserReservationDto.doctor_id,
+      patient_id: clinicUser.id,
+      doctor_working_hour_id: createMainUserReservationDto.doctor_working_hour_id,
+      date: reservationDate,
+      status: ReservationStatus.PENDING,
+      paid: false,
+      fees: fees,
+      main_user_id: mainUser.id,
+    });
+
+    const savedReservation = await reservationRepository.save(reservation);
+
+    // Increment doctor's number_of_patients
+    await this.incrementDoctorPatientCount(
+      createMainUserReservationDto.clinic_id,
+      createMainUserReservationDto.doctor_id,
+    );
+
+    // If working hour is not waterfall, set busy to true
+    if (!workingHour.waterfall) {
+      workingHour.busy = true;
+      await workingHourRepository.save(workingHour);
+    }
+
+    // Reload reservation with relations
+    const reservationWithRelations = await reservationRepository.findOne({
+      where: { id: savedReservation.id },
+      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
+    });
+
+    return reservationWithRelations || savedReservation;
+  }
+
+  /**
+   * Validate working hour reservation for clinic database
+   */
+  private async validateWorkingHourReservationForClinic(
+    reservationRepository: Repository<Reservation>,
+    workingHourRepository: Repository<DoctorWorkingHour>,
+    workingHourId: number,
+    doctorId: number,
+    reservationDate: Date,
+  ): Promise<void> {
+    const workingHour = await workingHourRepository.findOne({
+      where: { id: workingHourId },
+    });
+
+    if (!workingHour) {
+      throw new NotFoundException(
+        `Working hour with ID ${workingHourId} not found`,
+      );
+    }
+
+    // Validate that reservation date matches the working hour day
+    const reservationDay = this.getDayOfWeek(reservationDate);
+
+    if (reservationDay !== workingHour.day) {
+      throw new BadRequestException(
+        `Reservation day (${reservationDay}) does not match working hour day (${workingHour.day})`,
+      );
+    }
+
+    // Check existing reservations
+    const existingReservations = await reservationRepository.find({
+      where: {
+        doctor_working_hour_id: workingHourId,
+        status: In([
+          ReservationStatus.SCHEDULED,
+          ReservationStatus.TAKEN,
+          ReservationStatus.PENDING,
+        ]),
+        date: reservationDate,
+      },
+    });
+
+    // Check patient limit based on waterfall setting
+    if (workingHour.waterfall) {
+      if (
+        workingHour.patients_limit !== null &&
+        existingReservations.length >= workingHour.patients_limit
+      ) {
+        throw new BadRequestException(
+          `Working hour ${workingHourId} has reached its patient limit (${workingHour.patients_limit}) for this date. Maximum ${workingHour.patients_limit} reservation(s) allowed per day for waterfall working hours.`,
+        );
+      }
+    } else {
+      if (existingReservations.length > 0) {
+        throw new BadRequestException(
+          `Working hour ${workingHourId} has already a reservation for this time. Only one reservation is allowed for non-waterfall working hours.`,
+        );
+      }
+    }
   }
 }

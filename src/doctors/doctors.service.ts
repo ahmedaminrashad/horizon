@@ -334,7 +334,10 @@ export class DoctorsService {
       order: { date: 'ASC' },
     });
 
-    return reservations.map((r) => ({ date: r.date }));
+    // Convert date to Date object if it's a string (TypeORM returns date columns as strings)
+    return reservations.map((r) => ({
+      date: r.date instanceof Date ? r.date : new Date(r.date),
+    }));
   }
 
   /**
@@ -397,11 +400,13 @@ export class DoctorsService {
     // Group reservations by date (YYYY-MM-DD)
     const reservationsByDate = new Map<string, Date[]>();
     for (const res of reservations) {
-      const dateKey = res.date.toISOString().split('T')[0];
+      // Ensure date is a Date object
+      const dateObj = res.date instanceof Date ? res.date : new Date(res.date);
+      const dateKey = dateObj.toISOString().split('T')[0];
       if (!reservationsByDate.has(dateKey)) {
         reservationsByDate.set(dateKey, []);
       }
-      reservationsByDate.get(dateKey)!.push(res.date);
+      reservationsByDate.get(dateKey)!.push(dateObj);
     }
 
     // Check each day for the next 30 days
