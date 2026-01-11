@@ -9,6 +9,7 @@ import { ClinicsModule } from '../../clinics/clinics.module';
 import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 import { DoctorsModule as MainDoctorsModule } from '../../doctors/doctors.module';
+import { ReservationsModule as MainReservationsModule } from '../../reservations/reservations.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { DoctorsModule as MainDoctorsModule } from '../../doctors/doctors.module
     UsersModule,
     ClinicsModule,
     MainDoctorsModule,
+    MainReservationsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

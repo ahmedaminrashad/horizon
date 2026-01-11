@@ -3,10 +3,12 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Repository, In, Not } from 'typeorm';
+import { Repository, In, Not, DataSource } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 import { TenantRepositoryService } from '../../database/tenant-repository.service';
 import { TenantDataSourceService } from '../../database/tenant-data-source.service';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
+import { Reservation as MainReservation } from '../../reservations/entities/reservation.entity';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { CreateMainUserReservationDto } from './dto/create-main-user-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
@@ -27,6 +29,9 @@ export class ReservationsService {
     private mainDoctorsService: MainDoctorsService,
     private clinicsService: ClinicsService,
     private usersService: UsersService,
+    @InjectRepository(MainReservation)
+    private mainReservationRepository: Repository<MainReservation>,
+    private dataSource: DataSource,
   ) {}
 
   /**
@@ -101,6 +106,12 @@ export class ReservationsService {
       where: { id: savedReservation.id },
       relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
     });
+
+    // Sync to main reservations table
+    await this.syncToMainReservations(
+      clinicId,
+      reservationWithWorkingHour || savedReservation,
+    );
 
     return reservationWithWorkingHour || savedReservation;
   }
@@ -436,12 +447,22 @@ export class ReservationsService {
       relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
     });
 
+    // Sync to main reservations table
+    await this.syncToMainReservations(
+      clinicId,
+      reservationWithWorkingHour || updatedReservation,
+    );
+
     return reservationWithWorkingHour || updatedReservation;
   }
 
   async remove(clinicId: number, id: number): Promise<void> {
     const repository = await this.getRepository();
     const reservation = await this.findOne(clinicId, id);
+    
+    // Delete from main reservations table first
+    await this.deleteFromMainReservations(clinicId, reservation.id);
+    
     await repository.remove(reservation);
   }
 
@@ -610,6 +631,12 @@ export class ReservationsService {
       relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
     });
 
+    // Sync to main reservations table
+    await this.syncToMainReservations(
+      createMainUserReservationDto.clinic_id,
+      reservationWithRelations || savedReservation,
+    );
+
     return reservationWithRelations || savedReservation;
   }
 
@@ -671,6 +698,113 @@ export class ReservationsService {
           `Working hour ${workingHourId} has already a reservation for this time. Only one reservation is allowed for non-waterfall working hours.`,
         );
       }
+    }
+  }
+
+  /**
+   * Sync clinic reservation to main reservations table
+   */
+  private async syncToMainReservations(
+    clinicId: number,
+    clinicReservation: Reservation,
+  ): Promise<void> {
+    try {
+      // Find main doctor by clinic_id and clinic_doctor_id
+      const mainDoctor = await this.mainDoctorsService.findByClinicDoctorId(
+        clinicId,
+        clinicReservation.doctor_id,
+      );
+
+      if (!mainDoctor) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `Main doctor not found for clinic ${clinicId}, doctor ${clinicReservation.doctor_id}. Skipping sync.`,
+        );
+        return;
+      }
+
+      // Check if main reservation already exists
+      const existingMainReservation =
+        await this.mainReservationRepository.findOne({
+          where: {
+            clinic_id: clinicId,
+            clinic_reservation_id: clinicReservation.id,
+          },
+        });
+
+      const reservationData: Partial<MainReservation> = {
+        clinic_id: clinicId,
+        clinic_reservation_id: clinicReservation.id,
+        doctor_id: mainDoctor.id,
+        main_user_id: clinicReservation.main_user_id || undefined,
+        doctor_working_hour_id: clinicReservation.doctor_working_hour_id,
+        fees: clinicReservation.fees,
+        paid: clinicReservation.paid,
+        date: clinicReservation.date instanceof Date
+          ? clinicReservation.date
+          : new Date(clinicReservation.date),
+        status: clinicReservation.status,
+      };
+
+      if (existingMainReservation) {
+        // Update existing main reservation
+        Object.assign(existingMainReservation, reservationData);
+        const updated =
+          await this.mainReservationRepository.save(existingMainReservation);
+        // eslint-disable-next-line no-console
+        console.log(
+          `Successfully synced (updated) reservation ${clinicReservation.id} to main database (main reservation ID: ${updated.id})`,
+        );
+      } else {
+        // Create new main reservation
+        const mainReservation =
+          this.mainReservationRepository.create(reservationData);
+        const created =
+          await this.mainReservationRepository.save(mainReservation);
+        // eslint-disable-next-line no-console
+        console.log(
+          `Successfully synced (created) reservation ${clinicReservation.id} to main database (main reservation ID: ${created.id})`,
+        );
+      }
+    } catch (error) {
+      // Log error but don't fail the reservation operation
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      // eslint-disable-next-line no-console
+      console.error(
+        `Failed to sync reservation ${clinicReservation.id} (clinic ${clinicId}) to main database:`,
+        errorMessage,
+      );
+    }
+  }
+
+  /**
+   * Delete reservation from main reservations table
+   */
+  private async deleteFromMainReservations(
+    clinicId: number,
+    clinicReservationId: number,
+  ): Promise<void> {
+    try {
+      const mainReservation = await this.mainReservationRepository.findOne({
+        where: {
+          clinic_id: clinicId,
+          clinic_reservation_id: clinicReservationId,
+        },
+      });
+
+      if (mainReservation) {
+        await this.mainReservationRepository.remove(mainReservation);
+      }
+    } catch (error) {
+      // Log error but don't fail the deletion operation
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      // eslint-disable-next-line no-console
+      console.error(
+        `Failed to delete reservation ${clinicReservationId} from main database:`,
+        errorMessage,
+      );
     }
   }
 }

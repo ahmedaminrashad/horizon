@@ -125,11 +125,17 @@ export class UsersService {
   }
 
   async findByPhone(phone: string): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { phone } });
+    return this.usersRepository.findOne({
+      where: { phone },
+      relations: [], // Explicitly don't load any relations
+    });
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { email } });
+    return this.usersRepository.findOne({
+      where: { email },
+      relations: [], // Explicitly don't load any relations
+    });
   }
 
   async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
