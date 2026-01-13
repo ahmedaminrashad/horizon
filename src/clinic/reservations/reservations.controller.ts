@@ -89,6 +89,34 @@ export class ReservationsController {
     );
   }
 
+  @Post('reservation/:id/cancel')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Cancel a reservation for main user' })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Reservation ID',
+    example: 1,
+  })
+  @ApiResponse({ status: 200, description: 'Reservation cancelled successfully' })
+  @ApiResponse({ status: 404, description: 'Reservation not found' })
+  @ApiResponse({ status: 400, description: 'Reservation is already cancelled' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  cancelMainUserReservation(
+    @Param('id') id: string,
+    @Request() req: { user?: { userId: number; name?: string; phone: string; email?: string } },
+  ) {
+    if (!req.user?.userId) {
+      throw new BadRequestException('User authentication required');
+    }
+
+    return this.reservationsService.cancelMainUserReservation(
+      req.user.userId,
+      +id,
+    );
+  }
+
   @Post('reservation')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')

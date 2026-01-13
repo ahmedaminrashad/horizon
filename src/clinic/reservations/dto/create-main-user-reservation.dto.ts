@@ -1,5 +1,6 @@
-import { IsInt, IsDateString } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsInt, IsDateString, IsEnum, IsOptional } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { AppointType } from '../../doctors/entities/doctor.entity';
 
 export class CreateMainUserReservationDto {
   @ApiProperty({ example: 1, description: 'Clinic ID' })
@@ -23,4 +24,13 @@ export class CreateMainUserReservationDto {
   })
   @IsDateString()
   date: string;
+
+  @ApiPropertyOptional({
+    description: 'Appointment type: in-clinic, online, or home',
+    enum: AppointType,
+    example: AppointType.IN_CLINIC,
+  })
+  @IsOptional()
+  @IsEnum(AppointType)
+  appoint_type?: AppointType;
 }

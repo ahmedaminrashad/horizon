@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { TenantRepositoryService } from '../../database/tenant-repository.service';
 import { TenantDataSourceService } from '../../database/tenant-data-source.service';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
-import { Reservation as MainReservation } from '../../reservations/entities/reservation.entity';
+import { Reservation as MainReservation, ReservationStatus as MainReservationStatus } from '../../reservations/entities/reservation.entity';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { CreateMainUserReservationDto } from './dto/create-main-user-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
@@ -437,6 +437,109 @@ export class ReservationsService {
     }
 
     return reservation;
+  }
+
+  /**
+   * Cancel a reservation for a main user
+   * Updates both main and clinic reservation status to CANCELLED
+   * Also handles working hour busy status if needed
+   */
+  async cancelMainUserReservation(
+    mainUserId: number,
+    reservationId: number,
+  ): Promise<MainReservation> {
+    // Find the main reservation
+    const mainReservation = await this.mainReservationRepository.findOne({
+      where: { 
+        id: reservationId,
+        main_user_id: mainUserId,
+      },
+    });
+
+    if (!mainReservation) {
+      throw new NotFoundException(
+        `Reservation with ID ${reservationId} not found for this user`,
+      );
+    }
+
+    // Check if already cancelled
+    if (mainReservation.status === MainReservationStatus.CANCELLED) {
+      throw new BadRequestException('Reservation is already cancelled');
+    }
+
+    // Update main reservation status
+    mainReservation.status = MainReservationStatus.CANCELLED;
+    const updatedMainReservation = await this.mainReservationRepository.save(mainReservation);
+
+    // Update clinic reservation and handle side effects
+    try {
+      const clinic = await this.clinicsService.findOne(mainReservation.clinic_id);
+      if (clinic && clinic.database_name) {
+        const clinicDataSource = await this.tenantDataSourceService.getTenantDataSource(
+          clinic.database_name,
+        );
+        
+        if (clinicDataSource) {
+          const clinicReservationRepository = clinicDataSource.getRepository(Reservation);
+          const clinicReservation = await clinicReservationRepository.findOne({
+            where: { id: mainReservation.clinic_reservation_id },
+            relations: ['doctor_working_hour'],
+          });
+
+          if (clinicReservation) {
+            // Update clinic reservation status
+            clinicReservation.status = ReservationStatus.CANCELLED;
+            await clinicReservationRepository.save(clinicReservation);
+
+            // Handle working hour busy status if it's not a waterfall working hour
+            if (clinicReservation.doctor_working_hour && !clinicReservation.doctor_working_hour.waterfall) {
+              // Check if there are other active reservations for this working hour on the same date
+              const activeReservations = await clinicReservationRepository.find({
+                where: {
+                  doctor_working_hour_id: clinicReservation.doctor_working_hour_id,
+                  date: clinicReservation.date,
+                  status: In([ReservationStatus.PENDING, ReservationStatus.SCHEDULED, ReservationStatus.TAKEN]),
+                },
+              });
+
+              // If no other active reservations, set busy to false
+              if (activeReservations.length === 0) {
+                const workingHourRepository = clinicDataSource.getRepository(DoctorWorkingHour);
+                const workingHour = await workingHourRepository.findOne({
+                  where: { id: clinicReservation.doctor_working_hour_id },
+                });
+
+                if (workingHour) {
+                  workingHour.busy = false;
+                  await workingHourRepository.save(workingHour);
+                }
+              }
+            }
+
+            // Sync the updated clinic reservation back to main to ensure consistency
+            await this.syncToMainReservations(
+              mainReservation.clinic_id,
+              clinicReservation,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      // Log error but don't fail the cancellation - main reservation is already updated
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(
+        `Failed to update clinic reservation ${mainReservation.clinic_reservation_id} status:`,
+        errorMessage,
+      );
+    }
+
+    // Reload with relations
+    const reservationWithRelations = await this.mainReservationRepository.findOne({
+      where: { id: updatedMainReservation.id },
+      relations: ['doctor', 'mainUser'],
+    });
+
+    return reservationWithRelations || updatedMainReservation;
   }
 
   async findOne(clinicId: number, id: number): Promise<Reservation> {
