@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { Doctor, AppointType } from '../../doctors/entities/doctor.entity';
 import { DayOfWeek } from './clinic-working-hour.entity';
+import { Branch } from 'src/branches/entities/branch.entity';
 
 export { DayOfWeek };
 
@@ -109,5 +110,8 @@ export class DoctorWorkingHour {
 
   @UpdateDateColumn()
   updatedAt: Date;
-}
 
+  @ManyToOne(() => Branch, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'branch_id', referencedColumnName: 'clinic_branch_id' })
+  branch: Branch;
+}

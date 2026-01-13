@@ -343,6 +343,7 @@ export class ReservationsService {
             branch_id: doctor.branch_id,
             experience_years: doctor.experience_years,
             number_of_patients: doctor.number_of_patients,
+            rate: doctor.rate,
           });
         }
       }
@@ -963,6 +964,7 @@ export class ReservationsService {
               branch_id: clinicDoctor.branch_id,
               experience_years: clinicDoctor.experience_years,
               number_of_patients: clinicDoctor.number_of_patients,
+              rate: clinicDoctor.rate,
             },
           );
 

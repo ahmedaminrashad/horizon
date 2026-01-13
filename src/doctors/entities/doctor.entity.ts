@@ -62,6 +62,9 @@ export class Doctor {
   @Column({ name: 'number_of_patients', type: 'int', nullable: true })
   number_of_patients: number;
 
+  @Column({ type: 'decimal', precision: 3, scale: 2, nullable: true })
+  rate: number;
+
   @Column({ nullable: true })
   avatar: string;
 

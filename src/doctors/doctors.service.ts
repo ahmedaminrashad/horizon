@@ -13,6 +13,7 @@ import { ClinicsService } from '../clinics/clinics.service';
 import { TenantDataSourceService } from '../database/tenant-data-source.service';
 import { DayOfWeek } from '../clinic/working-hours/entities/working-hour.entity';
 import { DoctorWorkingHour } from '../clinic/working-hours/entities/doctor-working-hour.entity';
+import { DoctorWorkingHour as MainDoctorWorkingHour } from '../clinics/entities/doctor-working-hour.entity';
 import { WorkingHour } from '../clinic/working-hours/entities/working-hour.entity';
 import {
   Reservation,
@@ -32,6 +33,8 @@ export class DoctorsService {
   constructor(
     @InjectRepository(Doctor)
     private doctorsRepository: Repository<Doctor>,
+    @InjectRepository(MainDoctorWorkingHour)
+    private doctorWorkingHourRepository: Repository<MainDoctorWorkingHour>,
     private servicesService: ServicesService,
     @Inject(forwardRef(() => ClinicsService))
     private clinicsService: ClinicsService,
@@ -52,13 +55,18 @@ export class DoctorsService {
       },
     });
 
-    // Calculate next available slot for each doctor
-    const dataWithNextAvailable = await Promise.all(
+    // Fetch working hours for each doctor
+    const dataWithWorkingHours = await Promise.all(
       data.map(async (doctor) => {
-        const nextAvailable = await this.getNextAvailableSlot(doctor);
+        const workingHours = await this.doctorWorkingHourRepository.find({
+          where: { doctor_id: doctor.id },
+          order: { day: 'ASC', start_time: 'ASC' },
+          relations: ['branch'],
+        });
+
         return {
           ...doctor,
-          next_available_slot: nextAvailable,
+          working_hours: workingHours,
         };
       }),
     );
@@ -66,7 +74,7 @@ export class DoctorsService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: dataWithNextAvailable,
+      data: dataWithWorkingHours,
       meta: {
         total,
         page,
@@ -78,16 +86,27 @@ export class DoctorsService {
     };
   }
 
-  async findOne(id: number): Promise<Doctor> {
+  async findOne(id: number): Promise<Doctor & { working_hours?: MainDoctorWorkingHour[] }> {
     const doctor = await this.doctorsRepository.findOne({
       where: { id },
+      relations: ['branch'],
     });
 
     if (!doctor) {
       throw new NotFoundException(`Doctor with ID ${id} not found`);
     }
 
-    return doctor;
+    // Fetch working hours for the doctor
+    const workingHours = await this.doctorWorkingHourRepository.find({
+      where: { doctor_id: doctor.id },
+      order: { day: 'ASC', start_time: 'ASC' },
+      relations: ['branch'],
+    });
+
+    return {
+      ...doctor,
+      working_hours: workingHours,
+    };
   }
 
   async findByClinicDoctorId(
@@ -121,6 +140,7 @@ export class DoctorsService {
       branch_id?: number;
       experience_years?: number;
       number_of_patients?: number;
+      rate?: number;
     },
   ): Promise<Doctor> {
     const existingDoctor = await this.findByClinicDoctorId(
@@ -146,6 +166,7 @@ export class DoctorsService {
         branch_id: doctorData.branch_id,
         experience_years: doctorData.experience_years,
         number_of_patients: doctorData.number_of_patients,
+        rate: doctorData.rate,
       });
       return this.doctorsRepository.save(existingDoctor);
     } else {
@@ -169,6 +190,7 @@ export class DoctorsService {
         branch_id: doctorData.branch_id,
         experience_years: doctorData.experience_years,
         number_of_patients: doctorData.number_of_patients || 0,
+        rate: doctorData.rate,
       });
       return this.doctorsRepository.save(doctor);
     }

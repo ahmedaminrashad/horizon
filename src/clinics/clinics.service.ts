@@ -112,7 +112,7 @@ export class ClinicsService {
       },
     });
 
-    // Fetch doctors for each clinic with next available slot
+    // Fetch doctors for each clinic
     const clinicsWithDoctors = await Promise.all(
       data.map(async (clinic) => {
         const doctors = await this.doctorsRepository.find({
@@ -120,24 +120,9 @@ export class ClinicsService {
           order: { createdAt: 'DESC' },
         });
 
-        // Calculate next available slot for each doctor
-        const doctorsWithNextAvailable = await Promise.all(
-          doctors.map(async (doctor) => {
-            const nextAvailableSlot =
-              await this.doctorsService.getNextAvailableSlot(
-                doctor,
-                clinic.database_name,
-              );
-            return {
-              ...doctor,
-              next_available_slot: nextAvailableSlot,
-            };
-          }),
-        );
-
         return {
           ...clinic,
-          doctors: doctorsWithNextAvailable,
+          doctors,
         };
       }),
     );
@@ -167,26 +152,11 @@ export class ClinicsService {
       throw new NotFoundException(`Clinic with ID ${id} not found`);
     }
 
-    // Fetch doctors for the clinic with next available slot
+    // Fetch doctors for the clinic
     const doctors = await this.doctorsRepository.find({
       where: { clinic_id: clinic.id },
       order: { createdAt: 'DESC' },
     });
-
-    // Calculate next available slot for each doctor
-    const doctorsWithNextAvailable = await Promise.all(
-      doctors.map(async (doctor) => {
-        const nextAvailableSlot =
-          await this.doctorsService.getNextAvailableSlot(
-            doctor,
-            clinic.database_name,
-          );
-        return {
-          ...doctor,
-          next_available_slot: nextAvailableSlot,
-        };
-      }),
-    );
 
     // Fetch working hours for branches from clinic database
     let branchesWithWorkingHours = clinic.branches || [];
@@ -224,7 +194,7 @@ export class ClinicsService {
 
     return {
       ...clinic,
-      doctors: doctorsWithNextAvailable,
+      doctors,
       branches: branchesWithWorkingHours,
     };
   }
