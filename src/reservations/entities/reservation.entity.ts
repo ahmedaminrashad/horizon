@@ -8,7 +8,7 @@ import {
   UpdateDateColumn,
   Index,
 } from 'typeorm';
-import { Doctor } from '../../doctors/entities/doctor.entity';
+import { Doctor, AppointType } from '../../doctors/entities/doctor.entity';
 import { User } from '../../users/entities/user.entity';
 
 export enum ReservationStatus {
@@ -73,6 +73,14 @@ export class Reservation {
     default: ReservationStatus.PENDING,
   })
   status: ReservationStatus;
+
+  @Column({
+    type: 'enum',
+    enum: AppointType,
+    nullable: true,
+    comment: 'Appointment type: in-clinic, online, or home',
+  })
+  appoint_type: AppointType;
 
   @ManyToOne(() => Doctor, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'doctor_id' })

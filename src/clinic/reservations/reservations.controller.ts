@@ -62,6 +62,33 @@ export class ReservationsController {
     );
   }
 
+  @Get('reservation/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get a reservation by ID for main user' })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Reservation ID',
+    example: 1,
+  })
+  @ApiResponse({ status: 200, description: 'Reservation found' })
+  @ApiResponse({ status: 404, description: 'Reservation not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  findOneForMainUser(
+    @Param('id') id: string,
+    @Request() req: { user?: { userId: number; name?: string; phone: string; email?: string } },
+  ) {
+    if (!req.user?.userId) {
+      throw new BadRequestException('User authentication required');
+    }
+
+    return this.reservationsService.findOneForMainUser(
+      req.user.userId,
+      +id,
+    );
+  }
+
   @Post('reservation')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')

@@ -11,6 +11,7 @@ import {
   Min,
 } from 'class-validator';
 import { DayOfWeek } from '../entities/working-hour.entity';
+import { AppointType } from '../../doctors/entities/doctor.entity';
 
 /**
  * DTO for creating/updating doctor working hours
@@ -122,6 +123,16 @@ export class CreateDoctorWorkingHoursDto {
   @IsInt()
   @Min(1)
   patients_limit?: number;
+
+  @ApiProperty({
+    description: 'Appointment type: in-clinic, online, or home',
+    enum: AppointType,
+    required: false,
+    example: AppointType.IN_CLINIC,
+  })
+  @IsOptional()
+  @IsEnum(AppointType)
+  appoint_type?: AppointType;
 }
 
 /**

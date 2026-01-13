@@ -8,7 +8,7 @@ import {
   UpdateDateColumn,
   Index,
 } from 'typeorm';
-import { Doctor } from '../../doctors/entities/doctor.entity';
+import { Doctor, AppointType } from '../../doctors/entities/doctor.entity';
 import { DayOfWeek } from './clinic-working-hour.entity';
 
 export { DayOfWeek };
@@ -95,6 +95,14 @@ export class DoctorWorkingHour {
     comment: 'Maximum number of patients allowed for this slot. If null, no limit.',
   })
   patients_limit: number;
+
+  @Column({
+    type: 'enum',
+    enum: AppointType,
+    nullable: true,
+    comment: 'Appointment type: in-clinic, online, or home',
+  })
+  appoint_type: AppointType;
 
   @CreateDateColumn()
   createdAt: Date;

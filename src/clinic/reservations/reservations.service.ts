@@ -415,6 +415,30 @@ export class ReservationsService {
     };
   }
 
+  /**
+   * Get a single reservation by ID for a main user from main reservations table
+   */
+  async findOneForMainUser(
+    mainUserId: number,
+    reservationId: number,
+  ): Promise<MainReservation> {
+    const reservation = await this.mainReservationRepository.findOne({
+      where: { 
+        id: reservationId,
+        main_user_id: mainUserId,
+      },
+      relations: ['doctor', 'mainUser'],
+    });
+
+    if (!reservation) {
+      throw new NotFoundException(
+        `Reservation with ID ${reservationId} not found for this user`,
+      );
+    }
+
+    return reservation;
+  }
+
   async findOne(clinicId: number, id: number): Promise<Reservation> {
     const repository = await this.getRepository();
     // Note: We avoid loading 'doctor.user' and 'patient' to prevent TypeORM from
