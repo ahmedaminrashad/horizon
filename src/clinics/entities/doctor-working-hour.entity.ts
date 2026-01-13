@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 import { Doctor, AppointType } from '../../doctors/entities/doctor.entity';
 import { DayOfWeek } from './clinic-working-hour.entity';
-import { Branch } from 'src/branches/entities/branch.entity';
+import { Branch } from '../../branches/entities/branch.entity';
 
 export { DayOfWeek };
 
