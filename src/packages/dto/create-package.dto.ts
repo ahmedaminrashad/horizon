@@ -1,9 +1,27 @@
-import { IsNumber, IsOptional, IsArray, ValidateNested, IsBoolean, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsNumber, IsOptional, IsArray, IsBoolean, IsString, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { CreatePackageTranslationDto } from './create-package-translation.dto';
 
 export class CreatePackageDto {
+  @ApiProperty({ example: 'حزمة مميزة', description: 'Package name in Arabic' })
+  @IsString()
+  @IsOptional()
+  name_ar?: string;
+
+  @ApiPropertyOptional({ example: 'Premium Package', description: 'Package name in English' })
+  @IsString()
+  @IsOptional()
+  name_en?: string;
+
+  @ApiPropertyOptional({ example: 'هذه حزمة مميزة', description: 'Package content in Arabic' })
+  @IsString()
+  @IsOptional()
+  content_ar?: string;
+
+  @ApiPropertyOptional({ example: 'This is a premium package', description: 'Package content in English' })
+  @IsString()
+  @IsOptional()
+  content_en?: string;
+
   @ApiProperty({ example: 99.99, description: 'Package monthly price' })
   @IsNumber()
   @Min(0)
@@ -15,16 +33,6 @@ export class CreatePackageDto {
   price_annual: number;
 
   @ApiPropertyOptional({
-    type: [CreatePackageTranslationDto],
-    description: 'Package translations',
-  })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CreatePackageTranslationDto)
-  translations?: CreatePackageTranslationDto[];
-
-  @ApiPropertyOptional({
     description: 'Whether the package is featured',
     example: false,
     default: false,
@@ -34,11 +42,20 @@ export class CreatePackageDto {
   is_featured?: boolean;
 
   @ApiPropertyOptional({
-    description: 'List of package features',
+    description: 'List of package features in Arabic',
+    example: ['ميزة 1', 'ميزة 2', 'ميزة 3'],
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  features_ar?: string[];
+
+  @ApiPropertyOptional({
+    description: 'List of package features in English',
     example: ['Feature 1', 'Feature 2', 'Feature 3'],
     type: [String],
   })
   @IsOptional()
   @IsArray()
-  features?: string[];
+  features_en?: string[];
 }
