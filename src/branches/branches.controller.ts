@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,9 +26,11 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Permission } from '../permissions/enums/permission.enum';
+import { BranchNameInterceptor } from './interceptors/branch-name.interceptor';
 
 @ApiTags('branches')
 @Controller('branches')
+@UseInterceptors(BranchNameInterceptor)
 export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}
 

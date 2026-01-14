@@ -325,7 +325,8 @@ export class ClinicsService {
 
     // Create clinic record
     const clinic = this.clinicsRepository.create({
-      name: registerClinicDto.name,
+      name_ar: registerClinicDto.name_ar,
+      name_en: registerClinicDto.name_en,
       email: registerClinicDto.email,
       phone: registerClinicDto.phone,
       image: registerClinicDto.image,
@@ -422,7 +423,7 @@ export class ClinicsService {
         `INSERT INTO users (name, phone, email, password, role_id, createdAt, updatedAt) 
          VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
         [
-          clinic.name || null,
+          clinic.name_ar || clinic.name_en || null,
           clinic.phone,
           clinic.email || null,
           hashedPassword,

@@ -319,7 +319,9 @@ export class WorkingHoursService {
 
     const clinicWorkingHours = await queryBuilder.getMany();
 
-    // Convert ClinicWorkingHour to WorkingHour format, including branch
+    // Convert ClinicWorkingHour to WorkingHour format
+    // Note: branch is excluded because ClinicWorkingHour uses main Branch entity
+    // while WorkingHour expects clinic Branch entity (different schemas)
     return clinicWorkingHours.map((wh) => {
       const workingHour = {
         id: wh.id,
@@ -329,10 +331,10 @@ export class WorkingHoursService {
         range_order: wh.range_order,
         is_active: wh.is_active,
         branch_id: wh.branch_id,
-        branch: wh.branch || null,
+        branch: undefined, // Excluded due to type mismatch between main and clinic Branch entities
         createdAt: wh.createdAt,
         updatedAt: wh.updatedAt,
-      } as WorkingHour;
+      } as unknown as WorkingHour;
 
       return workingHour;
     });

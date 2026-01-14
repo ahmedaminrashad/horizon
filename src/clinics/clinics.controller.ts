@@ -38,9 +38,11 @@ import { Department } from '../clinic/doctors/entities/doctor.entity';
 import { SlotType } from './enums/slot-type.enum';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { ClinicNameInterceptor } from './interceptors/clinic-name.interceptor';
 
 @ApiTags('clinics')
 @Controller('clinics')
+@UseInterceptors(ClinicNameInterceptor)
 export class ClinicsController {
   constructor(private readonly clinicsService: ClinicsService) {}
 

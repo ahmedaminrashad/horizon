@@ -13,10 +13,10 @@ export class Country {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: 'varchar', length: 255 })
   name_en: string;
 
-  @Column()
+  @Column({ type: 'varchar', length: 255 })
   name_ar: string;
 
   @OneToMany(() => City, (city) => city.country)

@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,9 +19,11 @@ import { CountriesService } from './countries.service';
 import { CreateCountryDto } from './dto/create-country.dto';
 import { UpdateCountryDto } from './dto/update-country.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { CountryNameInterceptor } from './interceptors/country-name.interceptor';
 
 @ApiTags('countries')
 @Controller('countries')
+@UseInterceptors(CountryNameInterceptor)
 export class CountriesController {
   constructor(private readonly countriesService: CountriesService) {}
 

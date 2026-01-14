@@ -9,10 +9,15 @@ import {
 } from 'class-validator';
 
 export class CreateBranchDto {
-  @ApiProperty({ description: 'Branch name', example: 'Downtown Branch' })
+  @ApiProperty({ description: 'Branch name in Arabic', example: 'فرع وسط البلد' })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name_ar: string;
+
+  @ApiPropertyOptional({ description: 'Branch name in English', example: 'Downtown Branch' })
+  @IsString()
+  @IsOptional()
+  name_en?: string;
 
   @ApiProperty({ description: 'Clinic ID', example: 1 })
   @IsNumber()

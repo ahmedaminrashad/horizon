@@ -9,6 +9,7 @@ import { Observable } from 'rxjs';
 /**
  * Global interceptor to extract language from request headers
  * Stores the language in request.lang for access throughout the application
+ * Defaults to 'ar' (Arabic) if no language header is provided
  */
 @Injectable()
 export class LangInterceptor implements NestInterceptor {
@@ -19,10 +20,11 @@ export class LangInterceptor implements NestInterceptor {
     const lang = request.headers['lang'] || request.headers['x-lang'];
     
     // Store language in request object (lowercase for consistency)
+    // Default to 'ar' (Arabic) if no language header is provided
     if (lang) {
       request.lang = String(lang).toLowerCase();
     } else {
-      request.lang = undefined;
+      request.lang = 'ar';
     }
     
     return next.handle();

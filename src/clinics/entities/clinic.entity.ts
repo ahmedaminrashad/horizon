@@ -19,8 +19,11 @@ export class Clinic {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  name: string;
+  @Column({ name: 'name_ar', type: 'varchar', length: 255 })
+  name_ar: string;
+
+  @Column({ name: 'name_en', type: 'varchar', length: 255, nullable: true })
+  name_en: string | null;
 
   @Column({ unique: true })
   email: string;

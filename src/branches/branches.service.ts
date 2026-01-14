@@ -181,9 +181,9 @@ export class BranchesService {
     );
 
     if (existingBranch) {
-      // Update existing branch
+      // Update existing branch - map name to name_ar for backward compatibility
       Object.assign(existingBranch, {
-        name: branchData.name,
+        name_ar: branchData.name,
         lat: branchData.lat,
         longit: branchData.longit,
         country_id: branchData.country_id,
@@ -192,9 +192,9 @@ export class BranchesService {
       });
       return this.branchesRepository.save(existingBranch);
     } else {
-      // Create new branch
+      // Create new branch - map name to name_ar for backward compatibility
       const branch = this.branchesRepository.create({
-        name: branchData.name,
+        name_ar: branchData.name,
         clinic_id: clinicId,
         clinic_branch_id: clinicBranchId,
         lat: branchData.lat,

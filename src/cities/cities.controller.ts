@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,9 +19,11 @@ import { CitiesService } from './cities.service';
 import { CreateCityDto } from './dto/create-city.dto';
 import { UpdateCityDto } from './dto/update-city.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { CityNameInterceptor } from './interceptors/city-name.interceptor';
 
 @ApiTags('cities')
 @Controller('cities')
+@UseInterceptors(CityNameInterceptor)
 export class CitiesController {
   constructor(private readonly citiesService: CitiesService) {}
 

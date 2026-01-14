@@ -14,10 +14,15 @@ import {
 import { SlotType } from '../enums/slot-type.enum';
 
 export class RegisterClinicDto {
-  @ApiProperty({ description: 'Clinic name', example: 'City Medical Center' })
+  @ApiProperty({ description: 'Clinic name in Arabic', example: 'مركز المدينة الطبي' })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name_ar: string;
+
+  @ApiPropertyOptional({ description: 'Clinic name in English', example: 'City Medical Center' })
+  @IsString()
+  @IsOptional()
+  name_en?: string;
 
   @ApiProperty({
     description: 'Clinic email address',

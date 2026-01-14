@@ -14,10 +14,10 @@ export class City {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: 'varchar', length: 255 })
   name_en: string;
 
-  @Column()
+  @Column({ type: 'varchar', length: 255 })
   name_ar: string;
 
   @Column()
