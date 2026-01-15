@@ -1,0 +1,14 @@
+{
+  "exceptions": {
+    "NOT_FOUND": "غير موجود",
+    "NOT_FOUND_WITH_ID": "{{resource}} بالمعرف {{id}} غير موجود",
+    "CONFLICT": "تعارض",
+    "EMAIL_EXISTS": "البريد الإلكتروني موجود بالفعل",
+    "PHONE_EXISTS": "رقم الهاتف موجود بالفعل",
+    "BAD_REQUEST": "طلب غير صحيح",
+    "UNAUTHORIZED": "غير مصرح",
+    "FORBIDDEN": "ممنوع",
+    "INTERNAL_SERVER_ERROR": "خطأ في الخادم",
+    "VALIDATION_FAILED": "فشل التحقق"
+  }
+}

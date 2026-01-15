@@ -7,12 +7,14 @@ import { Repository } from 'typeorm';
 import { Package } from './entities/package.entity';
 import { CreatePackageDto } from './dto/create-package.dto';
 import { UpdatePackageDto } from './dto/update-package.dto';
+import { TranslationService } from '../common/services/translation.service';
 
 @Injectable()
 export class PackagesService {
   constructor(
     @InjectRepository(Package)
     private packagesRepository: Repository<Package>,
+    private translationService: TranslationService,
   ) {}
 
   async create(createPackageDto: CreatePackageDto): Promise<Package> {
@@ -52,7 +54,7 @@ export class PackagesService {
     });
 
     if (!pkg) {
-      throw new NotFoundException(`Package with ID ${id} not found`);
+      throw new NotFoundException(this.translationService.t(`Package with ID ${id} not found`));
     }
 
     return pkg;

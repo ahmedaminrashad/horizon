@@ -1,0 +1,14 @@
+{
+  "exceptions": {
+    "NOT_FOUND": "Not found",
+    "NOT_FOUND_WITH_ID": "{{resource}} with ID {{id}} not found",
+    "CONFLICT": "Conflict",
+    "EMAIL_EXISTS": "Email already exists",
+    "PHONE_EXISTS": "Phone number already exists",
+    "BAD_REQUEST": "Bad request",
+    "UNAUTHORIZED": "Unauthorized",
+    "FORBIDDEN": "Forbidden",
+    "INTERNAL_SERVER_ERROR": "Internal server error",
+    "VALIDATION_FAILED": "Validation failed"
+  }
+}

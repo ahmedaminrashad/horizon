@@ -1,0 +1,111 @@
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
+import { LangContextService } from './lang-context.service';
+
+interface Translations {
+  [key: string]: any;
+}
+
+@Injectable()
+export class TranslationService implements OnModuleInit {
+  private translations: Map<string, Translations> = new Map();
+
+  constructor(private langContextService: LangContextService) {}
+
+  onModuleInit() {
+    this.loadTranslations();
+  }
+
+  private loadTranslations() {
+    const i18nPath = path.join(__dirname, '../../i18n');
+    const languages = ['ar', 'en'];
+
+    for (const lang of languages) {
+      const filePath = path.join(i18nPath, `${lang}.json`);
+      try {
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        const translations = JSON.parse(fileContent);
+        this.translations.set(lang, translations);
+      } catch (error) {
+        console.error(`Failed to load translations for ${lang}:`, error);
+        this.translations.set(lang, {});
+      }
+    }
+  }
+
+  translate(key: string, lang?: string, params?: Record<string, any>): string {
+    const targetLang = lang || this.langContextService.getLang();
+    const translations = this.translations.get(targetLang) || this.translations.get('ar') || {};
+    const keys = key.split('.');
+    let value: any = translations;
+
+    for (const k of keys) {
+      if (value && typeof value === 'object' && k in value) {
+        value = value[k];
+      } else {
+        // Fallback to Arabic if translation not found
+        const arTranslations = this.translations.get('ar') || {};
+        let arValue: any = arTranslations;
+        for (const arKey of keys) {
+          if (arValue && typeof arValue === 'object' && arKey in arValue) {
+            arValue = arValue[arKey];
+          } else {
+            return key; // Return key if translation not found
+          }
+        }
+        value = arValue;
+        break;
+      }
+    }
+
+    if (typeof value !== 'string') {
+      return key;
+    }
+
+    // Replace parameters in translation
+    if (params) {
+      return value.replace(/\{\{(\w+)\}\}/g, (match, paramKey) => {
+        return params[paramKey] !== undefined ? String(params[paramKey]) : match;
+      });
+    }
+
+    return value;
+  }
+
+  /**
+   * Translate a message using pattern matching
+   * @param message The message to translate
+   * @param lang Optional language (defaults to current request language)
+   * @returns Translated message
+   */
+  t(message: string, lang?: string): string {
+    const targetLang = lang || this.langContextService.getLang();
+    const messageLower = message.toLowerCase();
+
+    // Try to match common patterns
+    // Pattern: "{Resource} with ID {id} not found"
+    const notFoundWithIdMatch = message.match(/(\w+)\s+with\s+ID\s+(\d+)\s+not\s+found/i);
+    if (notFoundWithIdMatch) {
+      const resource = notFoundWithIdMatch[1];
+      const id = notFoundWithIdMatch[2];
+      return this.translate('exceptions.NOT_FOUND_WITH_ID', targetLang, { resource, id });
+    }
+
+    // Generic patterns
+    if (messageLower.includes('email') && messageLower.includes('already exists')) {
+      return this.translate('exceptions.EMAIL_EXISTS', targetLang);
+    }
+
+    if (messageLower.includes('phone') && messageLower.includes('already exists')) {
+      return this.translate('exceptions.PHONE_EXISTS', targetLang);
+    }
+
+    if (messageLower.includes('not found')) {
+      return this.translate('exceptions.NOT_FOUND', targetLang);
+    }
+
+    // Return original message if no pattern matches
+    return message;
+  }
+}

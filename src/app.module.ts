@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { RolesModule } from './roles/roles.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { DatabaseModule } from './database/database.module';
+import { CommonModule } from './common/common.module';
 import { ClinicModule } from './clinic/clinic.module';
 import { PackagesModule } from './packages/packages.module';
 import { SettingsModule } from './settings/settings.module';
@@ -45,6 +46,7 @@ import { LangInterceptor } from './interceptors/lang.interceptor';
       inject: [ConfigService],
     }),
     DatabaseModule,
+    CommonModule,
     UsersModule,
     AuthModule,
     RolesModule,
