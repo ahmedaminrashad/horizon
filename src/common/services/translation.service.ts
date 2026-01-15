@@ -50,6 +50,22 @@ export class TranslationService implements OnModuleInit {
         this.translations.set(lang, {});
       }
     }
+
+    // Debug: Log loaded translations structure
+    if (this.translations.has('ar')) {
+      const arTranslations = this.translations.get('ar');
+      console.log('Arabic translations loaded. Keys:', Object.keys(arTranslations || {}));
+      if (arTranslations && arTranslations.exceptions) {
+        console.log('Arabic exceptions keys:', Object.keys(arTranslations.exceptions));
+      }
+    }
+    if (this.translations.has('en')) {
+      const enTranslations = this.translations.get('en');
+      console.log('English translations loaded. Keys:', Object.keys(enTranslations || {}));
+      if (enTranslations && enTranslations.exceptions) {
+        console.log('English exceptions keys:', Object.keys(enTranslations.exceptions));
+      }
+    }
   }
 
   translate(key: string, lang?: string, params?: Record<string, any>): string {
