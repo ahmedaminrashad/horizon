@@ -1,12 +1,14 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { SearchService } from './search.service';
 import { SearchQueryDto } from './dto/search-query.dto';
 import { Public } from '../auth/decorators/public.decorator';
 import { AppointType } from '../doctors/entities/doctor.entity';
+import { ClinicNameInterceptor } from '../clinics/interceptors/clinic-name.interceptor';
 
 @ApiTags('search')
 @Controller('search')
+@UseInterceptors(ClinicNameInterceptor)
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 

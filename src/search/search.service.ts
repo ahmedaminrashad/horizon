@@ -6,6 +6,7 @@ import { Clinic } from '../clinics/entities/clinic.entity';
 import { Branch } from '../branches/entities/branch.entity';
 import { Service } from '../services/entities/service.entity';
 import { SearchQueryDto } from './dto/search-query.dto';
+import { LangContextService } from '../common/services/lang-context.service';
 
 @Injectable()
 export class SearchService {
@@ -18,6 +19,7 @@ export class SearchService {
     private branchesRepository: Repository<Branch>,
     @InjectRepository(Service)
     private servicesRepository: Repository<Service>,
+    private langContextService: LangContextService,
   ) {}
 
   async search(searchQuery: SearchQueryDto) {
@@ -30,7 +32,7 @@ export class SearchService {
       .createQueryBuilder('doctor')
       .leftJoinAndSelect('doctor.branch', 'branch')
       .leftJoin(Clinic, 'clinic', 'clinic.id = doctor.clinic_id')
-      .addSelect(['clinic.id', 'clinic.name', 'clinic.image'])
+      .addSelect(['clinic.id', 'clinic.name_ar', 'clinic.name_en', 'clinic.image'])
       .where('doctor.is_active = :isActive', { isActive: true });
 
     // Build clinic query
@@ -57,11 +59,12 @@ export class SearchService {
         (s) => s.clinic_id,
       );
       
-      // For doctors: search in name, specialty, clinic name, or if clinic has matching service
+      // For doctors: search in name, specialty, clinic name (both ar and en), or if clinic has matching service
       const doctorSearchConditions = [
         'doctor.name LIKE :search',
         'doctor.specialty LIKE :search',
-        'clinic.name LIKE :search',
+        'clinic.name_ar LIKE :search',
+        'clinic.name_en LIKE :search',
       ];
       
       if (clinicIdsWithMatchingServices.length > 0) {
@@ -76,14 +79,14 @@ export class SearchService {
         );
       }
 
-      // For clinics: search in name or if clinic has matching services
+      // For clinics: search in name (both ar and en) or if clinic has matching services
       if (clinicIdsWithMatchingServices.length > 0) {
         clinicQuery.andWhere(
-          '(clinic.name LIKE :search OR clinic.id IN (:...clinicIds))',
+          '((clinic.name_ar LIKE :search OR clinic.name_en LIKE :search) OR clinic.id IN (:...clinicIds))',
           { search: searchTerm, clinicIds: clinicIdsWithMatchingServices },
         );
       } else {
-        clinicQuery.andWhere('clinic.name LIKE :search', {
+        clinicQuery.andWhere('(clinic.name_ar LIKE :search OR clinic.name_en LIKE :search)', {
           search: searchTerm,
         });
       }

@@ -91,6 +91,34 @@ export class ClinicNameInterceptor implements NestInterceptor {
           return data.map(addNameToClinic);
         }
 
+        // Case 5: Search response structure with doctors and clinics
+        if (data.doctors && data.clinics) {
+          return {
+            ...data,
+            doctors: {
+              ...data.doctors,
+              data: Array.isArray(data.doctors.data)
+                ? data.doctors.data.map((doctor: any) => {
+                    // Add name to clinic in doctor.clinic if it exists
+                    if (doctor.clinic) {
+                      return {
+                        ...doctor,
+                        clinic: addNameToClinic(doctor.clinic),
+                      };
+                    }
+                    return doctor;
+                  })
+                : data.doctors.data,
+            },
+            clinics: {
+              ...data.clinics,
+              data: Array.isArray(data.clinics.data)
+                ? data.clinics.data.map(addNameToClinic)
+                : data.clinics.data,
+            },
+          };
+        }
+
         return data;
       }),
     );
