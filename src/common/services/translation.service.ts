@@ -18,17 +18,35 @@ export class TranslationService implements OnModuleInit {
   }
 
   private loadTranslations() {
-    const i18nPath = path.join(__dirname, '../../i18n');
     const languages = ['ar', 'en'];
 
     for (const lang of languages) {
-      const filePath = path.join(i18nPath, `${lang}.json`);
-      try {
-        const fileContent = fs.readFileSync(filePath, 'utf-8');
-        const translations = JSON.parse(fileContent);
-        this.translations.set(lang, translations);
-      } catch (error) {
-        console.error(`Failed to load translations for ${lang}:`, error);
+      // Try multiple paths to handle both development and production
+      const paths = [
+        path.join(__dirname, '../../i18n', `${lang}.json`), // Production: dist/common/services/../../i18n
+        path.join(process.cwd(), 'dist', 'i18n', `${lang}.json`), // Production: absolute path
+        path.join(process.cwd(), 'src', 'i18n', `${lang}.json`), // Development: src/i18n
+      ];
+
+      let loaded = false;
+      for (const filePath of paths) {
+        try {
+          if (fs.existsSync(filePath)) {
+            const fileContent = fs.readFileSync(filePath, 'utf-8');
+            const translations = JSON.parse(fileContent);
+            this.translations.set(lang, translations);
+            console.log(`Successfully loaded translations for ${lang} from ${filePath}`);
+            loaded = true;
+            break;
+          }
+        } catch (error) {
+          // Continue to next path
+          continue;
+        }
+      }
+
+      if (!loaded) {
+        console.error(`Failed to load translations for ${lang} from any path`);
         this.translations.set(lang, {});
       }
     }
@@ -40,26 +58,35 @@ export class TranslationService implements OnModuleInit {
     const keys = key.split('.');
     let value: any = translations;
 
+    // Navigate through the translation object using the keys
     for (const k of keys) {
       if (value && typeof value === 'object' && k in value) {
         value = value[k];
       } else {
-        // Fallback to Arabic if translation not found
+        // Fallback to Arabic if translation not found in target language
         const arTranslations = this.translations.get('ar') || {};
         let arValue: any = arTranslations;
+        let foundInAr = true;
         for (const arKey of keys) {
           if (arValue && typeof arValue === 'object' && arKey in arValue) {
             arValue = arValue[arKey];
           } else {
-            return key; // Return key if translation not found
+            foundInAr = false;
+            break;
           }
         }
-        value = arValue;
-        break;
+        if (foundInAr && typeof arValue === 'string') {
+          value = arValue;
+          break;
+        }
+        // If not found in either language, return key
+        console.warn(`Translation key not found: ${key} for language: ${targetLang}`);
+        return key;
       }
     }
 
     if (typeof value !== 'string') {
+      console.warn(`Translation value is not a string for key: ${key}, value:`, value);
       return key;
     }
 
@@ -90,6 +117,11 @@ export class TranslationService implements OnModuleInit {
       const resource = notFoundWithIdMatch[1];
       const id = notFoundWithIdMatch[2];
       return this.translate('exceptions.NOT_FOUND_WITH_ID', targetLang, { resource, id });
+    }
+
+    // Invalid credentials
+    if (messageLower.includes('invalid credentials')) {
+      return this.translate('exceptions.INVALID_CREDENTIALS', targetLang);
     }
 
     // Generic patterns

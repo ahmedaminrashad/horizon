@@ -9,6 +9,7 @@
     "UNAUTHORIZED": "Unauthorized",
     "FORBIDDEN": "Forbidden",
     "INTERNAL_SERVER_ERROR": "Internal server error",
-    "VALIDATION_FAILED": "Validation failed"
+    "VALIDATION_FAILED": "Validation failed",
+    "INVALID_CREDENTIALS": "Invalid credentials"
   }
 }

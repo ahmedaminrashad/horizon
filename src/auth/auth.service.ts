@@ -12,6 +12,7 @@ import { RegisterDto } from './dto/register.dto';
 import { RegisterPatientDto } from './dto/register-patient.dto';
 import { LoginDto } from './dto/login.dto';
 import { User } from '../users/entities/user.entity';
+import { TranslationService } from '../common/services/translation.service';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +21,7 @@ export class AuthService {
     private rolesService: RolesService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private translationService: TranslationService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -59,7 +61,7 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const user = await this.usersService.findByPhone(loginDto.phone);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(this.translationService.t('Invalid credentials'));
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -68,7 +70,7 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(this.translationService.t('Invalid credentials'));
     }
 
     // Get full user with role info

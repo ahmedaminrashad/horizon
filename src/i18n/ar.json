@@ -9,6 +9,7 @@
     "UNAUTHORIZED": "غير مصرح",
     "FORBIDDEN": "ممنوع",
     "INTERNAL_SERVER_ERROR": "خطأ في الخادم",
-    "VALIDATION_FAILED": "فشل التحقق"
+    "VALIDATION_FAILED": "فشل التحقق",
+    "INVALID_CREDENTIALS": "بيانات الدخول غير صحيحة"
   }
 }

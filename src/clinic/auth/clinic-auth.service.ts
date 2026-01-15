@@ -9,6 +9,7 @@ import { ClinicsService } from '../../clinics/clinics.service';
 import { TenantRepositoryService } from '../../database/tenant-repository.service';
 import { User as ClinicUser } from '../permissions/entities/user.entity';
 import { ClinicLoginDto } from './dto/clinic-login.dto';
+import { TranslationService } from '../../common/services/translation.service';
 
 @Injectable()
 export class ClinicAuthService {
@@ -16,6 +17,7 @@ export class ClinicAuthService {
     private clinicsService: ClinicsService,
     private jwtService: JwtService,
     private tenantRepositoryService: TenantRepositoryService,
+    private translationService: TranslationService,
   ) {}
 
   async login(clinicId: number, clinicLoginDto: ClinicLoginDto) {
@@ -41,7 +43,7 @@ export class ClinicAuthService {
     });
 
     if (!clinicDbUser) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(this.translationService.t('Invalid credentials'));
     }
 
     // Validate password
@@ -51,7 +53,7 @@ export class ClinicAuthService {
     );
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(this.translationService.t('Invalid credentials'));
     }
 
     // Remove password from response
