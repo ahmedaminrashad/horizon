@@ -13,6 +13,7 @@ import { Package } from '../packages/entities/package.entity';
 import { DatabaseModule } from '../database/database.module';
 import { UsersModule } from '../users/users.module';
 import { DoctorsModule } from '../doctors/doctors.module';
+import { VoipModule } from '../voip/voip.module';
 import { ClinicWorkingHoursService } from './clinic-working-hours.service';
 import { DoctorWorkingHoursService } from './doctor-working-hours.service';
 import {
@@ -36,6 +37,7 @@ import { DoctorWorkingHoursController } from './doctor-working-hours.controller'
     DatabaseModule,
     UsersModule,
     forwardRef(() => DoctorsModule),
+    VoipModule,
   ],
   controllers: [
     ClinicsController,

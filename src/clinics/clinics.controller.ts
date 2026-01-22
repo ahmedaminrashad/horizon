@@ -10,11 +10,12 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
+  UploadedFiles,
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -29,6 +30,7 @@ import { CreateClinicDto } from './dto/create-clinic.dto';
 import { UpdateClinicDto } from './dto/update-clinic.dto';
 import { RegisterClinicDto } from './dto/register-clinic.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { UpdateClinicIvrDto } from './dto/update-clinic-ivr.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
@@ -230,5 +232,56 @@ export class ClinicsController {
   ) {
     const filePath = `/uploads/clinics/${file.filename}`;
     return this.clinicsService.update(+id, { image: filePath });
+  }
+
+  @Patch(':id/ivr')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Permissions(Permission.UPDATE_CLINIC as string)
+  @UseInterceptors(
+    AnyFilesInterceptor({
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB per file
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Update clinic IVR audio files' })
+  @ApiBody({
+    description: 'IVR audio files to update',
+    type: UpdateClinicIvrDto,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'IVR audio files updated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        uploadedFiles: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Clinic not found or no extension number' })
+  async updateIvr(
+    @Param('id') id: string,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    // Convert files array to object keyed by field name
+    const filesObject: Record<string, Express.Multer.File> = {};
+    
+    if (files && files.length > 0) {
+      // AnyFilesInterceptor preserves field names in file.fieldname
+      for (const file of files) {
+        if (file && file.fieldname) {
+          filesObject[file.fieldname] = file;
+        }
+      }
+    }
+
+    return this.clinicsService.updateIvr(+id, filesObject);
   }
 }

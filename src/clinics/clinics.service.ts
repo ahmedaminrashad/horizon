@@ -20,6 +20,7 @@ import { Doctor } from '../doctors/entities/doctor.entity';
 import { DoctorsService } from '../doctors/doctors.service';
 import { Inject, forwardRef } from '@nestjs/common';
 import { WorkingHour } from '../clinic/working-hours/entities/working-hour.entity';
+import { IvrApiService } from '../voip/services/ivr-api.service';
 
 @Injectable()
 export class ClinicsService {
@@ -39,6 +40,7 @@ export class ClinicsService {
     private tenantDataSourceService: TenantDataSourceService,
     @Inject(forwardRef(() => DoctorsService))
     private doctorsService: DoctorsService,
+    private ivrApiService: IvrApiService,
   ) {}
 
   async create(createClinicDto: CreateClinicDto): Promise<Clinic> {
@@ -96,8 +98,24 @@ export class ClinicsService {
       }
     }
 
-    const clinic = this.clinicsRepository.create(createClinicDto);
-    return this.clinicsRepository.save(clinic);
+    // Generate extension number
+    const extensionNumber = await this.generateExtensionNumber();
+
+    const clinic = this.clinicsRepository.create({
+      ...createClinicDto,
+      extension_number: extensionNumber,
+    });
+    const savedClinic = await this.clinicsRepository.save(clinic);
+
+    // Call IVR API to create queue
+    try {
+      await this.ivrApiService.addIVRQueue(savedClinic.id, extensionNumber);
+    } catch (error) {
+      // Log error but don't fail clinic creation if IVR fails
+      console.error(`Failed to create IVR queue for clinic ${savedClinic.id}:`, error);
+    }
+
+    return savedClinic;
   }
 
   async findAll(page: number = 1, limit: number = 10) {
@@ -264,6 +282,53 @@ export class ClinicsService {
     return this.clinicsRepository.save(clinic);
   }
 
+  /**
+   * Update clinic IVR settings
+   * Uploads audio files to IVR system
+   */
+  async updateIvr(
+    id: number,
+    audioFiles: Record<string, Express.Multer.File>,
+  ): Promise<{ message: string; uploadedFiles: string[] }> {
+    const clinic = await this.findOne(id);
+
+    if (!clinic.extension_number) {
+      throw new NotFoundException(
+        'Clinic does not have an extension number. Please ensure the clinic has been properly registered with IVR.',
+      );
+    }
+
+    const uploadedFiles: string[] = [];
+    const errors: string[] = [];
+
+    // Upload each provided audio file
+    for (const [fileType, file] of Object.entries(audioFiles)) {
+      if (file) {
+        try {
+          await this.ivrApiService.uploadIVRAudio(
+            clinic.extension_number,
+            fileType,
+            file,
+          );
+          uploadedFiles.push(fileType);
+        } catch (error) {
+          const errorMessage = `Failed to upload ${fileType}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          errors.push(errorMessage);
+          console.error(errorMessage, error);
+        }
+      }
+    }
+
+    if (uploadedFiles.length === 0 && errors.length > 0) {
+      throw new Error(`Failed to upload IVR files: ${errors.join(', ')}`);
+    }
+
+    return {
+      message: `Successfully uploaded ${uploadedFiles.length} audio file(s)${errors.length > 0 ? `. ${errors.length} file(s) failed to upload.` : ''}`,
+      uploadedFiles,
+    };
+  }
+
   async remove(id: number): Promise<void> {
     const clinic = await this.findOne(id);
     await this.clinicsRepository.remove(clinic);
@@ -323,6 +388,9 @@ export class ClinicsService {
       }
     }
 
+    // Generate extension number
+    const extensionNumber = await this.generateExtensionNumber();
+
     // Create clinic record
     const clinic = this.clinicsRepository.create({
       name_ar: registerClinicDto.name_ar,
@@ -342,6 +410,7 @@ export class ClinicsService {
       bio: registerClinicDto.bio,
       package_id: registerClinicDto.package_id ?? undefined,
       slot_type: registerClinicDto.slot_type,
+      extension_number: extensionNumber,
     });
 
     const savedClinic = await this.clinicsRepository.save(clinic);
@@ -372,6 +441,14 @@ export class ClinicsService {
         2,
         registerClinicDto.password,
       );
+
+      // Call IVR API to create queue
+      try {
+        await this.ivrApiService.addIVRQueue(savedClinic.id, extensionNumber);
+      } catch (error) {
+        // Log error but don't fail clinic creation if IVR fails
+        console.error(`Failed to create IVR queue for clinic ${savedClinic.id}:`, error);
+      }
     } catch (error) {
       throw new ConflictException(
         `Failed to create tenant database: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -381,6 +458,50 @@ export class ClinicsService {
     return {
       clinic: savedClinic,
     };
+  }
+
+  /**
+   * Generate a unique extension number
+   * Format: 1000 + clinic ID (will be updated after save)
+   * Or use a sequential number starting from 1000
+   */
+  private async generateExtensionNumber(): Promise<string> {
+    // Get the highest existing extension number
+    const lastClinic = await this.clinicsRepository.findOne({
+      where: {},
+      order: { id: 'DESC' },
+    });
+
+    if (!lastClinic || !lastClinic.extension_number) {
+      // Start from 1000 if no extensions exist
+      return '1000';
+    }
+
+    // Get the next available extension (increment by 1)
+    const lastExtension = parseInt(lastClinic.extension_number, 10);
+    const nextExtension = (lastExtension + 1).toString();
+
+    // Ensure uniqueness by checking if it exists
+    const existing = await this.clinicsRepository.findOne({
+      where: { extension_number: nextExtension },
+    });
+
+    if (existing) {
+      // If exists, find the next available
+      let candidate = lastExtension + 1;
+      while (true) {
+        const candidateStr = candidate.toString();
+        const exists = await this.clinicsRepository.findOne({
+          where: { extension_number: candidateStr },
+        });
+        if (!exists) {
+          return candidateStr;
+        }
+        candidate++;
+      }
+    }
+
+    return nextExtension;
   }
 
   private async createClinicUser(

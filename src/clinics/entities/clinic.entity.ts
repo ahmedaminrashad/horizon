@@ -46,6 +46,9 @@ export class Clinic {
   @Column({ unique: true, nullable: true })
   database_name: string;
 
+  @Column({ name: 'extension_number', type: 'varchar', length: 20, unique: true, nullable: true })
+  extension_number: string | null;
+
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 
