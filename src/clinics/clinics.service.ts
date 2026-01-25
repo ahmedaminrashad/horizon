@@ -292,16 +292,6 @@ export class ClinicsService {
       }
     }
 
-    // Require deactivate_reason when deactivating clinic
-    if (
-      updateClinicDto.is_active === false &&
-      !updateClinicDto.deactivate_reason
-    ) {
-      throw new ConflictException(
-        'Deactivate reason is required when deactivating a clinic',
-      );
-    }
-
     // Clear deactivate_reason when reactivating clinic
     if (updateClinicDto.is_active === true) {
       updateClinicDto.deactivate_reason = null;
