@@ -52,6 +52,9 @@ export class Clinic {
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 
+  @Column({ name: 'deactivate_reason', type: 'text', nullable: true })
+  deactivate_reason: string | null;
+
   @Column({ nullable: true })
   country_id: number;
 
