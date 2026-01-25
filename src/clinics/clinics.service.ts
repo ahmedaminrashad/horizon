@@ -227,6 +227,10 @@ export class ClinicsService {
     };
   }
 
+  async updateLastActive(id: number): Promise<void> {
+    await this.clinicsRepository.update(id, { last_active: new Date() });
+  }
+
   async update(id: number, updateClinicDto: UpdateClinicDto): Promise<Clinic> {
     const clinic = await this.findOne(id);
 

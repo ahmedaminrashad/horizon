@@ -97,6 +97,9 @@ export class Clinic {
   })
   slot_type: SlotType;
 
+  @Column({ name: 'last_active', type: 'datetime', nullable: true })
+  last_active: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

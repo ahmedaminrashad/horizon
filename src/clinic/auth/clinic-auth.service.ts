@@ -60,6 +60,9 @@ export class ClinicAuthService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _password, ...result } = clinicDbUser;
 
+    // Update clinic's last_active timestamp
+    await this.clinicsService.updateLastActive(clinicId);
+
     // Generate token with clinic context
     const payload = {
       sub: clinicDbUser.id,
