@@ -112,6 +112,7 @@ export class ClinicsController {
             total: { type: 'number' },
             total_active: { type: 'number' },
             total_inactive: { type: 'number' },
+            total_users: { type: 'number' },
             page: { type: 'number' },
             limit: { type: 'number' },
             totalPages: { type: 'number' },

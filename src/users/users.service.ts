@@ -177,4 +177,8 @@ export class UsersService {
       exists: !!user,
     };
   }
+
+  async count(): Promise<number> {
+    return this.usersRepository.count();
+  }
 }

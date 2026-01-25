@@ -21,6 +21,7 @@ import { DoctorsService } from '../doctors/doctors.service';
 import { Inject, forwardRef } from '@nestjs/common';
 import { WorkingHour } from '../clinic/working-hours/entities/working-hour.entity';
 import { IvrApiService } from '../voip/services/ivr-api.service';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class ClinicsService {
@@ -41,6 +42,7 @@ export class ClinicsService {
     @Inject(forwardRef(() => DoctorsService))
     private doctorsService: DoctorsService,
     private ivrApiService: IvrApiService,
+    private usersService: UsersService,
   ) {}
 
   async create(createClinicDto: CreateClinicDto): Promise<Clinic> {
@@ -121,17 +123,19 @@ export class ClinicsService {
   async findAll(page: number = 1, limit: number = 10) {
     const skip = (page - 1) * limit;
 
-    const [data, total, totalActive, totalInactive] = await Promise.all([
-      this.clinicsRepository.find({
-        skip,
-        take: limit,
-        relations: ['country', 'city', 'branches', 'package'],
-        order: { createdAt: 'DESC' },
-      }),
-      this.clinicsRepository.count(),
-      this.clinicsRepository.count({ where: { is_active: true } }),
-      this.clinicsRepository.count({ where: { is_active: false } }),
-    ]);
+    const [data, total, totalActive, totalInactive, totalUsers] =
+      await Promise.all([
+        this.clinicsRepository.find({
+          skip,
+          take: limit,
+          relations: ['country', 'city', 'branches', 'package'],
+          order: { createdAt: 'DESC' },
+        }),
+        this.clinicsRepository.count(),
+        this.clinicsRepository.count({ where: { is_active: true } }),
+        this.clinicsRepository.count({ where: { is_active: false } }),
+        this.usersService.count(),
+      ]);
 
     // Fetch doctors for each clinic
     const clinicsWithDoctors = await Promise.all(
@@ -156,6 +160,7 @@ export class ClinicsService {
         total,
         total_active: totalActive,
         total_inactive: totalInactive,
+        total_users: totalUsers,
         page,
         limit,
         totalPages,
