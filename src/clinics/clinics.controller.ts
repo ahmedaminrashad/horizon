@@ -99,7 +99,29 @@ export class ClinicsController {
   @ApiOperation({ summary: 'Get all clinics with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiResponse({ status: 200, description: 'List of clinics' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of clinics',
+    schema: {
+      type: 'object',
+      properties: {
+        data: { type: 'array', items: { type: 'object' } },
+        meta: {
+          type: 'object',
+          properties: {
+            total: { type: 'number' },
+            total_active: { type: 'number' },
+            total_inactive: { type: 'number' },
+            page: { type: 'number' },
+            limit: { type: 'number' },
+            totalPages: { type: 'number' },
+            hasNextPage: { type: 'boolean' },
+            hasPreviousPage: { type: 'boolean' },
+          },
+        },
+      },
+    },
+  })
   findAll(@Query() paginationQuery: PaginationQueryDto) {
     const page = paginationQuery.page || 1;
     const limit = paginationQuery.limit || 10;

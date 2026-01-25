@@ -121,14 +121,17 @@ export class ClinicsService {
   async findAll(page: number = 1, limit: number = 10) {
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.clinicsRepository.findAndCount({
-      skip,
-      take: limit,
-      relations: ['country', 'city', 'branches', 'package'],
-      order: {
-        createdAt: 'DESC',
-      },
-    });
+    const [data, total, totalActive, totalInactive] = await Promise.all([
+      this.clinicsRepository.find({
+        skip,
+        take: limit,
+        relations: ['country', 'city', 'branches', 'package'],
+        order: { createdAt: 'DESC' },
+      }),
+      this.clinicsRepository.count(),
+      this.clinicsRepository.count({ where: { is_active: true } }),
+      this.clinicsRepository.count({ where: { is_active: false } }),
+    ]);
 
     // Fetch doctors for each clinic
     const clinicsWithDoctors = await Promise.all(
@@ -151,6 +154,8 @@ export class ClinicsService {
       data: clinicsWithDoctors,
       meta: {
         total,
+        total_active: totalActive,
+        total_inactive: totalInactive,
         page,
         limit,
         totalPages,
