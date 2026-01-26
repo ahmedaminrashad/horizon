@@ -10,7 +10,7 @@ export class IvrApiService {
   private readonly axiosInstance: AxiosInstance;
 
   constructor(private configService: ConfigService) {
-    this.baseUrl = this.configService.get('IVR_BASE_URL', 'http://18.198.48.18:300');
+    this.baseUrl = this.configService.get('IVR_BASE_URL', 'http://18.198.48.18:9091');
     this.axiosInstance = axios.create({
       baseURL: this.baseUrl,
       timeout: 30000, // 30 seconds timeout
