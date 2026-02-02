@@ -17,6 +17,7 @@ import { DoctorsService as MainDoctorsService } from '../../doctors/doctors.serv
 import { DoctorWorkingHour } from '../working-hours/entities/doctor-working-hour.entity';
 import { DayOfWeek } from '../working-hours/entities/working-hour.entity';
 import { User as ClinicUser } from '../permissions/entities/user.entity';
+import { ClinicUser as ClinicUserLink } from '../../clinics/entities/clinic-user.entity';
 import { ClinicsService } from '../../clinics/clinics.service';
 import { UsersService } from '../../users/users.service';
 import * as bcrypt from 'bcrypt';
@@ -31,6 +32,8 @@ export class ReservationsService {
     private usersService: UsersService,
     @InjectRepository(MainReservation)
     private mainReservationRepository: Repository<MainReservation>,
+    @InjectRepository(ClinicUserLink)
+    private clinicUserLinkRepository: Repository<ClinicUserLink>,
     private dataSource: DataSource,
   ) {}
 
@@ -885,6 +888,36 @@ export class ReservationsService {
   }
 
   /**
+   * Ensure clinic_user link exists in main database (user_id, clinic_id).
+   * Called after creating a reservation when main_user_id is set.
+   */
+  private async syncClinicUser(
+    userId: number,
+    clinicId: number,
+  ): Promise<void> {
+    try {
+      const existing = await this.clinicUserLinkRepository.findOne({
+        where: { user_id: userId, clinic_id: clinicId },
+      });
+      if (!existing) {
+        const link = this.clinicUserLinkRepository.create({
+          user_id: userId,
+          clinic_id: clinicId,
+        });
+        await this.clinicUserLinkRepository.save(link);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[SYNC WARNING] Could not sync clinic_user (user ${userId}, clinic ${clinicId}):`,
+        errorMessage,
+      );
+    }
+  }
+
+  /**
    * Sync clinic reservation to main reservations table
    */
   private async syncToMainReservations(
@@ -1083,6 +1116,11 @@ export class ReservationsService {
         console.log(
           `Successfully synced (created) reservation ${clinicReservation.id} to main database (main reservation ID: ${created.id})`,
         );
+      }
+
+      // Sync clinic_user so main user is linked to this clinic
+      if (clinicReservation.main_user_id) {
+        await this.syncClinicUser(clinicReservation.main_user_id, clinicId);
       }
     } catch (error) {
       // Log error but don't fail the reservation operation

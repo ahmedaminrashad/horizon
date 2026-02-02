@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Clinic } from './entities/clinic.entity';
+import { ClinicUser } from './entities/clinic-user.entity';
 import { CreateClinicDto } from './dto/create-clinic.dto';
 import { UpdateClinicDto } from './dto/update-clinic.dto';
 import { RegisterClinicDto } from './dto/register-clinic.dto';
@@ -36,6 +37,8 @@ export class ClinicsService {
     private packagesRepository: Repository<Package>,
     @InjectRepository(Doctor)
     private doctorsRepository: Repository<Doctor>,
+    @InjectRepository(ClinicUser)
+    private clinicUserRepository: Repository<ClinicUser>,
     private databaseService: DatabaseService,
     private clinicMigrationService: ClinicMigrationService,
     private tenantDataSourceService: TenantDataSourceService,
@@ -225,6 +228,35 @@ export class ClinicsService {
       doctors,
       branches: branchesWithWorkingHours,
     };
+  }
+
+  /**
+   * Get main users (patients) linked to clinic via clinic_user table.
+   */
+  async getClinicPatients(clinicId: number) {
+    const clinic = await this.clinicsRepository.findOne({
+      where: { id: clinicId },
+    });
+    if (!clinic) {
+      throw new NotFoundException(`Clinic with ID ${clinicId} not found`);
+    }
+
+    const clinicUsers = await this.clinicUserRepository.find({
+      where: { clinic_id: clinicId },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return clinicUsers.map((cu) => {
+      const { user, ...rest } = cu;
+      const userSafe =
+        user != null
+          ? Object.fromEntries(
+              Object.entries(user).filter(([key]) => key !== 'password'),
+            )
+          : undefined;
+      return { ...rest, user: userSafe };
+    });
   }
 
   async updateLastActive(id: number): Promise<void> {

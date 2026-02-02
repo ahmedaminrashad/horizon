@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ClinicsService } from './clinics.service';
 import { ClinicsController } from './clinics.controller';
 import { Clinic } from './entities/clinic.entity';
+import { ClinicUser } from './entities/clinic-user.entity';
 import { ClinicWorkingHour } from './entities/clinic-working-hour.entity';
 import { ClinicBreakHour } from './entities/clinic-break-hour.entity';
 import { DoctorWorkingHour } from './entities/doctor-working-hour.entity';
@@ -26,6 +27,7 @@ import { DoctorWorkingHoursController } from './doctor-working-hours.controller'
   imports: [
     TypeOrmModule.forFeature([
       Clinic,
+      ClinicUser,
       ClinicWorkingHour,
       ClinicBreakHour,
       DoctorWorkingHour,
@@ -51,6 +53,7 @@ import { DoctorWorkingHoursController } from './doctor-working-hours.controller'
     DoctorWorkingHoursService,
   ],
   exports: [
+    TypeOrmModule,
     ClinicsService,
     ClinicWorkingHoursService,
     DoctorWorkingHoursService,
