@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ClinicUsersService } from './clinic-users.service';
 import { ClinicUsersController } from './clinic-users.controller';
+import { ClinicPatientsController } from './clinic-patients.controller';
 import { DatabaseModule } from '../../database/database.module';
 import { UsersModule } from '../../users/users.module';
 import { ClinicsModule } from '../../clinics/clinics.module';
@@ -23,7 +24,7 @@ import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
       inject: [ConfigService],
     }),
   ],
-  controllers: [ClinicUsersController],
+  controllers: [ClinicUsersController, ClinicPatientsController],
   providers: [ClinicUsersService, ClinicPermissionsGuard, ClinicTenantGuard],
   exports: [ClinicUsersService],
 })

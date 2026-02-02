@@ -234,19 +234,21 @@ export class ClinicsService {
    * Get main users (patients) linked to clinic via clinic_user table.
    */
   async getClinicPatients(clinicId: number) {
+ 
+    console.log('clinicId clinicId clinicId: ', clinicId);
     const clinic = await this.clinicsRepository.findOne({
       where: { id: clinicId },
     });
     if (!clinic) {
       throw new NotFoundException(`Clinic with ID ${clinicId} not found`);
     }
-
+    console.log('clinic : ', clinic);
     const clinicUsers = await this.clinicUserRepository.find({
       where: { clinic_id: clinicId },
       relations: ['user'],
       order: { createdAt: 'DESC' },
     });
-
+    console.log('clinicUsers : ', clinicUsers);
     return clinicUsers.map((cu) => {
       const { user, ...rest } = cu;
       const userSafe =

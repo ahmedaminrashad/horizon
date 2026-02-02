@@ -178,41 +178,6 @@ export class ClinicsController {
     };
   }
 
-  @Get(':id/patients')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @ApiBearerAuth('JWT-auth')
-  @Permissions(Permission.READ_CLINIC as string)
-  @ApiOperation({ summary: 'Get main users (patients) linked to clinic via clinic_user' })
-  @ApiResponse({
-    status: 200,
-    description: 'List of main users linked to this clinic',
-    schema: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'number' },
-          user_id: { type: 'number' },
-          clinic_id: { type: 'number' },
-          createdAt: { type: 'string', format: 'date-time' },
-          user: {
-            type: 'object',
-            properties: {
-              id: { type: 'number' },
-              name: { type: 'string', nullable: true },
-              phone: { type: 'string' },
-              email: { type: 'string', nullable: true },
-            },
-          },
-        },
-      },
-    },
-  })
-  @ApiResponse({ status: 404, description: 'Clinic not found' })
-  getClinicPatients(@Param('id') id: string) {
-    return this.clinicsService.getClinicPatients(+id);
-  }
-
   @Get(':id')
   @ApiOperation({ summary: 'Get a clinic by ID' })
   @ApiResponse({ status: 200, description: 'Clinic found' })
