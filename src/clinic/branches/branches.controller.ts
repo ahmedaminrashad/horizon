@@ -81,13 +81,42 @@ export class BranchesController {
   @Get(':id')
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.READ_BRANCH as string)
-  @ApiOperation({ summary: 'Get a branch by ID' })
+  @ApiOperation({
+    summary:
+      'Get a branch by ID with dashboard stats (last 7 days, today workload, cancellations)',
+  })
   @ApiParam({
     name: 'clinicId',
     type: Number,
     description: 'Clinic ID (can be from JWT token or route parameter)',
   })
-  @ApiResponse({ status: 200, description: 'Branch found' })
+  @ApiParam({ name: 'id', type: Number, description: 'Branch ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Branch with dashboard stats',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number' },
+        name: { type: 'string' },
+        clinic_id: { type: 'number' },
+        lat: { type: 'number', nullable: true },
+        longit: { type: 'number', nullable: true },
+        address: { type: 'string', nullable: true },
+        createdAt: { type: 'string', format: 'date-time' },
+        updatedAt: { type: 'string', format: 'date-time' },
+        dashboard: {
+          type: 'object',
+          properties: {
+            total_appointments_last_7_days: { type: 'number' },
+            total_revenue_last_7_days: { type: 'number' },
+            doctor_workload_today: { type: 'number' },
+            cancellations_last_7_days: { type: 'number' },
+          },
+        },
+      },
+    },
+  })
   @ApiResponse({ status: 404, description: 'Branch not found' })
   findOne(
     @Param('clinicId') clinicId: string,
@@ -95,7 +124,7 @@ export class BranchesController {
     @ClinicId() clinicIdFromToken: number,
   ) {
     const clinicIdNum = clinicIdFromToken || +clinicId;
-    return this.branchesService.findOne(clinicIdNum, +id);
+    return this.branchesService.getOneWithDashboard(clinicIdNum, +id);
   }
 
   @Patch(':id')

@@ -1,4 +1,11 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  UseGuards,
+  Request,
+  BadRequestException,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -12,10 +19,9 @@ import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { ClinicPermission } from '../permissions/enums/clinic-permission.enum';
-import { ClinicId } from '../decorators/clinic-id.decorator';
 
 /**
- * Controller for /clinic/branch/:id - clinic is taken from auth token (no clinicId in path).
+ * Controller for /clinic/branch/:id - clinic_id is taken from auth token (authenticated clinic user).
  */
 @ApiTags('clinic/branch')
 @Controller('clinic')
@@ -28,7 +34,8 @@ export class ClinicBranchController {
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.READ_BRANCH as string)
   @ApiOperation({
-    summary: 'Get branch by ID with dashboard stats (clinic from auth token)',
+    summary:
+      'Get branch by ID with dashboard stats (clinic_id from auth token)',
   })
   @ApiParam({ name: 'id', type: Number, description: 'Branch ID' })
   @ApiResponse({
@@ -59,11 +66,14 @@ export class ClinicBranchController {
   })
   @ApiResponse({ status: 404, description: 'Branch not found' })
   getBranchWithDashboard(
-    @ClinicId() clinicId: number,
+    @Request() req: { user?: { clinic_id?: number } },
     @Param('id') id: string,
   ) {
-    if (!clinicId) {
-      throw new Error('Clinic context required (auth token)');
+    const clinicId = req.user?.clinic_id;
+    if (clinicId == null) {
+      throw new BadRequestException(
+        'Clinic context required: use clinic auth token',
+      );
     }
     return this.branchesService.getOneWithDashboard(clinicId, +id);
   }
