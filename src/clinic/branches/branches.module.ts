@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BranchesService } from './branches.service';
 import { BranchesController } from './branches.controller';
+import { ClinicBranchController } from './clinic-branch.controller';
 import { BranchesModule as MainBranchesModule } from '../../branches/branches.module';
 import { DatabaseModule } from '../../database/database.module';
 import { ClinicsModule } from '../../clinics/clinics.module';
@@ -23,7 +24,7 @@ import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
       inject: [ConfigService],
     }),
   ],
-  controllers: [BranchesController],
+  controllers: [BranchesController, ClinicBranchController],
   providers: [BranchesService, ClinicTenantGuard, ClinicPermissionsGuard],
   exports: [BranchesService],
 })

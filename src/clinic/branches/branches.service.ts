@@ -8,6 +8,10 @@ import { Branch } from './entities/branch.entity';
 import { CreateClinicBranchDto } from './dto/create-branch.dto';
 import { UpdateClinicBranchDto } from './dto/update-branch.dto';
 import { BranchesService as MainBranchesService } from '../../branches/branches.service';
+import {
+  Reservation,
+  ReservationStatus,
+} from '../reservations/entities/reservation.entity';
 
 @Injectable()
 export class BranchesService {
@@ -84,6 +88,96 @@ export class BranchesService {
     }
 
     return branch;
+  }
+
+  /**
+   * Get branch by id with dashboard stats filtered by this branch.
+   * Stats: total_appointments_last_7_days, total_revenue_last_7_days,
+   * doctor_workload_today, cancellations_last_7_days (reservations where doctor_working_hour.branch_id = branchId).
+   */
+  async getOneWithDashboard(
+    clinicId: number,
+    branchId: number,
+  ): Promise<
+    Branch & {
+      dashboard: {
+        total_appointments_last_7_days: number;
+        total_revenue_last_7_days: number;
+        doctor_workload_today: number;
+        cancellations_last_7_days: number;
+      };
+    }
+  > {
+    const branch = await this.findOne(clinicId, branchId);
+
+    const reservationRepo =
+      await this.tenantRepositoryService.getRepository<Reservation>(
+        Reservation,
+      );
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const baseQb = () =>
+      reservationRepo
+        .createQueryBuilder('r')
+        .innerJoin('r.doctor_working_hour', 'dwh')
+        .andWhere('dwh.branch_id = :branchId', { branchId });
+
+    const [
+      totalAppointmentsLast7Days,
+      totalRevenueResult,
+      doctorWorkloadToday,
+      cancellationsLast7Days,
+    ] = await Promise.all([
+      baseQb()
+        .where('r.date >= :from', { from: sevenDaysAgo })
+        .andWhere('r.date < :to', { to: tomorrow })
+        .andWhere('r.status != :cancelled', {
+          cancelled: ReservationStatus.CANCELLED,
+        })
+        .getCount(),
+      baseQb()
+        .select('COALESCE(SUM(r.fees), 0)', 'total')
+        .where('r.date >= :from', { from: sevenDaysAgo })
+        .andWhere('r.date < :to', { to: tomorrow })
+        .andWhere('r.status != :cancelled', {
+          cancelled: ReservationStatus.CANCELLED,
+        })
+        .getRawOne<{ total: string }>(),
+      baseQb()
+        .where('r.date >= :today', { today })
+        .andWhere('r.date < :tomorrow', { tomorrow })
+        .andWhere('r.status != :cancelled', {
+          cancelled: ReservationStatus.CANCELLED,
+        })
+        .getCount(),
+      baseQb()
+        .where('r.date >= :from', { from: sevenDaysAgo })
+        .andWhere('r.date < :to', { to: tomorrow })
+        .andWhere('r.status = :cancelled', {
+          cancelled: ReservationStatus.CANCELLED,
+        })
+        .getCount(),
+    ]);
+
+    const totalRevenue = totalRevenueResult?.total
+      ? parseFloat(totalRevenueResult.total)
+      : 0;
+
+    return {
+      ...branch,
+      dashboard: {
+        total_appointments_last_7_days: totalAppointmentsLast7Days,
+        total_revenue_last_7_days: totalRevenue,
+        doctor_workload_today: doctorWorkloadToday,
+        cancellations_last_7_days: cancellationsLast7Days,
+      },
+    };
   }
 
   async update(
