@@ -51,6 +51,28 @@ export class ClinicAuthController {
           },
         },
         access_token: { type: 'string' },
+        dashboard: {
+          type: 'object',
+          description: 'Stats after login',
+          properties: {
+            total_appointments_last_7_days: {
+              type: 'number',
+              description: 'Total appointments (non-cancelled) in last 7 days',
+            },
+            total_revenue_last_7_days: {
+              type: 'number',
+              description: 'Total revenue (sum of fees) in last 7 days',
+            },
+            doctor_workload_today: {
+              type: 'number',
+              description: 'Appointments (non-cancelled) today',
+            },
+            cancellations_last_7_days: {
+              type: 'number',
+              description: 'Cancelled appointments in last 7 days',
+            },
+          },
+        },
         createdAt: { type: 'string', format: 'date-time' },
         updatedAt: { type: 'string', format: 'date-time' },
       },

@@ -54,6 +54,156 @@ export class ReservationsService {
     return repository;
   }
 
+  /**
+   * Get last_visit and next_visit dates per patient (clinic DB).
+   */
+  private async getClinicPatientVisitDates(
+    repository: Repository<Reservation>,
+    patientIds: number[],
+  ): Promise<Map<number, { last_visit: Date | null; next_visit: Date | null }>> {
+    const map = new Map<
+      number,
+      { last_visit: Date | null; next_visit: Date | null }
+    >();
+    if (patientIds.length === 0) return map;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const activeStatuses = [
+      ReservationStatus.PENDING,
+      ReservationStatus.SCHEDULED,
+      ReservationStatus.TAKEN,
+    ];
+
+    const lastVisits = await repository
+      .createQueryBuilder('r')
+      .select('r.patient_id', 'patient_id')
+      .addSelect('MAX(r.date)', 'last_date')
+      .where('r.patient_id IN (:...ids)', { ids: patientIds })
+      .andWhere('r.date < :today', { today })
+      .groupBy('r.patient_id')
+      .getRawMany<{ patient_id: number; last_date: Date }>();
+
+    const nextVisits = await repository
+      .createQueryBuilder('r')
+      .select('r.patient_id', 'patient_id')
+      .addSelect('MIN(r.date)', 'next_date')
+      .where('r.patient_id IN (:...ids)', { ids: patientIds })
+      .andWhere('r.date >= :today', { today })
+      .andWhere('r.status IN (:...statuses)', { statuses: activeStatuses })
+      .groupBy('r.patient_id')
+      .getRawMany<{ patient_id: number; next_date: Date }>();
+
+    for (const id of patientIds) {
+      const last = lastVisits.find((r) => r.patient_id === id);
+      const next = nextVisits.find((r) => r.patient_id === id);
+      map.set(id, {
+        last_visit: last?.last_date ? new Date(last.last_date) : null,
+        next_visit: next?.next_date ? new Date(next.next_date) : null,
+      });
+    }
+    return map;
+  }
+
+  /**
+   * Get last_visit and next_visit for a main user from main reservations.
+   */
+  private async getMainUserVisitDates(mainUserId: number): Promise<{
+    last_visit: Date | null;
+    next_visit: Date | null;
+  }> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const last = await this.mainReservationRepository
+      .createQueryBuilder('r')
+      .select('MAX(r.date)', 'd')
+      .where('r.main_user_id = :uid', { uid: mainUserId })
+      .andWhere('r.date < :today', { today })
+      .getRawOne<{ d: Date }>();
+
+    const next = await this.mainReservationRepository
+      .createQueryBuilder('r')
+      .select('MIN(r.date)', 'd')
+      .where('r.main_user_id = :uid', { uid: mainUserId })
+      .andWhere('r.date >= :today', { today })
+      .andWhere('r.status IN (:...s)', {
+        s: [
+          MainReservationStatus.PENDING,
+          MainReservationStatus.SCHEDULED,
+          MainReservationStatus.TAKEN,
+        ],
+      })
+      .getRawOne<{ d: Date }>();
+
+    return {
+      last_visit: last?.d ? new Date(last.d) : null,
+      next_visit: next?.d ? new Date(next.d) : null,
+    };
+  }
+
+  /**
+   * Map clinic reservation entity to response with time, names, time_range, schedule_type, appoint_type, patient last/next visit.
+   */
+  private mapClinicReservationToResponse(
+    r: Reservation,
+    visitDates: Map<
+      number,
+      { last_visit: Date | null; next_visit: Date | null }
+    >,
+  ) {
+    const wh = r.doctor_working_hour;
+    const visits = visitDates.get(r.patient_id) ?? {
+      last_visit: null,
+      next_visit: null,
+    };
+    const patient = r.patient as { name?: string } | undefined;
+    const doctor = r.doctor as { user?: { name?: string } } | undefined;
+    return {
+      ...r,
+      time: wh?.start_time ?? null,
+      time_range:
+        wh != null
+          ? { from: wh.start_time, to: wh.end_time }
+          : { from: null, to: null },
+      doctor_name: doctor?.user?.name ?? null,
+      patient_name: patient?.name ?? null,
+      service: null,
+      schedule_type:
+        wh != null ? (wh.waterfall ? 'waterfall' : 'fixed') : null,
+      appoint_type: r.appoint_type ?? wh?.appoint_type ?? null,
+      patient_last_visit: visits.last_visit,
+      patient_next_visit: visits.next_visit,
+    };
+  }
+
+  /**
+   * Map main reservation to response with time, names, time_range, appoint_type, patient last/next visit.
+   */
+  private mapMainReservationToResponse(
+    r: MainReservation,
+    visitDates: { last_visit: Date | null; next_visit: Date | null },
+  ) {
+    const doctor = r.doctor as { name?: string } | undefined;
+    const mainUser = r.mainUser as { name?: string } | undefined;
+    return {
+      ...r,
+      time: r.from_time ?? null,
+      time_range: {
+        from: r.from_time ?? null,
+        to: r.to_time ?? null,
+      },
+      doctor_name: doctor?.name ?? null,
+      patient_name: mainUser?.name ?? null,
+      service: null,
+      schedule_type: null,
+      appoint_type: r.appoint_type ?? null,
+      patient_last_visit: visitDates.last_visit,
+      patient_next_visit: visitDates.next_visit,
+    };
+  }
+
   async create(clinicId: number, createReservationDto: CreateReservationDto, patientId: number): Promise<Reservation> {
     const repository = await this.getRepository();
     
@@ -104,21 +254,23 @@ export class ReservationsService {
     }
     
 
-    // Reload reservation with working hour relation
-    // Note: We avoid loading 'doctor.user' and 'patient' to prevent TypeORM from
-    // trying to query the main users table which doesn't have main_user_id
-    const reservationWithWorkingHour = await repository.findOne({
+    // Reload reservation with relations for response
+    const reservationWithRelations = await repository.findOne({
       where: { id: savedReservation.id },
-      relations: ['doctor', 'doctor_working_hour'],
+      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
     });
 
     // Sync to main reservations table
     await this.syncToMainReservations(
       clinicId,
-      reservationWithWorkingHour || savedReservation,
+      reservationWithRelations || savedReservation,
     );
 
-    return reservationWithWorkingHour || savedReservation;
+    const r = reservationWithRelations || savedReservation;
+    const visitDates = await this.getClinicPatientVisitDates(repository, [
+      r.patient_id,
+    ]);
+    return this.mapClinicReservationToResponse(r, visitDates);
   }
 
   /**
@@ -360,16 +512,25 @@ export class ReservationsService {
     const repository = await this.getRepository();
     const skip = (page - 1) * limit;
 
-    const [data, total] = await repository.findAndCount({
-      // Note: We avoid loading 'doctor.user' and 'patient' to prevent TypeORM from
-      // trying to query the main users table which doesn't have main_user_id
-      relations: ['doctor', 'doctor_working_hour'],
+    const [rawData, total] = await repository.findAndCount({
+      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
       skip,
       take: limit,
       order: {
         date: 'DESC',
       },
     });
+
+    const patientIds = [
+      ...new Set(rawData.map((r) => r.patient_id).filter((id) => id != null)),
+    ];
+    const visitDates = await this.getClinicPatientVisitDates(
+      repository,
+      patientIds,
+    );
+    const data = rawData.map((r) =>
+      this.mapClinicReservationToResponse(r, visitDates),
+    );
 
     const totalPages = Math.ceil(total / limit);
 
@@ -396,13 +557,19 @@ export class ReservationsService {
   ) {
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.mainReservationRepository.findAndCount({
-      where: { main_user_id: mainUserId },
-      relations: ['doctor', 'mainUser'],
-      skip,
-      take: limit,
-      order: { date: 'DESC', createdAt: 'DESC' },
-    });
+    const [rawData, total] =
+      await this.mainReservationRepository.findAndCount({
+        where: { main_user_id: mainUserId },
+        relations: ['doctor', 'mainUser'],
+        skip,
+        take: limit,
+        order: { date: 'DESC', createdAt: 'DESC' },
+      });
+
+    const visitDates = await this.getMainUserVisitDates(mainUserId);
+    const data = rawData.map((r) =>
+      this.mapMainReservationToResponse(r, visitDates),
+    );
 
     const totalPages = Math.ceil(total / limit);
 
@@ -425,9 +592,9 @@ export class ReservationsService {
   async findOneForMainUser(
     mainUserId: number,
     reservationId: number,
-  ): Promise<MainReservation> {
+  ) {
     const reservation = await this.mainReservationRepository.findOne({
-      where: { 
+      where: {
         id: reservationId,
         main_user_id: mainUserId,
       },
@@ -440,7 +607,8 @@ export class ReservationsService {
       );
     }
 
-    return reservation;
+    const visitDates = await this.getMainUserVisitDates(mainUserId);
+    return this.mapMainReservationToResponse(reservation, visitDates);
   }
 
   /**
@@ -537,29 +705,31 @@ export class ReservationsService {
       );
     }
 
-    // Reload with relations
+    // Reload with relations and enrich response
     const reservationWithRelations = await this.mainReservationRepository.findOne({
       where: { id: updatedMainReservation.id },
       relations: ['doctor', 'mainUser'],
     });
-
-    return reservationWithRelations || updatedMainReservation;
+    const r = reservationWithRelations || updatedMainReservation;
+    const visitDates = await this.getMainUserVisitDates(mainUserId);
+    return this.mapMainReservationToResponse(r, visitDates);
   }
 
-  async findOne(clinicId: number, id: number): Promise<Reservation> {
+  async findOne(clinicId: number, id: number) {
     const repository = await this.getRepository();
-    // Note: We avoid loading 'doctor.user' and 'patient' to prevent TypeORM from
-    // trying to query the main users table which doesn't have main_user_id
     const reservation = await repository.findOne({
       where: { id },
-      relations: ['doctor', 'doctor_working_hour'],
+      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
     });
 
     if (!reservation) {
       throw new NotFoundException(`Reservation with ID ${id} not found`);
     }
 
-    return reservation;
+    const visitDates = await this.getClinicPatientVisitDates(repository, [
+      reservation.patient_id,
+    ]);
+    return this.mapClinicReservationToResponse(reservation, visitDates);
   }
 
   async update(clinicId: number, id: number, updateReservationDto: UpdateReservationDto): Promise<Reservation> {
@@ -611,21 +781,23 @@ export class ReservationsService {
     Object.assign(reservation, updateData);
     const updatedReservation = await repository.save(reservation);
 
-    // Reload reservation with working hour relation
-    // Note: We avoid loading 'doctor.user' and 'patient' to prevent TypeORM from
-    // trying to query the main users table which doesn't have main_user_id
-    const reservationWithWorkingHour = await repository.findOne({
+    // Reload reservation with relations for response
+    const reservationWithRelations = await repository.findOne({
       where: { id: updatedReservation.id },
-      relations: ['doctor', 'doctor_working_hour'],
+      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
     });
 
     // Sync to main reservations table
     await this.syncToMainReservations(
       clinicId,
-      reservationWithWorkingHour || updatedReservation,
+      reservationWithRelations || updatedReservation,
     );
 
-    return reservationWithWorkingHour || updatedReservation;
+    const r = reservationWithRelations || updatedReservation;
+    const visitDates = await this.getClinicPatientVisitDates(repository, [
+      r.patient_id,
+    ]);
+    return this.mapClinicReservationToResponse(r, visitDates);
   }
 
   async remove(clinicId: number, id: number): Promise<void> {
@@ -802,14 +974,16 @@ export class ReservationsService {
     // trying to query the main users table which doesn't have main_user_id
     const reservationWithRelations = await reservationRepository.findOne({
       where: { id: savedReservation.id },
-      relations: ['doctor', 'doctor_working_hour'],
+      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
     });
+
+    const rForSync = reservationWithRelations || savedReservation;
 
     // Sync to main reservations table
     try {
       await this.syncToMainReservations(
         createMainUserReservationDto.clinic_id,
-        reservationWithRelations || savedReservation,
+        rForSync,
       );
     } catch (syncError) {
       // Log sync error but don't fail the reservation creation
@@ -823,7 +997,12 @@ export class ReservationsService {
       // Continue - the clinic reservation was created successfully
     }
 
-    return reservationWithRelations || savedReservation;
+    const r = reservationWithRelations || savedReservation;
+    const visitDates = await this.getClinicPatientVisitDates(
+      reservationRepository,
+      [r.patient_id],
+    );
+    return this.mapClinicReservationToResponse(r, visitDates);
   }
 
   /**
@@ -1095,6 +1274,7 @@ export class ReservationsService {
         from_time: fromTime,
         to_time: toTime,
         status: clinicReservation.status,
+        appoint_type: clinicReservation.appoint_type ?? undefined,
       };
 
       if (existingMainReservation) {
