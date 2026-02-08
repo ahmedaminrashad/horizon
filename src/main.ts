@@ -22,16 +22,7 @@ async function bootstrap() {
     prefix: '/api/uploads/',
   });
 
-  // Enable CORS - allow all origins (strict origin checking disabled)
-  app.enableCors({
-    origin: true,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'lang', 'x-lang'],
-    exposedHeaders: ['Authorization'],
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
-  });
+  // CORS disabled (no app.enableCors() call)
 
   // Enable validation pipes
   app.useGlobalPipes(
