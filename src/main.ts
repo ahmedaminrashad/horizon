@@ -22,7 +22,28 @@ async function bootstrap() {
     prefix: '/api/uploads/',
   });
 
-  // CORS disabled (no app.enableCors() call)
+  // Enable CORS configuration
+  const nodeEnv = configService.get<string>('NODE_ENV', 'development');
+  
+  // Allowed origins for CORS
+  const allowedOrigins = [
+    'https://operate.indicator-app.com',
+    'https://backend.indicator-app.com',
+    'http://localhost:5173',
+    'https://medical-six-ashen.vercel.app',
+    'https://medical-aful.vercel.app',
+  ];
+
+  // CORS: allow all origins (strict origin checking disabled)
+  app.enableCors({
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'lang', 'x-lang'],
+    exposedHeaders: ['Authorization'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+  });
 
   // Enable validation pipes
   app.useGlobalPipes(
