@@ -1,9 +1,10 @@
 import {
   Controller,
   Get,
+  Post,
+  Body,
   Param,
   ParseIntPipe,
-  Post,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -12,8 +13,10 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
+  ApiBody,
 } from '@nestjs/swagger';
 import { ClinicsService } from '../../clinics/clinics.service';
+import { AddClinicPatientDto } from './dto/add-clinic-patient.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
@@ -68,6 +71,45 @@ export class ClinicPatientsController {
     return this.clinicsService.getClinicPatients(clinicId);
   }
 
+  @Post()
+  @UseGuards(ClinicPermissionsGuard)
+  @Permissions(ClinicPermission.CREATE_USER as string)
+  @ApiOperation({
+    summary: 'Link a main user (patient) to the clinic',
+  })
+  @ApiParam({ name: 'clinicId', type: Number, example: 1 })
+  @ApiBody({ type: AddClinicPatientDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Patient linked to the clinic',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number' },
+        user_id: { type: 'number' },
+        clinic_id: { type: 'number' },
+        createdAt: { type: 'string', format: 'date-time' },
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string', nullable: true },
+            phone: { type: 'string' },
+            email: { type: 'string', nullable: true },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Clinic or user not found' })
+  @ApiResponse({ status: 409, description: 'User already linked to clinic' })
+  addPatient(@ClinicId() clinicId: number, @Body() dto: AddClinicPatientDto) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.clinicsService.addClinicPatient(clinicId, dto.user_id);
+  }
+
   @Get(':patientId')
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.READ_USER as string)
@@ -107,47 +149,5 @@ export class ClinicPatientsController {
       throw new Error('Clinic ID is required');
     }
     return this.clinicsService.getClinicPatientById(clinicId, patientId);
-  }
-
-  @Post(':patientId')
-  @UseGuards(ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.CREATE_USER as string)
-  @ApiOperation({
-    summary: 'Link a patient (main user) to the clinic',
-  })
-  @ApiParam({ name: 'clinicId', type: Number, example: 1 })
-  @ApiParam({ name: 'patientId', type: Number, example: 1 })
-  @ApiResponse({
-    status: 201,
-    description: 'Patient linked to clinic',
-    schema: {
-      type: 'object',
-      properties: {
-        id: { type: 'number' },
-        user_id: { type: 'number' },
-        clinic_id: { type: 'number' },
-        createdAt: { type: 'string', format: 'date-time' },
-        user: {
-          type: 'object',
-          properties: {
-            id: { type: 'number' },
-            name: { type: 'string', nullable: true },
-            phone: { type: 'string' },
-            email: { type: 'string', nullable: true },
-          },
-        },
-      },
-    },
-  })
-  @ApiResponse({ status: 404, description: 'Clinic or patient not found' })
-  @ApiResponse({ status: 409, description: 'Patient already linked to clinic' })
-  linkPatient(
-    @ClinicId() clinicId: number,
-    @Param('patientId', ParseIntPipe) patientId: number,
-  ) {
-    if (!clinicId) {
-      throw new Error('Clinic ID is required');
-    }
-    return this.clinicsService.linkPatientToClinic(clinicId, patientId);
   }
 }

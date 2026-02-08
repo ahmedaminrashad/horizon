@@ -290,44 +290,30 @@ export class ClinicsService {
   }
 
   /**
-   * Link a patient (main user) to a clinic by creating a clinic_user record.
-   * Returns the created link; throws if clinic/user not found or already linked.
+   * Link a main user (patient) to a clinic. Creates a clinic_user record.
    */
-  async linkPatientToClinic(clinicId: number, patientId: number) {
+  async addClinicPatient(clinicId: number, userId: number) {
     const clinic = await this.clinicsRepository.findOne({
       where: { id: clinicId },
     });
     if (!clinic) {
       throw new NotFoundException(`Clinic with ID ${clinicId} not found`);
     }
-    await this.usersService.findOne(patientId);
+    await this.usersService.findOne(userId);
     const existing = await this.clinicUserRepository.findOne({
-      where: { clinic_id: clinicId, user_id: patientId },
+      where: { clinic_id: clinicId, user_id: userId },
     });
     if (existing) {
       throw new ConflictException(
-        `Patient ${patientId} is already linked to clinic ${clinicId}`,
+        `User ${userId} is already linked to clinic ${clinicId}`,
       );
     }
-    const clinicUser = await this.clinicUserRepository.save({
+    const clinicUser = this.clinicUserRepository.create({
       clinic_id: clinicId,
-      user_id: patientId,
+      user_id: userId,
     });
-    const withUser = await this.clinicUserRepository.findOne({
-      where: { id: clinicUser.id },
-      relations: ['user'],
-    });
-    if (!withUser) {
-      throw new NotFoundException('Failed to load created clinic patient');
-    }
-    const { user, ...rest } = withUser;
-    const userSafe =
-      user != null
-        ? Object.fromEntries(
-            Object.entries(user).filter(([key]) => key !== 'password'),
-          )
-        : undefined;
-    return { ...rest, user: userSafe };
+    const saved = await this.clinicUserRepository.save(clinicUser);
+    return this.getClinicPatientById(clinicId, saved.user_id);
   }
 
   async updateLastActive(id: number): Promise<void> {
