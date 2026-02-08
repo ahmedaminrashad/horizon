@@ -289,6 +289,47 @@ export class ClinicsService {
     return { ...rest, user: userSafe };
   }
 
+  /**
+   * Link a patient (main user) to a clinic by creating a clinic_user record.
+   * Returns the created link; throws if clinic/user not found or already linked.
+   */
+  async linkPatientToClinic(clinicId: number, patientId: number) {
+    const clinic = await this.clinicsRepository.findOne({
+      where: { id: clinicId },
+    });
+    if (!clinic) {
+      throw new NotFoundException(`Clinic with ID ${clinicId} not found`);
+    }
+    await this.usersService.findOne(patientId);
+    const existing = await this.clinicUserRepository.findOne({
+      where: { clinic_id: clinicId, user_id: patientId },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Patient ${patientId} is already linked to clinic ${clinicId}`,
+      );
+    }
+    const clinicUser = await this.clinicUserRepository.save({
+      clinic_id: clinicId,
+      user_id: patientId,
+    });
+    const withUser = await this.clinicUserRepository.findOne({
+      where: { id: clinicUser.id },
+      relations: ['user'],
+    });
+    if (!withUser) {
+      throw new NotFoundException('Failed to load created clinic patient');
+    }
+    const { user, ...rest } = withUser;
+    const userSafe =
+      user != null
+        ? Object.fromEntries(
+            Object.entries(user).filter(([key]) => key !== 'password'),
+          )
+        : undefined;
+    return { ...rest, user: userSafe };
+  }
+
   async updateLastActive(id: number): Promise<void> {
     await this.clinicsRepository.update(id, { last_active: new Date() });
   }
