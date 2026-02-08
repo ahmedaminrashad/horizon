@@ -22,59 +22,16 @@ async function bootstrap() {
     prefix: '/api/uploads/',
   });
 
-  // Enable CORS configuration
-  const nodeEnv = configService.get<string>('NODE_ENV', 'development');
-  
-  // Allowed origins for CORS
-  const allowedOrigins = [
-    'https://operate.indicator-app.com',
-    'https://backend.indicator-app.com',
-    'http://localhost:5173',
-    'https://medical-six-ashen.vercel.app',
-    'https://medical-aful.vercel.app',
-  ];
-
-  if (nodeEnv === 'development' || nodeEnv === 'local') {
-    // In development, allow all origins
-    app.enableCors({
-      origin: true,
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'lang', 'x-lang'],
-      exposedHeaders: ['Authorization'],
-      preflightContinue: false,
-      optionsSuccessStatus: 204,
-    });
-  } else {
-    // In production, allow only specific origins
-    app.enableCors({
-      origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) {
-          return callback(null, true);
-        }
-        
-        // Check if origin is in allowed list
-        if (allowedOrigins.includes(origin)) {
-          return callback(null, true);
-        }
-        
-        // Allow subdomains of indicator-app.com
-        if (origin.match(/^https?:\/\/[^.]+\.indicator-app\.com$/)) {
-          return callback(null, true);
-        }
-        
-        // Reject other origins
-        return callback(new Error('Not allowed by CORS'));
-      },
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'lang', 'x-lang'],
-      exposedHeaders: ['Authorization'],
-      preflightContinue: false,
-      optionsSuccessStatus: 204,
-    });
-  }
+  // Enable CORS - allow all origins (strict origin checking disabled)
+  app.enableCors({
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'lang', 'x-lang'],
+    exposedHeaders: ['Authorization'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+  });
 
   // Enable validation pipes
   app.useGlobalPipes(

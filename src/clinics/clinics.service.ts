@@ -234,7 +234,6 @@ export class ClinicsService {
    * Get main users (patients) linked to clinic via clinic_user table.
    */
   async getClinicPatients(clinicId: number) {
- 
     console.log('clinicId clinicId clinicId: ', clinicId);
     const clinic = await this.clinicsRepository.findOne({
       where: { id: clinicId },
@@ -259,6 +258,35 @@ export class ClinicsService {
           : undefined;
       return { ...rest, user: userSafe };
     });
+  }
+
+  /**
+   * Get a single patient (main user) linked to the clinic by clinic id and patient (user) id.
+   */
+  async getClinicPatientById(clinicId: number, patientId: number) {
+    const clinic = await this.clinicsRepository.findOne({
+      where: { id: clinicId },
+    });
+    if (!clinic) {
+      throw new NotFoundException(`Clinic with ID ${clinicId} not found`);
+    }
+    const clinicUser = await this.clinicUserRepository.findOne({
+      where: { clinic_id: clinicId, user_id: patientId },
+      relations: ['user'],
+    });
+    if (!clinicUser) {
+      throw new NotFoundException(
+        `Patient with ID ${patientId} not found in clinic ${clinicId}`,
+      );
+    }
+    const { user, ...rest } = clinicUser;
+    const userSafe =
+      user != null
+        ? Object.fromEntries(
+            Object.entries(user).filter(([key]) => key !== 'password'),
+          )
+        : undefined;
+    return { ...rest, user: userSafe };
   }
 
   async updateLastActive(id: number): Promise<void> {

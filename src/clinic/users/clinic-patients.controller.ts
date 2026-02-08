@@ -1,4 +1,10 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -59,5 +65,46 @@ export class ClinicPatientsController {
       throw new Error('Clinic ID is required');
     }
     return this.clinicsService.getClinicPatients(clinicId);
+  }
+
+  @Get(':patientId')
+  @UseGuards(ClinicPermissionsGuard)
+  @Permissions(ClinicPermission.READ_USER as string)
+  @ApiOperation({
+    summary: 'Get a single patient linked to the clinic by patient (user) id',
+  })
+  @ApiParam({ name: 'clinicId', type: Number, example: 1 })
+  @ApiParam({ name: 'patientId', type: Number, example: 1 })
+  @ApiResponse({
+    status: 200,
+    description: 'Patient (main user) linked to this clinic',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number' },
+        user_id: { type: 'number' },
+        clinic_id: { type: 'number' },
+        createdAt: { type: 'string', format: 'date-time' },
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string', nullable: true },
+            phone: { type: 'string' },
+            email: { type: 'string', nullable: true },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Clinic or patient not found' })
+  getPatientById(
+    @ClinicId() clinicId: number,
+    @Param('patientId', ParseIntPipe) patientId: number,
+  ) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.clinicsService.getClinicPatientById(clinicId, patientId);
   }
 }
