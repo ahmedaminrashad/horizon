@@ -1,11 +1,49 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEmail,
+  IsOptional,
+  IsNumber,
+  MinLength,
+} from 'class-validator';
 
 export class AddClinicPatientDto {
-  @ApiProperty({ description: 'Main user (patient) ID to link to the clinic', example: 1 })
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  user_id: number;
+  @ApiPropertyOptional({ description: 'User name', example: 'John Doe' })
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @ApiProperty({ description: 'User phone number', example: '+1234567890' })
+  @IsString()
+  @IsNotEmpty()
+  phone: string;
+
+  @ApiPropertyOptional({
+    description: 'User email address',
+    example: 'user@example.com',
+  })
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
+  @ApiProperty({
+    description: 'User password',
+    example: 'password123',
+    minLength: 6,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
+  password: string;
+
+  @ApiPropertyOptional({ description: 'Package ID', example: 0 })
+  @IsNumber()
+  @IsOptional()
+  package_id?: number;
+
+  @ApiPropertyOptional({ description: 'Role ID', example: 1 })
+  @IsNumber()
+  @IsOptional()
+  role_id?: number;
 }

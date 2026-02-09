@@ -77,8 +77,15 @@ export class ClinicPatientsController {
   @ApiOperation({
     summary: 'Link a main user (patient) to the clinic',
   })
-  @ApiParam({ name: 'clinicId', type: Number, example: 1 })
-  @ApiBody({ type: AddClinicPatientDto })
+  @ApiParam({
+    name: 'clinicId',
+    schema: { type: 'integer', example: 1 },
+    description: 'Clinic ID',
+  })
+  @ApiBody({
+    type: AddClinicPatientDto,
+    description: 'Main user (patient) ID to link to the clinic',
+  })
   @ApiResponse({
     status: 201,
     description: 'Patient linked to the clinic',
@@ -107,7 +114,7 @@ export class ClinicPatientsController {
     if (!clinicId) {
       throw new Error('Clinic ID is required');
     }
-    return this.clinicsService.addClinicPatient(clinicId, dto.user_id);
+    return this.clinicsService.addClinicPatient(clinicId, dto);
   }
 
   @Get(':patientId')

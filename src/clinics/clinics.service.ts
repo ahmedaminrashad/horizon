@@ -290,30 +290,43 @@ export class ClinicsService {
   }
 
   /**
-   * Link a main user (patient) to a clinic. Creates a clinic_user record.
+   * Create a main user (patient) and link to a clinic.
    */
-  async addClinicPatient(clinicId: number, userId: number) {
+  async addClinicPatient(
+    clinicId: number,
+    dto: {
+      name?: string;
+      phone: string;
+      email?: string;
+      password: string;
+      package_id?: number;
+      role_id?: number;
+    },
+  ) {
     const clinic = await this.clinicsRepository.findOne({
       where: { id: clinicId },
     });
     if (!clinic) {
       throw new NotFoundException(`Clinic with ID ${clinicId} not found`);
     }
-    await this.usersService.findOne(userId);
+    const user = await this.usersService.create({
+      ...dto,
+      package_id: dto.package_id ?? 0,
+    });
     const existing = await this.clinicUserRepository.findOne({
-      where: { clinic_id: clinicId, user_id: userId },
+      where: { clinic_id: clinicId, user_id: user.id },
     });
     if (existing) {
       throw new ConflictException(
-        `User ${userId} is already linked to clinic ${clinicId}`,
+        `User ${user.id} is already linked to clinic ${clinicId}`,
       );
     }
     const clinicUser = this.clinicUserRepository.create({
       clinic_id: clinicId,
-      user_id: userId,
+      user_id: user.id,
     });
-    const saved = await this.clinicUserRepository.save(clinicUser);
-    return this.getClinicPatientById(clinicId, saved.user_id);
+    await this.clinicUserRepository.save(clinicUser);
+    return this.getClinicPatientById(clinicId, user.id);
   }
 
   async updateLastActive(id: number): Promise<void> {
