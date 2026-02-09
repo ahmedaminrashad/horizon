@@ -232,22 +232,29 @@ export class ClinicsService {
 
   /**
    * Get main users (patients) linked to clinic via clinic_user table.
+   * @param phone Optional filter by user phone (partial match).
    */
-  async getClinicPatients(clinicId: number) {
-    console.log('clinicId clinicId clinicId: ', clinicId);
+  async getClinicPatients(clinicId: number, phone?: string) {
     const clinic = await this.clinicsRepository.findOne({
       where: { id: clinicId },
     });
     if (!clinic) {
       throw new NotFoundException(`Clinic with ID ${clinicId} not found`);
     }
-    console.log('clinic : ', clinic);
-    const clinicUsers = await this.clinicUserRepository.find({
-      where: { clinic_id: clinicId },
-      relations: ['user'],
-      order: { createdAt: 'DESC' },
-    });
-    console.log('clinicUsers : ', clinicUsers);
+
+    const qb = this.clinicUserRepository
+      .createQueryBuilder('cu')
+      .leftJoinAndSelect('cu.user', 'user')
+      .where('cu.clinic_id = :clinicId', { clinicId })
+      .orderBy('cu.createdAt', 'DESC');
+
+    if (phone && phone.trim()) {
+      qb.andWhere('user.phone LIKE :phone', {
+        phone: `%${phone.trim()}%`,
+      });
+    }
+
+    const clinicUsers = await qb.getMany();
     return clinicUsers.map((cu) => {
       const { user, ...rest } = cu;
       const userSafe =

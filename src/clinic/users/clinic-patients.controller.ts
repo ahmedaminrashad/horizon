@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   ParseIntPipe,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -14,6 +15,7 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiBody,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { ClinicsService } from '../../clinics/clinics.service';
 import { AddClinicPatientDto } from './dto/add-clinic-patient.dto';
@@ -38,6 +40,12 @@ export class ClinicPatientsController {
     summary: 'Get main users (patients) linked to clinic via clinic_user',
   })
   @ApiParam({ name: 'clinicId', type: Number, example: 1 })
+  @ApiQuery({
+    name: 'phone',
+    required: false,
+    type: String,
+    description: 'Filter patients by phone (partial match)',
+  })
   @ApiResponse({
     status: 200,
     description: 'List of main users linked to this clinic',
@@ -64,11 +72,11 @@ export class ClinicPatientsController {
     },
   })
   @ApiResponse({ status: 404, description: 'Clinic not found' })
-  getPatients(@ClinicId() clinicId: number) {
+  getPatients(@ClinicId() clinicId: number, @Query('phone') phone?: string) {
     if (!clinicId) {
       throw new Error('Clinic ID is required');
     }
-    return this.clinicsService.getClinicPatients(clinicId);
+    return this.clinicsService.getClinicPatients(clinicId, phone);
   }
 
   @Post()
