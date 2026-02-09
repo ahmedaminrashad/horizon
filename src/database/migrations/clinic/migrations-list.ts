@@ -31,6 +31,7 @@ import { ChangeReservationDateTimeToDate1776000000007 } from './1776000000007-Ch
 import { AddMainUserIdToReservations1776000000008 } from './1776000000008-AddMainUserIdToReservations';
 import { AddAppointTypeToDoctorWorkingHours1776000000009 } from './1776000000009-AddAppointTypeToDoctorWorkingHours';
 import { AddAppointTypeToReservations1776000000010 } from './1776000000010-AddAppointTypeToReservations';
+import { RenameDefaultDurationToDefaultDurationMinutes1776000000014 } from './1776000000014-RenameDefaultDurationToDefaultDurationMinutes';
 
 /**
  * List of all clinic migrations in order
@@ -69,4 +70,5 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   AddMainUserIdToReservations1776000000008,
   AddAppointTypeToDoctorWorkingHours1776000000009,
   AddAppointTypeToReservations1776000000010,
+  RenameDefaultDurationToDefaultDurationMinutes1776000000014,
 ];
