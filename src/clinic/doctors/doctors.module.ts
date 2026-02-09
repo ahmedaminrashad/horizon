@@ -10,6 +10,7 @@ import { ClinicsModule } from '../../clinics/clinics.module';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
 import { DoctorsModule as MainDoctorsModule } from '../../doctors/doctors.module';
+import { BranchesModule as MainBranchesModule } from '../../branches/branches.module';
 import { WorkingHoursModule } from '../working-hours/working-hours.module';
 
 @Module({
@@ -19,6 +20,7 @@ import { WorkingHoursModule } from '../working-hours/working-hours.module';
     RolesModule,
     ClinicsModule,
     MainDoctorsModule,
+    MainBranchesModule,
     WorkingHoursModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

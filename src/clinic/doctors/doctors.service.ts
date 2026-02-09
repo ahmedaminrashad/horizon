@@ -21,6 +21,7 @@ import { User as ClinicUser } from '../permissions/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { DoctorsService as MainDoctorsService } from '../../doctors/doctors.service';
+import { BranchesService as MainBranchesService } from '../../branches/branches.service';
 import { WorkingHoursService } from '../working-hours/working-hours.service';
 import { WorkingHour } from '../working-hours/entities/working-hour.entity';
 import { BreakHour } from '../working-hours/entities/break-hour.entity';
@@ -37,6 +38,7 @@ export class DoctorsService {
     private rolesService: RolesService,
     private jwtService: JwtService,
     private mainDoctorsService: MainDoctorsService,
+    private mainBranchesService: MainBranchesService,
     private workingHoursService: WorkingHoursService,
   ) {}
 
@@ -451,6 +453,17 @@ export class DoctorsService {
       const doctorEmail = doctorUser.email ?? undefined;
       const doctorPhone = doctorUser.phone || undefined;
 
+      // Resolve clinic branch_id to main branch id (main doctors.branch_id references main branches.id)
+      let mainBranchId: number | undefined;
+      if (clinicDoctor.branch_id) {
+        const mainBranch =
+          await this.mainBranchesService.findByClinicBranchId(
+            clinicId,
+            clinicDoctor.branch_id,
+          );
+        mainBranchId = mainBranch?.id ?? undefined;
+      }
+
       // Sync to main doctors table
       await this.mainDoctorsService.syncDoctor(clinicId, clinicDoctor.id, {
         name: doctorName,
@@ -465,7 +478,7 @@ export class DoctorsService {
         bio: clinicDoctor.bio,
         appoint_type: clinicDoctor.appoint_type,
         is_active: clinicDoctor.is_active,
-        branch_id: clinicDoctor.branch_id,
+        branch_id: mainBranchId,
         experience_years: clinicDoctor.experience_years,
         number_of_patients: clinicDoctor.number_of_patients,
       });
