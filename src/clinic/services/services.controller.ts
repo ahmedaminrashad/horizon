@@ -15,6 +15,8 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiQuery,
+  ApiParam,
+  ApiBody,
 } from '@nestjs/swagger';
 import { ClinicServicesService } from './services.service';
 import { CreateServiceDto } from './dto/create-service.dto';
@@ -38,6 +40,12 @@ export class ClinicServicesController {
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.CREATE_DOCTOR as string)
   @ApiOperation({ summary: 'Create a new service' })
+  @ApiParam({
+    name: 'clinicId',
+    schema: { type: 'integer', example: 1 },
+    description: 'Clinic ID',
+  })
+  @ApiBody({ type: CreateServiceDto })
   @ApiResponse({ status: 201, description: 'Service created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input or clinic context not found' })
   create(
@@ -54,6 +62,11 @@ export class ClinicServicesController {
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.READ_DOCTOR)
   @ApiOperation({ summary: 'Get all services with pagination' })
+  @ApiParam({
+    name: 'clinicId',
+    schema: { type: 'integer', example: 1 },
+    description: 'Clinic ID',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiQuery({ name: 'is_active', required: false, type: Boolean, description: 'Filter by active status' })
@@ -84,6 +97,16 @@ export class ClinicServicesController {
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.READ_DOCTOR)
   @ApiOperation({ summary: 'Get a service by ID' })
+  @ApiParam({
+    name: 'clinicId',
+    schema: { type: 'integer', example: 1 },
+    description: 'Clinic ID',
+  })
+  @ApiParam({
+    name: 'id',
+    schema: { type: 'integer', example: 1 },
+    description: 'Service ID',
+  })
   @ApiResponse({ status: 200, description: 'Service found' })
   @ApiResponse({ status: 404, description: 'Service not found' })
   findOne(
@@ -100,6 +123,17 @@ export class ClinicServicesController {
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.UPDATE_DOCTOR)
   @ApiOperation({ summary: 'Update a service' })
+  @ApiParam({
+    name: 'clinicId',
+    schema: { type: 'integer', example: 1 },
+    description: 'Clinic ID',
+  })
+  @ApiParam({
+    name: 'id',
+    schema: { type: 'integer', example: 1 },
+    description: 'Service ID',
+  })
+  @ApiBody({ type: UpdateServiceDto })
   @ApiResponse({ status: 200, description: 'Service updated successfully' })
   @ApiResponse({ status: 404, description: 'Service not found' })
   update(
@@ -121,6 +155,16 @@ export class ClinicServicesController {
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.DELETE_DOCTOR)
   @ApiOperation({ summary: 'Delete a service' })
+  @ApiParam({
+    name: 'clinicId',
+    schema: { type: 'integer', example: 1 },
+    description: 'Clinic ID',
+  })
+  @ApiParam({
+    name: 'id',
+    schema: { type: 'integer', example: 1 },
+    description: 'Service ID',
+  })
   @ApiResponse({ status: 200, description: 'Service deleted successfully' })
   @ApiResponse({ status: 404, description: 'Service not found' })
   remove(
