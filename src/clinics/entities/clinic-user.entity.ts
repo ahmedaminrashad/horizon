@@ -29,6 +29,10 @@ export class ClinicUser {
   @Column({ name: 'clinic_id' })
   clinic_id: number;
 
+  /** User id in the clinic's tenant database (users.id in that DB). */
+  @Column({ name: 'clinic_user_id', type: 'int', nullable: true })
+  clinic_user_id: number | null;
+
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;

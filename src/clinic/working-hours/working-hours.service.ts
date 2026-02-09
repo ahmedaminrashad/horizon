@@ -15,7 +15,7 @@ import { Doctor } from '../doctors/entities/doctor.entity';
 import { CreateWorkingHoursDto } from './dto/create-working-hours.dto';
 import { CreateBreakHoursDto } from './dto/create-break-hours.dto';
 import {
-  CreateDoctorWorkingHoursDto,
+  ClinicCreateDoctorWorkingHoursDto,
   CreateBulkDoctorWorkingHoursDto,
 } from './dto/create-doctor-working-hours.dto';
 import { ClinicWorkingHoursService } from '../../clinics/clinic-working-hours.service';
@@ -1124,7 +1124,7 @@ export class WorkingHoursService {
    */
   async setDoctorWorkingHours(
     doctorId: number,
-    createDto: CreateDoctorWorkingHoursDto,
+    createDto: ClinicCreateDoctorWorkingHoursDto,
   ): Promise<DoctorWorkingHour> {
     // Validate time range
     this.validateTimeRange(createDto.start_time, createDto.end_time);
@@ -1410,7 +1410,7 @@ export class WorkingHoursService {
    */
   async updateDoctorWorkingHour(
     id: number,
-    updateDto: Partial<CreateDoctorWorkingHoursDto>,
+    updateDto: Partial<ClinicCreateDoctorWorkingHoursDto>,
   ): Promise<DoctorWorkingHour> {
     const repository = await this.getDoctorWorkingHoursRepository();
 
@@ -1576,7 +1576,7 @@ export class WorkingHoursService {
       // Sync each working hour to main database
       for (const workingHour of workingHoursArray) {
         // Convert clinic working hour to main database DTO format
-        const createDto: CreateDoctorWorkingHoursDto = {
+        const createDto: ClinicCreateDoctorWorkingHoursDto = {
           day: workingHour.day,
           branch_id: workingHour.branch_id ?? undefined,
           start_time: workingHour.start_time,

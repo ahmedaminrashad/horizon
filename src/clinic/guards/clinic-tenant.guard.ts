@@ -49,6 +49,16 @@ export class ClinicTenantGuard implements CanActivate {
     if (!clinicId && request.params?.clinicId) {
       clinicId = +request.params.clinicId;
     }
+
+    // Fallback to query string (e.g. for /api/clinic/questions?clinic_id=1)
+    if (!clinicId && request.query?.clinic_id) {
+      clinicId = +request.query.clinic_id;
+    }
+
+    // Fallback to body (e.g. POST /api/clinic/patient-question-answers with clinic_id in body)
+    if (!clinicId && request.body?.clinic_id != null) {
+      clinicId = +request.body.clinic_id;
+    }
     
     // Also check if user object is already set (from previous guard)
     if (!clinicId && request.user?.clinic_id) {

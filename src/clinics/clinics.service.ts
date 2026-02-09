@@ -297,6 +297,44 @@ export class ClinicsService {
   }
 
   /**
+   * Get clinic_user_id for a main user linked to a clinic (from main DB clinic_user table).
+   * Returns the user id in the clinic's tenant DB, or null if not linked or not yet set.
+   */
+  async getClinicUserIdForMainUser(
+    mainUserId: number,
+    clinicId: number,
+  ): Promise<number | null> {
+    const link = await this.clinicUserRepository.findOne({
+      where: { user_id: mainUserId, clinic_id: clinicId },
+    });
+    return link?.clinic_user_id ?? null;
+  }
+
+  /**
+   * Create or update clinic_user link with clinic_user_id (user id in clinic tenant DB).
+   */
+  async setClinicUserIdForMainUser(
+    mainUserId: number,
+    clinicId: number,
+    clinicUserId: number,
+  ): Promise<void> {
+    let link = await this.clinicUserRepository.findOne({
+      where: { user_id: mainUserId, clinic_id: clinicId },
+    });
+    if (link) {
+      link.clinic_user_id = clinicUserId;
+      await this.clinicUserRepository.save(link);
+    } else {
+      link = this.clinicUserRepository.create({
+        user_id: mainUserId,
+        clinic_id: clinicId,
+        clinic_user_id: clinicUserId,
+      });
+      await this.clinicUserRepository.save(link);
+    }
+  }
+
+  /**
    * Create a main user (patient) and link to a clinic.
    */
   async addClinicPatient(

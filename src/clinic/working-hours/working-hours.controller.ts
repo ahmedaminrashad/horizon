@@ -23,7 +23,7 @@ import { WorkingHoursService } from './working-hours.service';
 import { CreateWorkingHoursDto } from './dto/create-working-hours.dto';
 import { CreateBreakHoursDto } from './dto/create-break-hours.dto';
 import {
-  CreateDoctorWorkingHoursDto,
+  ClinicCreateDoctorWorkingHoursDto,
   CreateBulkDoctorWorkingHoursDto,
 } from './dto/create-doctor-working-hours.dto';
 import { DayOfWeek, WorkingHour } from './entities/working-hour.entity';
@@ -478,7 +478,7 @@ export class WorkingHoursController {
     description: 'Doctor ID',
     example: 1,
   })
-  @ApiBody({ type: CreateDoctorWorkingHoursDto })
+  @ApiBody({ type: ClinicCreateDoctorWorkingHoursDto })
   @ApiResponse({
     status: 201,
     description: 'Doctor working hours created successfully',
@@ -490,7 +490,7 @@ export class WorkingHoursController {
   })
   setDoctorWorkingHours(
     @Param('doctorId', ParseIntPipe) doctorId: number,
-    @Body() createDto: CreateDoctorWorkingHoursDto,
+    @Body() createDto: ClinicCreateDoctorWorkingHoursDto,
   ) {
     return this.workingHoursService.setDoctorWorkingHours(doctorId, createDto);
   }
@@ -535,7 +535,7 @@ export class WorkingHoursController {
     description: 'Working hour ID',
     example: 1,
   })
-  @ApiBody({ type: CreateDoctorWorkingHoursDto })
+  @ApiBody({ type: ClinicCreateDoctorWorkingHoursDto })
   @ApiResponse({
     status: 200,
     description: 'Doctor working hours updated successfully',
@@ -548,7 +548,7 @@ export class WorkingHoursController {
   updateDoctorWorkingHour(
     @Param('doctorId', ParseIntPipe) _doctorId: number,
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateDto: Partial<CreateDoctorWorkingHoursDto>,
+    @Body() updateDto: Partial<ClinicCreateDoctorWorkingHoursDto>,
   ) {
     return this.workingHoursService.updateDoctorWorkingHour(id, updateDto);
   }

@@ -979,6 +979,23 @@ export class ReservationsService {
 
     const rForSync = reservationWithRelations || savedReservation;
 
+    // Store main user -> clinic user link so future requests can resolve by clinic_user_id
+    try {
+      await this.clinicsService.setClinicUserIdForMainUser(
+        mainUser.id,
+        createMainUserReservationDto.clinic_id,
+        clinicUser.id,
+      );
+    } catch (linkError) {
+      const errMsg =
+        linkError instanceof Error ? linkError.message : String(linkError);
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[SYNC WARNING] Could not set clinic_user_id for main user ${mainUser.id} in clinic ${createMainUserReservationDto.clinic_id}:`,
+        errMsg,
+      );
+    }
+
     // Sync to main reservations table
     try {
       await this.syncToMainReservations(

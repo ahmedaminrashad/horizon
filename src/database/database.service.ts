@@ -15,6 +15,8 @@ import { WorkingHour } from '../clinic/working-hours/entities/working-hour.entit
 import { BreakHour } from '../clinic/working-hours/entities/break-hour.entity';
 import { DoctorWorkingHour } from '../clinic/working-hours/entities/doctor-working-hour.entity';
 import { Service } from '../clinic/services/entities/service.entity';
+import { Question } from '../clinic/questions/entities/question.entity';
+import { PatientQuestionAnswer } from '../clinic/patient-question-answers/entities/patient-question-answer.entity';
 
 @Injectable()
 export class DatabaseService {
@@ -94,6 +96,8 @@ export class DatabaseService {
       BreakHour,
       DoctorWorkingHour,
       Service,
+      Question,
+      PatientQuestionAnswer,
     ];
 
     const sanitizedDbName = this.sanitizeDatabaseName(databaseName);

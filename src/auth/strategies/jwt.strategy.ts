@@ -28,6 +28,25 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(request: any, payload: any) {
+    // Patient question answers: always use main JWT (main app login), not clinic JWT
+    const path = request?.url || request?.path || '';
+    const isAnswersRoute = String(path).includes('patient-question-answers');
+    if (isAnswersRoute) {
+      const user = await this.usersService.findOne(payload.sub);
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+      return {
+        userId: user.id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        role_id: user.role_id,
+        role_slug: user.role?.slug,
+        isMainUser: true,
+      };
+    }
+
     // Check if this is a clinic route (has clinicId in params or token has clinic_id)
     const clinicId = request?.params?.clinicId || payload.clinic_id;
     const isClinicRoute = !!clinicId || !!payload.database_name;
@@ -80,7 +99,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         );
       }
 
-      // Validate user from clinic database (payload.sub is clinic user ID)
+      // Validate user from clinic database (payload.sub may be clinic user ID or main user ID)
       const userRepository =
         await this.tenantRepositoryService.getRepository<ClinicUser>(
           ClinicUser,
@@ -90,24 +109,34 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         relations: ['role', 'role.permissions'],
       });
 
-      if (!clinicUser) {
-        throw new UnauthorizedException('Clinic user not found');
+      if (clinicUser) {
+        return {
+          userId: clinicUser.id,
+          name: clinicUser.name,
+          phone: clinicUser.phone,
+          email: clinicUser.email,
+          role_id: clinicUser.role_id,
+          role_slug: clinicUser.role?.slug,
+          database_name: tenantDatabase,
+          clinic_id: payload.clinic_id || (clinicId ? +clinicId : undefined),
+        };
       }
 
-      // Get user permissions for logging
-      const userPermissions =
-        clinicUser.role?.permissions?.map((p) => p.slug) || [];
+      // Not a clinic user: try main user (e.g. patient logged in with main app)
+      const mainUser = await this.usersService.findOne(payload.sub);
+      if (mainUser) {
+        return {
+          userId: mainUser.id,
+          name: mainUser.name,
+          phone: mainUser.phone,
+          email: mainUser.email,
+          role_id: mainUser.role_id,
+          role_slug: mainUser.role?.slug,
+          isMainUser: true,
+        };
+      }
 
-      return {
-        userId: clinicUser.id,
-        name: clinicUser.name,
-        phone: clinicUser.phone,
-        email: clinicUser.email,
-        role_id: clinicUser.role_id,
-        role_slug: clinicUser.role?.slug,
-        database_name: tenantDatabase,
-        clinic_id: payload.clinic_id || (clinicId ? +clinicId : undefined),
-      };
+      throw new UnauthorizedException('User not found');
     }
 
     // For non-clinic routes, validate user from main database

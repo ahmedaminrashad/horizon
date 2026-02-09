@@ -18,9 +18,19 @@ export const ClinicId = createParamDecorator(
       return request.clinicId;
     }
     
-    // Finally fallback to route params
+    // Then route params
     if (request.params?.clinicId) {
       return +request.params.clinicId;
+    }
+
+    // Query string (e.g. clinic_id=1)
+    if (request.query?.clinic_id) {
+      return +request.query.clinic_id;
+    }
+
+    // Body (e.g. POST with clinic_id in body)
+    if (request.body?.clinic_id != null) {
+      return +request.body.clinic_id;
     }
     
     return undefined;

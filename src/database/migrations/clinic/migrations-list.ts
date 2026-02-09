@@ -32,6 +32,11 @@ import { AddMainUserIdToReservations1776000000008 } from './1776000000008-AddMai
 import { AddAppointTypeToDoctorWorkingHours1776000000009 } from './1776000000009-AddAppointTypeToDoctorWorkingHours';
 import { AddAppointTypeToReservations1776000000010 } from './1776000000010-AddAppointTypeToReservations';
 import { RenameDefaultDurationToDefaultDurationMinutes1776000000014 } from './1776000000014-RenameDefaultDurationToDefaultDurationMinutes';
+import { DropQuestionSetsTables1776000000015 } from './1776000000015-DropQuestionSetsTables';
+import { CreateClinicQuestionsTable1776000000016 } from './1776000000016-CreateClinicQuestionsTable';
+import { AddClinicIdToQuestions1776000000017 } from './1776000000017-AddClinicIdToQuestions';
+import { CreatePatientQuestionAnswersTable1776000000018 } from './1776000000018-CreatePatientQuestionAnswersTable';
+import { AddQuestionIdToPatientQuestionAnswers1776000000019 } from './1776000000019-AddQuestionIdToPatientQuestionAnswers';
 
 /**
  * List of all clinic migrations in order
@@ -71,4 +76,9 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   AddAppointTypeToDoctorWorkingHours1776000000009,
   AddAppointTypeToReservations1776000000010,
   RenameDefaultDurationToDefaultDurationMinutes1776000000014,
+  DropQuestionSetsTables1776000000015,
+  CreateClinicQuestionsTable1776000000016,
+  AddClinicIdToQuestions1776000000017,
+  CreatePatientQuestionAnswersTable1776000000018,
+  AddQuestionIdToPatientQuestionAnswers1776000000019,
 ];

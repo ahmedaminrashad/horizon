@@ -14,9 +14,9 @@ import { DayOfWeek } from '../entities/working-hour.entity';
 import { AppointType } from '../../doctors/entities/doctor.entity';
 
 /**
- * DTO for creating/updating doctor working hours
+ * DTO for creating/updating doctor working hours (clinic tenant)
  */
-export class CreateDoctorWorkingHoursDto {
+export class ClinicCreateDoctorWorkingHoursDto {
   @ApiProperty({
     description: 'Day of the week',
     enum: DayOfWeek,
@@ -151,8 +151,8 @@ export class CreateBulkDoctorWorkingHoursDto {
 
   @ApiProperty({
     description: 'Array of working hours to create',
-    type: [CreateDoctorWorkingHoursDto],
+    type: [ClinicCreateDoctorWorkingHoursDto],
   })
   @IsNotEmpty()
-  working_hours: CreateDoctorWorkingHoursDto[];
+  working_hours: ClinicCreateDoctorWorkingHoursDto[];
 }
