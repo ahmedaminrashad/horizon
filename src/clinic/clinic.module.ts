@@ -10,14 +10,16 @@ import { ClinicServicesModule } from './services/services.module';
 import { BranchesModule } from './branches/branches.module';
 import { WorkingHoursModule } from './working-hours/working-hours.module';
 import { QuestionSetsModule } from './question-sets/question-sets.module';
+import { ClinicRolesModule } from './roles/clinic-roles.module';
+import { ClinicPermissionsModule } from './permissions/clinic-permissions.module';
 import { ClinicTenantInterceptor } from './interceptors/clinic-tenant.interceptor';
 import { DatabaseModule } from '../database/database.module';
 import { UsersModule } from '../users/users.module';
 import { ClinicsModule } from '../clinics/clinics.module';
 
 @Module({
-  imports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, WorkingHoursModule, QuestionSetsModule, DatabaseModule, UsersModule, ClinicsModule],
-  exports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, WorkingHoursModule, QuestionSetsModule],
+  imports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, WorkingHoursModule, QuestionSetsModule, ClinicRolesModule, ClinicPermissionsModule, DatabaseModule, UsersModule, ClinicsModule],
+  exports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, WorkingHoursModule, QuestionSetsModule, ClinicRolesModule, ClinicPermissionsModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,
