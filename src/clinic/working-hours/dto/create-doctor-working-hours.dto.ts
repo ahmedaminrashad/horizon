@@ -133,6 +133,18 @@ export class ClinicCreateDoctorWorkingHoursDto {
   @IsOptional()
   @IsEnum(AppointType)
   appoint_type?: AppointType;
+
+  @ApiProperty({
+    description:
+      'Doctor service ID (from doctor_services) to associate with this working hour',
+    type: Number,
+    required: false,
+    example: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  doctor_service_id?: number;
 }
 
 /**

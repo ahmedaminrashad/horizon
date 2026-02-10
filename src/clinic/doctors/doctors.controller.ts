@@ -17,6 +17,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import {
   ApiTags,
   ApiOperation,
@@ -59,11 +61,37 @@ export class DoctorsController {
   @Post()
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.CREATE_DOCTOR as string)
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      storage: diskStorage({
+        destination: './uploads/avatars',
+        filename: (req, file, cb) => {
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const ext = extname(file.originalname);
+          cb(null, `doctor-avatar-${uniqueSuffix}${ext}`);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+      fileFilter: (req, file, cb) => {
+        if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+          return cb(new BadRequestException('Only image files are allowed'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data', 'application/json')
   @ApiOperation({ summary: 'Register a new doctor (creates user and doctor)' })
   @ApiParam({
     name: 'clinicId',
     type: Number,
     description: 'Clinic ID (can be from JWT token or route parameter)',
+  })
+  @ApiBody({
+    type: RegisterDoctorDto,
+    description:
+      'Application/json: send the DTO as request body. Multipart/form-data: send field "data" (JSON string of this DTO) and optional "avatar" (image file: jpg/png/gif/webp, max 5MB).',
   })
   @ApiResponse({
     status: 201,
@@ -93,21 +121,6 @@ export class DoctorsController {
             department: { type: 'string', enum: Object.values(Department) },
             user_id: { type: 'number' },
             clinic_id: { type: 'number' },
-            slotTemplates: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'number' },
-                  duration: { type: 'string', example: '00:30:00' },
-                  cost: { type: 'number', example: 100.5 },
-                  days: { type: 'string', example: 'MONDAY,TUESDAY,WEDNESDAY' },
-                  doctor_id: { type: 'number' },
-                  createdAt: { type: 'string', format: 'date-time' },
-                  updatedAt: { type: 'string', format: 'date-time' },
-                },
-              },
-            },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
           },
@@ -118,13 +131,30 @@ export class DoctorsController {
   })
   @ApiResponse({ status: 400, description: 'Clinic context not found' })
   @ApiResponse({ status: 409, description: 'Phone or email already exists' })
-  createNewUser(
+  async createNewUser(
     @ClinicId() clinicId: number,
-    @Body() registerDoctorDto: RegisterDoctorDto,
+    @Body() body: RegisterDoctorDto & { data?: string },
+    @UploadedFile() avatarFile?: Express.Multer.File,
   ) {
-    console.log('Creating doctor', { clinicId, registerDoctorDto });
     if (!clinicId) {
       throw new Error('Clinic ID is required');
+    }
+    const registerDoctorDto =
+      typeof body?.data === 'string'
+        ? plainToInstance(RegisterDoctorDto, JSON.parse(body.data) as object)
+        : plainToInstance(RegisterDoctorDto, body);
+    if (avatarFile) {
+      registerDoctorDto.avatar = `/uploads/avatars/${avatarFile.filename}`;
+    }
+    const errors = await validate(registerDoctorDto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+    if (errors.length > 0) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: errors.map((e) => ({ property: e.property, constraints: e.constraints })),
+      });
     }
     return this.doctorsService.registerDoctor(clinicId, registerDoctorDto);
   }
@@ -132,21 +162,64 @@ export class DoctorsController {
   @Post('/create')
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.CREATE_DOCTOR as string)
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      storage: diskStorage({
+        destination: './uploads/avatars',
+        filename: (req, file, cb) => {
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const ext = extname(file.originalname);
+          cb(null, `doctor-avatar-${uniqueSuffix}${ext}`);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+      fileFilter: (req, file, cb) => {
+        if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+          return cb(new BadRequestException('Only image files are allowed'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data', 'application/json')
   @ApiOperation({ summary: 'Create a new doctor (existing user)' })
   @ApiParam({
     name: 'clinicId',
     type: Number,
     description: 'Clinic ID (can be from JWT token or route parameter)',
   })
+  @ApiBody({
+    type: CreateDoctorDto,
+    description:
+      'Application/json: send the DTO as request body. Multipart/form-data: send field "data" (JSON string of this DTO) and optional "avatar" (image file: jpg/png/gif/webp, max 5MB).',
+  })
   @ApiResponse({ status: 201, description: 'Doctor created successfully' })
   @ApiResponse({ status: 400, description: 'Clinic context not found' })
-  createExistingUser(
+  async createExistingUser(
     @ClinicId() clinicId: number,
-    @Body() createDoctorDto: CreateDoctorDto,
+    @Body() body: CreateDoctorDto & { data?: string },
+    @UploadedFile() avatarFile?: Express.Multer.File,
   ) {
-    console.log('Creating doctor', { clinicId, createDoctorDto });
     if (!clinicId) {
       throw new Error('Clinic ID is required');
+    }
+    const createDoctorDto =
+      typeof body?.data === 'string'
+        ? plainToInstance(CreateDoctorDto, JSON.parse(body.data) as object)
+        : plainToInstance(CreateDoctorDto, body);
+    if (avatarFile) {
+      createDoctorDto.avatar = `/uploads/avatars/${avatarFile.filename}`;
+    }
+    const errors = await validate(createDoctorDto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+    if (errors.length > 0) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: errors.map((e) => ({ property: e.property, constraints: e.constraints })),
+      });
     }
     return this.doctorsService.create(clinicId, createDoctorDto);
   }
@@ -185,24 +258,6 @@ export class DoctorsController {
                   name: { type: 'string', nullable: true },
                   phone: { type: 'string' },
                   email: { type: 'string', nullable: true },
-                },
-              },
-              slotTemplates: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    id: { type: 'number' },
-                    duration: { type: 'string', example: '00:30:00' },
-                    cost: { type: 'number', example: 100.5 },
-                    days: {
-                      type: 'string',
-                      example: 'MONDAY,TUESDAY,WEDNESDAY',
-                    },
-                    doctor_id: { type: 'number' },
-                    createdAt: { type: 'string', format: 'date-time' },
-                    updatedAt: { type: 'string', format: 'date-time' },
-                  },
                 },
               },
               createdAt: { type: 'string', format: 'date-time' },
@@ -339,6 +394,10 @@ export class DoctorsController {
     description: 'Clinic ID (can be from JWT token or route parameter)',
   })
   @ApiParam({ name: 'doctorId', type: Number, description: 'Doctor ID' })
+  @ApiBody({
+    type: UpdateDoctorDto,
+    description: 'Partial doctor data. Optional: doctor_services.',
+  })
   @ApiResponse({ status: 200, description: 'Doctor updated successfully' })
   @ApiResponse({ status: 404, description: 'Doctor not found' })
   update(

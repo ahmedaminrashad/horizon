@@ -1058,7 +1058,7 @@ export class WorkingHoursService {
     const repository = await this.getDoctorWorkingHoursRepository();
     return repository.find({
       where: { doctor_id: doctorId },
-      relations: ['branch'],
+      relations: ['branch', 'doctor_service'],
       order: {
         day: 'ASC',
         start_time: 'ASC',
@@ -1076,7 +1076,7 @@ export class WorkingHoursService {
     const repository = await this.getDoctorWorkingHoursRepository();
     return repository.find({
       where: { doctor_id: doctorId, day },
-      relations: ['branch'],
+      relations: ['branch', 'doctor_service'],
       order: {
         start_time: 'ASC',
       },
@@ -1093,7 +1093,7 @@ export class WorkingHoursService {
     const repository = await this.getDoctorWorkingHoursRepository();
     return repository.find({
       where: { doctor_id: doctorId, branch_id: branchId },
-      relations: ['branch'],
+      relations: ['branch', 'doctor_service'],
       order: {
         day: 'ASC',
         start_time: 'ASC',
@@ -1112,7 +1112,7 @@ export class WorkingHoursService {
     const repository = await this.getDoctorWorkingHoursRepository();
     return repository.find({
       where: { doctor_id: doctorId, branch_id: branchId, day },
-      relations: ['branch'],
+      relations: ['branch', 'doctor_service'],
       order: {
         start_time: 'ASC',
       },
@@ -1200,6 +1200,9 @@ export class WorkingHoursService {
         if (createDto.branch_id !== undefined) {
           workingHourData.branch_id = createDto.branch_id;
         }
+        if (createDto.doctor_service_id !== undefined) {
+          workingHourData.doctor_service_id = createDto.doctor_service_id;
+        }
         const workingHour = repository.create(workingHourData);
         const saved = (await repository.save(
           workingHour,
@@ -1247,6 +1250,9 @@ export class WorkingHoursService {
     };
     if (createDto.branch_id !== undefined) {
       workingHourData.branch_id = createDto.branch_id;
+    }
+    if (createDto.doctor_service_id !== undefined) {
+      workingHourData.doctor_service_id = createDto.doctor_service_id;
     }
     const workingHour = repository.create(workingHourData);
 
@@ -1343,6 +1349,9 @@ export class WorkingHoursService {
             if (workingHourDto.branch_id !== undefined) {
               workingHourData.branch_id = workingHourDto.branch_id;
             }
+            if (workingHourDto.doctor_service_id !== undefined) {
+              workingHourData.doctor_service_id = workingHourDto.doctor_service_id;
+            }
             const workingHour = repository.create(workingHourData);
             const saved = (await repository.save(
               workingHour,
@@ -1383,6 +1392,9 @@ export class WorkingHoursService {
           };
           if (workingHourDto.branch_id !== undefined) {
             workingHourData.branch_id = workingHourDto.branch_id;
+          }
+          if (workingHourDto.doctor_service_id !== undefined) {
+            workingHourData.doctor_service_id = workingHourDto.doctor_service_id;
           }
           const workingHour = repository.create(workingHourData);
 
@@ -1474,6 +1486,10 @@ export class WorkingHoursService {
     Object.assign(workingHour, {
       day: updateDto.day ?? workingHour.day,
       branch_id: updateDto.branch_id ?? workingHour.branch_id,
+      doctor_service_id:
+        updateDto.doctor_service_id !== undefined
+          ? updateDto.doctor_service_id
+          : workingHour.doctor_service_id,
       start_time: startTime,
       end_time: endTime,
       is_active:
@@ -1579,6 +1595,7 @@ export class WorkingHoursService {
         const createDto: ClinicCreateDoctorWorkingHoursDto = {
           day: workingHour.day,
           branch_id: workingHour.branch_id ?? undefined,
+          doctor_service_id: workingHour.doctor_service_id ?? undefined,
           start_time: workingHour.start_time,
           end_time: workingHour.end_time,
           is_active: workingHour.is_active,

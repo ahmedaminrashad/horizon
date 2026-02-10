@@ -167,6 +167,10 @@ export class PatientQuestionAnswersService {
     return question;
   }
 
+  /**
+   * Create or update a single answer per patient per question (one record per user per question).
+   * If the patient already answered this question, the existing record is updated.
+   */
   async create(
     clinicId: number,
     createDto: CreatePatientQuestionAnswerDto,
@@ -184,6 +188,24 @@ export class PatientQuestionAnswersService {
       );
     }
     const repository = await this.getAnswerRepository();
+    const existing = await repository.findOne({
+      where: {
+        patient_id: patientIdFromToken,
+        question_id: createDto.question_id,
+      },
+    });
+    if (existing) {
+      if (createDto.reservation_id !== undefined) {
+        existing.reservation_id = createDto.reservation_id;
+      }
+      if (createDto.is_answer_yes !== undefined) {
+        existing.is_answer_yes = createDto.is_answer_yes;
+      }
+      if (createDto.comment !== undefined) {
+        existing.comment = createDto.comment;
+      }
+      return repository.save(existing);
+    }
     const answer = repository.create({
       ...createDto,
       patient_id: patientIdFromToken,

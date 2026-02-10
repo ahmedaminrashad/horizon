@@ -15,6 +15,7 @@ This module provides functionality for clinic administrators to define default w
 
 - [Overview](#overview)
 - [API Endpoints](#api-endpoints)
+- [Doctor Working Hours](#doctor-working-hours)
 - [Usage Examples](#usage-examples)
 - [Validation Rules](#validation-rules)
 - [Integration with Doctor Schedules](#integration-with-doctor-schedules)
@@ -46,13 +47,13 @@ All times must be in `HH:MM:SS` format (24-hour format):
 
 ## API Endpoints
 
-All endpoints require authentication and are prefixed with `/clinic/:clinicId/working-hours`.
+Base path: `/api/clinic/working-hours`. Clinic context is set via `ClinicTenantGuard` (e.g. `clinicId` from JWT or route params). Many endpoints accept optional query `?clinicId=1` to override.
 
 ### Working Hours Endpoints
 
-#### Get All Working Hours
+#### Get All Working Hours (public, with filters)
 ```http
-GET /clinic/:clinicId/working-hours
+GET /api/clinic/working-hours?clinicId=1&day=MONDAY&start_time=09:00:00&end_time=17:00:00
 ```
 
 **Response:**
@@ -73,7 +74,7 @@ GET /clinic/:clinicId/working-hours
 
 #### Set Working Hours
 ```http
-POST /clinic/:clinicId/working-hours
+POST /api/clinic/working-hours?clinicId=1
 Content-Type: application/json
 Authorization: Bearer <token>
 ```
@@ -112,7 +113,7 @@ Authorization: Bearer <token>
 
 #### Get Working Hours for a Specific Day
 ```http
-GET /clinic/:clinicId/working-hours/day/:day
+GET /api/clinic/working-hours/day/:day
 ```
 
 **Parameters:**
@@ -120,19 +121,19 @@ GET /clinic/:clinicId/working-hours/day/:day
 
 #### Delete Working Hours for a Day
 ```http
-DELETE /clinic/:clinicId/working-hours/day/:day
+DELETE /api/clinic/working-hours/day/:day
 ```
 
 ### Break Hours Endpoints
 
 #### Get All Break Hours
 ```http
-GET /clinic/:clinicId/working-hours/breaks
+GET /api/clinic/working-hours/breaks
 ```
 
 #### Set Break Hours
 ```http
-POST /clinic/:clinicId/working-hours/breaks
+POST /api/clinic/working-hours/breaks?clinicId=1
 Content-Type: application/json
 Authorization: Bearer <token>
 ```
@@ -158,19 +159,19 @@ Authorization: Bearer <token>
 
 #### Get Break Hours for a Specific Day
 ```http
-GET /clinic/:clinicId/working-hours/breaks/day/:day
+GET /api/clinic/working-hours/breaks/day/:day
 ```
 
 #### Delete Break Hours for a Day
 ```http
-DELETE /clinic/:clinicId/working-hours/breaks/day/:day
+DELETE /api/clinic/working-hours/breaks/day/:day
 ```
 
 ### Schedule Endpoints
 
 #### Get Complete Weekly Schedule
 ```http
-GET /clinic/:clinicId/working-hours/schedule
+GET /api/clinic/working-hours/schedule
 ```
 
 **Response:**
@@ -204,8 +205,142 @@ GET /clinic/:clinicId/working-hours/schedule
 
 #### Get Schedule for a Specific Day
 ```http
-GET /clinic/:clinicId/working-hours/schedule/day/:day
+GET /api/clinic/working-hours/schedule/day/:day
 ```
+
+---
+
+## Doctor Working Hours
+
+Doctor working hours define **per-doctor** availability: which days, times, branches, fees, and (optionally) which **doctor service** (e.g. consultation, follow-up) each slot is for. Used for reservations and slot generation.
+
+### Concepts
+
+| Concept | Description |
+|--------|-------------|
+| **Clinic working hours** | Default clinic/branch open times (above). |
+| **Doctor working hours** | Per-doctor slots: day, branch, start/end time, fees, session_time, waterfall, `doctor_service_id`. |
+| **Waterfall** | If `true`, one continuous range; appointments use next available slot. If `false`, slots are fixed by `session_time`. |
+| **doctor_service_id** | Optional link to `doctor_services` (e.g. consultation ID) so a slot can be tied to a specific service. |
+
+### Doctor Working Hours Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/clinic/working-hours/doctors/:id` | Get all working hours for a doctor (includes `branch`, `doctor_service`). |
+| `GET` | `/api/clinic/working-hours/doctors/:doctorId/day/:day` | Get working hours for a doctor on a day. |
+| `GET` | `/api/clinic/working-hours/doctors/:doctorId/branch/:branchId` | Get working hours for a doctor at a branch. |
+| `POST` | `/api/clinic/working-hours/doctors/:doctorId` | Create one doctor working hour entry. |
+| `POST` | `/api/clinic/working-hours/doctors/bulk` | Bulk create doctor working hours. |
+| `POST` | `/api/clinic/working-hours/doctors/:doctorId/update/:id` | Update a doctor working hour by ID. |
+| `DELETE` | `/api/clinic/working-hours/doctors/:doctorId/:id` | Delete one doctor working hour. |
+| `DELETE` | `/api/clinic/working-hours/doctors/:doctorId` | Delete all working hours for a doctor. |
+| `DELETE` | `/api/clinic/working-hours/doctors/:doctorId/day/:day` | Delete all working hours for a doctor on a day. |
+
+### Doctor Working Hour DTO (create/update)
+
+Request body for **single** create (`POST .../doctors/:doctorId`) or **each item** in bulk (`POST .../doctors/bulk`):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `day` | enum | Yes | `MONDAY`, `TUESDAY`, … `SUNDAY` |
+| `start_time` | string | Yes | Start time `HH:MM:SS` (e.g. `09:00:00`) |
+| `end_time` | string | Yes | End time `HH:MM:SS` (e.g. `17:00:00`) |
+| `fees` | number | Yes | Fee for this slot (≥ 0) |
+| `branch_id` | number | No | Branch ID; omit for clinic-wide |
+| `session_time` | string | No | Slot duration `HH:MM:SS` (e.g. `00:30:00`); used when `waterfall: false` |
+| `is_active` | boolean | No | Default `true` |
+| `waterfall` | boolean | No | Default `true`; if `false`, fixed slots by `session_time` |
+| `busy` | boolean | No | Default `false` |
+| `patients_limit` | number | No | Max patients for slot; when waterfall false, default 1 |
+| `appoint_type` | enum | No | `in-clinic`, `online`, `home` |
+| `doctor_service_id` | number | No | Link to `doctor_services.id` (e.g. consultation, follow-up) |
+
+### Bulk create body
+
+For `POST /api/clinic/working-hours/doctors/bulk`:
+
+```json
+{
+  "doctor_id": 1,
+  "working_hours": [
+    {
+      "day": "MONDAY",
+      "start_time": "09:00:00",
+      "end_time": "13:00:00",
+      "fees": 100,
+      "doctor_service_id": 1
+    },
+    {
+      "day": "MONDAY",
+      "start_time": "14:00:00",
+      "end_time": "17:00:00",
+      "fees": 100,
+      "session_time": "00:30:00",
+      "waterfall": false,
+      "doctor_service_id": 2
+    },
+    {
+      "day": "TUESDAY",
+      "branch_id": 1,
+      "start_time": "10:00:00",
+      "end_time": "16:00:00",
+      "fees": 120
+    }
+  ]
+}
+```
+
+### Create single doctor working hour
+
+```http
+POST /api/clinic/working-hours/doctors/1
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+```json
+{
+  "day": "MONDAY",
+  "start_time": "09:00:00",
+  "end_time": "17:00:00",
+  "fees": 100,
+  "session_time": "00:30:00",
+  "doctor_service_id": 1
+}
+```
+
+### Response shape (doctor working hour)
+
+Responses include `branch` and `doctor_service` when loaded:
+
+```json
+{
+  "id": 1,
+  "doctor_id": 1,
+  "day": "MONDAY",
+  "branch_id": 1,
+  "start_time": "09:00:00",
+  "end_time": "17:00:00",
+  "session_time": "00:30:00",
+  "is_active": true,
+  "waterfall": true,
+  "fees": "100.00",
+  "busy": false,
+  "patients_limit": null,
+  "appoint_type": "in-clinic",
+  "doctor_service_id": 1,
+  "doctor_service": { "id": 1, "service_id": 1, "doctor_id": 1, "duration": 30, "price": "100.00", "service_type": "consultation" },
+  "createdAt": "...",
+  "updatedAt": "..."
+}
+```
+
+### Creating a doctor with working hours
+
+When creating a doctor (see [Doctors](../doctors/README.md)), you can pass `working_hours` in the create body; they are created after the doctor is saved via the same validation and bulk logic as above.
+
+---
 
 ## Usage Examples
 
@@ -213,7 +348,7 @@ GET /clinic/:clinicId/working-hours/schedule/day/:day
 
 ```bash
 # Set working hours
-curl -X POST http://localhost:3000/api/clinic/1/working-hours \
+curl -X POST "http://localhost:3000/api/clinic/working-hours?clinicId=1" \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -240,7 +375,7 @@ curl -X POST http://localhost:3000/api/clinic/1/working-hours \
   }'
 
 # Set break hours
-curl -X POST http://localhost:3000/api/clinic/1/working-hours/breaks \
+curl -X POST "http://localhost:3000/api/clinic/working-hours/breaks?clinicId=1" \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -470,6 +605,40 @@ CREATE TABLE break_hours (
   INDEX IDX_break_hours_day (day)
 );
 ```
+
+### Doctor Working Hours Table
+
+```sql
+CREATE TABLE doctor_working_hours (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  doctor_id INT NOT NULL,
+  day ENUM('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY') NOT NULL,
+  branch_id INT NULL,
+  doctor_service_id INT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  session_time TIME NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  waterfall BOOLEAN DEFAULT TRUE,
+  fees DECIMAL(10,2) NOT NULL,
+  busy BOOLEAN DEFAULT FALSE,
+  patients_limit INT NULL,
+  appoint_type ENUM('in-clinic', 'online', 'home') NULL,
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX IDX_doctor_working_hours_doctor_day (doctor_id, day),
+  INDEX IDX_doctor_working_hours_branch (branch_id),
+  FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE,
+  FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,
+  FOREIGN KEY (doctor_service_id) REFERENCES doctor_services(id) ON DELETE SET NULL
+);
+```
+
+### Doctor Working Hours Validation
+
+- **Time range:** `end_time` must be after `start_time`; format `HH:MM:SS`.
+- **Overlaps:** No overlapping ranges for the same doctor, day, and branch.
+- **doctor_service_id:** If provided, must reference an existing `doctor_services.id` for the same doctor (enforced by FK).
 
 ## Best Practices
 

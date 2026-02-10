@@ -6,13 +6,19 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Unique,
 } from 'typeorm';
 import { User } from '../../permissions/entities/user.entity';
 import { Doctor } from '../../doctors/entities/doctor.entity';
 import { Question } from '../../questions/entities/question.entity';
 import { Reservation } from '../../reservations/entities/reservation.entity';
 
+/** One answer per patient per question (same reservation or re-submit updates the record). */
 @Entity('patient_question_answers')
+@Unique('UQ_patient_question_answer_patient_question', [
+  'patient_id',
+  'question_id',
+])
 export class PatientQuestionAnswer {
   @PrimaryGeneratedColumn()
   id: number;

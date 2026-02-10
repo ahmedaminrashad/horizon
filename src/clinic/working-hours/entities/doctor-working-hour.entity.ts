@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { Doctor, AppointType } from '../../doctors/entities/doctor.entity';
 import { Branch } from '../../branches/entities/branch.entity';
+import { DoctorService } from '../../doctor-services/entities/doctor-service.entity';
 import { DayOfWeek } from './working-hour.entity';
 
 /**
@@ -42,6 +43,13 @@ export class DoctorWorkingHour {
   @ManyToOne(() => Branch, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'branch_id' })
   branch: Branch;
+
+  @Column({ name: 'doctor_service_id', nullable: true })
+  doctor_service_id: number | null;
+
+  @ManyToOne(() => DoctorService, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'doctor_service_id' })
+  doctor_service: DoctorService | null;
 
   @Column({
     type: 'time',

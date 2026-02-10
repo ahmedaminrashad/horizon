@@ -10,6 +10,7 @@ import {
   Query,
   Req,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,10 +27,6 @@ import { UpdatePatientQuestionAnswerDto } from './dto/update-patient-question-an
 import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
-import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
-import { Permissions } from '../../auth/decorators/permissions.decorator';
-import { ClinicPermission } from '../permissions/enums/clinic-permission.enum';
-import { Public } from '../../auth/decorators/public.decorator';
 import { ClinicId } from '../decorators/clinic-id.decorator';
 
 @ApiTags('clinic/patient-question-answers')
@@ -42,35 +39,34 @@ export class PatientQuestionAnswersController {
   ) {}
 
   @Post()
-  @Public()
-  @ApiOperation({ summary: 'Create a patient question answer (public). clinic_id in body.' })
+  @ApiOperation({
+    summary:
+      'Create a patient question answer (main JWT required). clinic_id in body.',
+  })
   @ApiBody({ type: CreatePatientQuestionAnswerDto })
   @ApiResponse({ status: 201, description: 'Answer created successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid input or related entity not found' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid input or related entity not found',
+  })
   async create(
     @Body() createDto: CreatePatientQuestionAnswerDto,
     @Req() req: { user?: { userId: number; isMainUser?: boolean } },
   ) {
-    const clinicId = createDto.clinic_id;
-    if (clinicId == null) {
+    if (!req.user) {
+      throw new UnauthorizedException('Main JWT required');
+    }
+    const clinicId: number = Number(createDto.clinic_id);
+    if (Number.isNaN(clinicId) || clinicId <= 0) {
       throw new BadRequestException('clinic_id is required in body.');
     }
-    let patientId: number | undefined;
-    if (req.user?.isMainUser) {
-      patientId = await this.patientQuestionAnswersService.getOrCreateClinicUserIdFromMainUser(
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- tenant service resolves main user to clinic patient id
+    const patientId: number =
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- tenant service method
+      await this.patientQuestionAnswersService.getOrCreateClinicUserIdFromMainUser(
         req.user.userId,
         clinicId,
       );
-    } else if (req.user?.userId) {
-      patientId = req.user.userId;
-    } else {
-      patientId = createDto.patient_id;
-    }
-    if (patientId == null) {
-      throw new BadRequestException(
-        'Patient ID is required: send in body (public) or use authenticated request (clinic or main user token).',
-      );
-    }
     return this.patientQuestionAnswersService.create(
       clinicId,
       createDto,
@@ -79,10 +75,16 @@ export class PatientQuestionAnswersController {
   }
 
   @Get()
-  @UseGuards(ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.READ_DOCTOR)
-  @ApiOperation({ summary: 'Get all patient question answers with pagination. clinic_id in query.' })
-  @ApiQuery({ name: 'clinic_id', required: true, type: Number, description: 'Clinic ID (tenant)' })
+  @ApiOperation({
+    summary:
+      'Get all patient question answers with pagination (main JWT required). clinic_id in query.',
+  })
+  @ApiQuery({
+    name: 'clinic_id',
+    required: true,
+    type: Number,
+    description: 'Clinic ID (tenant)',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiQuery({ name: 'patient_id', required: false, type: Number })
@@ -94,17 +96,28 @@ export class PatientQuestionAnswersController {
     @ClinicId() clinicId: number,
     @Query() paginationQuery: PaginationQueryDto,
   ) {
+    const clinicIdNum = Number(clinicId);
+    if (Number.isNaN(clinicIdNum) || clinicIdNum <= 0) {
+      throw new BadRequestException('clinic_id query is required.');
+    }
     const page = paginationQuery.page ?? 1;
     const limit = paginationQuery.limit ?? 10;
-    const filters = {
+    const filters: {
+      patient_id?: number;
+      doctor_id?: number;
+      question_id?: number;
+      reservation_id?: number;
+      clinic_id?: number;
+    } = {
       patient_id: paginationQuery.patient_id,
       doctor_id: paginationQuery.doctor_id,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- query param
       question_id: paginationQuery.question_id,
       reservation_id: paginationQuery.reservation_id,
       clinic_id: paginationQuery.clinic_id,
     };
     return this.patientQuestionAnswersService.findAll(
-      clinicId,
+      clinicIdNum,
       page,
       limit,
       filters,
@@ -112,10 +125,16 @@ export class PatientQuestionAnswersController {
   }
 
   @Get(':id')
-  @UseGuards(ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.READ_DOCTOR)
-  @ApiOperation({ summary: 'Get a patient question answer by ID. clinic_id in query.' })
-  @ApiQuery({ name: 'clinic_id', required: true, type: Number, description: 'Clinic ID (tenant)' })
+  @ApiOperation({
+    summary:
+      'Get a patient question answer by ID (main JWT required). clinic_id in query.',
+  })
+  @ApiQuery({
+    name: 'clinic_id',
+    required: true,
+    type: Number,
+    description: 'Clinic ID (tenant)',
+  })
   @ApiParam({
     name: 'id',
     schema: { type: 'integer', example: 1 },
@@ -128,10 +147,16 @@ export class PatientQuestionAnswersController {
   }
 
   @Patch(':id')
-  @UseGuards(ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.UPDATE_DOCTOR)
-  @ApiOperation({ summary: 'Update a patient question answer. clinic_id in query.' })
-  @ApiQuery({ name: 'clinic_id', required: true, type: Number, description: 'Clinic ID (tenant)' })
+  @ApiOperation({
+    summary:
+      'Update a patient question answer (main JWT required). clinic_id in query.',
+  })
+  @ApiQuery({
+    name: 'clinic_id',
+    required: true,
+    type: Number,
+    description: 'Clinic ID (tenant)',
+  })
   @ApiParam({
     name: 'id',
     schema: { type: 'integer', example: 1 },
@@ -149,13 +174,15 @@ export class PatientQuestionAnswersController {
   }
 
   @Delete(':id')
-  @UseGuards(ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.DELETE_DOCTOR)
-  @ApiOperation({ summary: 'Delete a patient question answer' })
-  @ApiParam({
-    name: 'clinicId',
-    schema: { type: 'integer', example: 1 },
-    description: 'Clinic ID',
+  @ApiOperation({
+    summary:
+      'Delete a patient question answer (main JWT required). clinic_id in query.',
+  })
+  @ApiQuery({
+    name: 'clinic_id',
+    required: true,
+    type: Number,
+    description: 'Clinic ID (tenant)',
   })
   @ApiParam({
     name: 'id',
