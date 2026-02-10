@@ -39,6 +39,7 @@ import { CreatePatientQuestionAnswersTable1776000000018 } from './1776000000018-
 import { AddQuestionIdToPatientQuestionAnswers1776000000019 } from './1776000000019-AddQuestionIdToPatientQuestionAnswers';
 import { CreateDoctorServicesTable1776000000021 } from './1776000000021-CreateDoctorServicesTable';
 import { AddDoctorServiceIdToDoctorWorkingHours1776000000022 } from './1776000000022-AddDoctorServiceIdToDoctorWorkingHours';
+import { CreateDoctorBranchesAndRemoveBranchIdFromDoctors1776000000023 } from './1776000000023-CreateDoctorBranchesAndRemoveBranchIdFromDoctors';
 
 /**
  * List of all clinic migrations in order
@@ -85,4 +86,5 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   AddQuestionIdToPatientQuestionAnswers1776000000019,
   CreateDoctorServicesTable1776000000021,
   AddDoctorServiceIdToDoctorWorkingHours1776000000022,
+  CreateDoctorBranchesAndRemoveBranchIdFromDoctors1776000000023,
 ];

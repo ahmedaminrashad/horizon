@@ -14,6 +14,8 @@ import { CreateMainUserReservationDto } from './dto/create-main-user-reservation
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { Doctor } from '../doctors/entities/doctor.entity';
 import { DoctorsService as MainDoctorsService } from '../../doctors/doctors.service';
+import { BranchesService as MainBranchesService } from '../../branches/branches.service';
+import { DoctorBranchesService } from '../doctor-branches/doctor-branches.service';
 import { DoctorWorkingHour } from '../working-hours/entities/doctor-working-hour.entity';
 import { DayOfWeek } from '../working-hours/entities/working-hour.entity';
 import { User as ClinicUser } from '../permissions/entities/user.entity';
@@ -28,6 +30,8 @@ export class ReservationsService {
     private tenantRepositoryService: TenantRepositoryService,
     private tenantDataSourceService: TenantDataSourceService,
     private mainDoctorsService: MainDoctorsService,
+    private mainBranchesService: MainBranchesService,
+    private doctorBranchesService: DoctorBranchesService,
     private clinicsService: ClinicsService,
     private usersService: UsersService,
     @InjectRepository(MainReservation)
@@ -474,14 +478,21 @@ export class ReservationsService {
         });
         
         if (doctor) {
-          // Increment in clinic doctors table
           doctor.number_of_patients = (doctor.number_of_patients || 0) + 1;
           await doctorRepository.save(doctor);
 
-          // Get doctor name from user relation
           const doctorName = doctor.user?.name || '';
-          
-          // Sync to main doctors table using clinic doctor id as clinic_doctor_id
+          const branchIds = await this.doctorBranchesService.getBranchIdsForDoctor(doctorId);
+          const firstBranchId = branchIds[0];
+          let mainBranchId: number | undefined;
+          if (firstBranchId) {
+            const mainBranch = await this.mainBranchesService.findByClinicBranchId(
+              clinicId,
+              firstBranchId,
+            );
+            mainBranchId = mainBranch?.id;
+          }
+
           await this.mainDoctorsService.syncDoctor(clinicId, doctorId, {
             name: doctorName,
             age: doctor.age,
@@ -495,7 +506,7 @@ export class ReservationsService {
             bio: doctor.bio,
             appoint_type: doctor.appoint_type,
             is_active: doctor.is_active,
-            branch_id: doctor.branch_id,
+            branch_id: mainBranchId,
             experience_years: doctor.experience_years,
             number_of_patients: doctor.number_of_patients,
             rate: doctor.rate,
@@ -1174,6 +1185,18 @@ export class ReservationsService {
 
         // Sync doctor to main database
         try {
+          const branchIds = await this.doctorBranchesService.getBranchIdsForDoctor(
+            clinicReservation.doctor_id,
+          );
+          const firstBranchId = branchIds[0];
+          let mainBranchId: number | undefined;
+          if (firstBranchId) {
+            const mainBranch = await this.mainBranchesService.findByClinicBranchId(
+              clinicId,
+              firstBranchId,
+            );
+            mainBranchId = mainBranch?.id;
+          }
           await this.mainDoctorsService.syncDoctor(
             clinicId,
             clinicReservation.doctor_id,
@@ -1190,7 +1213,7 @@ export class ReservationsService {
               bio: clinicDoctor.bio,
               appoint_type: clinicDoctor.appoint_type,
               is_active: clinicDoctor.is_active,
-              branch_id: clinicDoctor.branch_id,
+              branch_id: mainBranchId,
               experience_years: clinicDoctor.experience_years,
               number_of_patients: clinicDoctor.number_of_patients,
               rate: clinicDoctor.rate,

@@ -12,6 +12,7 @@ import { WorkingHoursModule } from './working-hours/working-hours.module';
 import { QuestionsModule } from './questions/questions.module';
 import { PatientQuestionAnswersModule } from './patient-question-answers/patient-question-answers.module';
 import { DoctorServicesModule } from './doctor-services/doctor-services.module';
+import { DoctorBranchesModule } from './doctor-branches/doctor-branches.module';
 import { ClinicRolesModule } from './roles/clinic-roles.module';
 import { ClinicPermissionsModule } from './permissions/clinic-permissions.module';
 import { ClinicTenantInterceptor } from './interceptors/clinic-tenant.interceptor';
@@ -20,8 +21,8 @@ import { UsersModule } from '../users/users.module';
 import { ClinicsModule } from '../clinics/clinics.module';
 
 @Module({
-  imports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, WorkingHoursModule, QuestionsModule, PatientQuestionAnswersModule, DoctorServicesModule, ClinicRolesModule, ClinicPermissionsModule, DatabaseModule, UsersModule, ClinicsModule],
-  exports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, WorkingHoursModule, QuestionsModule, PatientQuestionAnswersModule, DoctorServicesModule, ClinicRolesModule, ClinicPermissionsModule],
+  imports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, WorkingHoursModule, QuestionsModule, PatientQuestionAnswersModule, DoctorServicesModule, DoctorBranchesModule, ClinicRolesModule, ClinicPermissionsModule, DatabaseModule, UsersModule, ClinicsModule],
+  exports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, WorkingHoursModule, QuestionsModule, PatientQuestionAnswersModule, DoctorServicesModule, DoctorBranchesModule, ClinicRolesModule, ClinicPermissionsModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,

@@ -153,7 +153,6 @@ export class DoctorsController {
     if (errors.length > 0) {
       throw new BadRequestException({
         message: 'Validation failed',
-        errors: errors.map((e) => ({ property: e.property, constraints: e.constraints })),
       });
     }
     return this.doctorsService.registerDoctor(clinicId, registerDoctorDto);
@@ -218,7 +217,6 @@ export class DoctorsController {
     if (errors.length > 0) {
       throw new BadRequestException({
         message: 'Validation failed',
-        errors: errors.map((e) => ({ property: e.property, constraints: e.constraints })),
       });
     }
     return this.doctorsService.create(clinicId, createDoctorDto);
@@ -258,6 +256,18 @@ export class DoctorsController {
                   name: { type: 'string', nullable: true },
                   phone: { type: 'string' },
                   email: { type: 'string', nullable: true },
+                },
+              },
+              doctorBranches: {
+                type: 'array',
+                description: 'Branch links (doctor_branches)',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    doctor_id: { type: 'number' },
+                    branch_id: { type: 'number' },
+                  },
                 },
               },
               createdAt: { type: 'string', format: 'date-time' },

@@ -22,6 +22,7 @@ import * as bcrypt from 'bcrypt';
 import { DoctorsService as MainDoctorsService } from '../../doctors/doctors.service';
 import { BranchesService as MainBranchesService } from '../../branches/branches.service';
 import { DoctorServicesService } from '../doctor-services/doctor-services.service';
+import { DoctorBranchesService } from '../doctor-branches/doctor-branches.service';
 
 @Injectable()
 export class DoctorsService {
@@ -37,6 +38,7 @@ export class DoctorsService {
     private mainDoctorsService: MainDoctorsService,
     private mainBranchesService: MainBranchesService,
     private doctorServicesService: DoctorServicesService,
+    private doctorBranchesService: DoctorBranchesService,
   ) {}
 
   private async getRepository(): Promise<Repository<Doctor>> {
@@ -57,9 +59,14 @@ export class DoctorsService {
     createDoctorDto: CreateDoctorDto,
   ): Promise<Doctor> {
     const repository = await this.getRepository();
-    createDoctorDto.clinic_id = clinicId;
-    const doctor = repository.create(createDoctorDto);
+    const { doctor_branches: doctorBranches, ...doctorData } = createDoctorDto;
+    (doctorData as CreateDoctorDto).clinic_id = clinicId;
+    const doctor = repository.create(doctorData as CreateDoctorDto);
     const savedDoctor = await repository.save(doctor);
+
+    if (doctorBranches?.length) {
+      await this.doctorBranchesService.createMany(savedDoctor.id, doctorBranches);
+    }
 
     // Create doctor services if provided
     if (
@@ -75,7 +82,7 @@ export class DoctorsService {
     // Reload with user relation for syncing
     const doctorWithUser = await repository.findOne({
       where: { id: savedDoctor.id },
-      relations: ['user', 'slotTemplates'],
+      relations: ['user', 'slotTemplates', 'doctorBranches'],
     });
 
     if (doctorWithUser) {
@@ -91,7 +98,7 @@ export class DoctorsService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await repository.findAndCount({
-      relations: ['user', 'slotTemplates'],
+      relations: ['user', 'slotTemplates', 'doctorBranches'],
       skip,
       take: limit,
       order: {
@@ -118,7 +125,7 @@ export class DoctorsService {
     const repository = await this.getRepository();
     const doctor = await repository.findOne({
       where: { id },
-      relations: ['user', 'slotTemplates'],
+      relations: ['user', 'slotTemplates', 'doctorBranches'],
     });
 
     if (!doctor) {
@@ -136,21 +143,27 @@ export class DoctorsService {
     const repository = await this.getRepository();
     const doctor = await this.findOne(clinicId, id);
 
-    Object.assign(doctor, updateDoctorDto);
+    const { doctor_branches: doctorBranches, ...rest } = updateDoctorDto;
+    Object.assign(doctor, rest);
     const savedDoctor = await repository.save(doctor);
 
-    // Reload with user relation for syncing
+    if (doctorBranches !== undefined) {
+      await this.doctorBranchesService.setBranchesForDoctor(
+        savedDoctor.id,
+        doctorBranches ?? [],
+      );
+    }
+
     const doctorWithUser = await repository.findOne({
       where: { id: savedDoctor.id },
-      relations: ['user'],
+      relations: ['user', 'doctorBranches'],
     });
 
     if (doctorWithUser) {
-      // Sync to main doctors table
       await this.syncToMainDoctors(clinicId, doctorWithUser);
     }
 
-    return savedDoctor;
+    return doctorWithUser ?? savedDoctor;
   }
 
   async remove(clinicId: number, id: number): Promise<void> {
@@ -207,7 +220,7 @@ export class DoctorsService {
       appoint_type,
       is_active,
       doctor_services: doctorServices,
-      branch_id,
+      doctor_branches: doctorBranches,
       experience_years,
       number_of_patients,
       ...userData
@@ -254,7 +267,6 @@ export class DoctorsService {
       department,
       user_id: savedClinicUser.id,
       clinic_id: clinicId,
-      branch_id,
       avatar,
       experience_years,
       number_of_patients: number_of_patients || 0,
@@ -267,6 +279,10 @@ export class DoctorsService {
     });
 
     const savedDoctor = await doctorRepository.save(doctor);
+
+    if (doctorBranches?.length) {
+      await this.doctorBranchesService.createMany(savedDoctor.id, doctorBranches);
+    }
 
     // Create doctor services if provided
     if (doctorServices && doctorServices.length > 0) {
@@ -296,21 +312,15 @@ export class DoctorsService {
       throw new NotFoundException('Clinic user not found');
     }
 
-    // Sync to main doctors table (use clinic user data)
-    console.log('Syncing doctor to main doctors table', {
-      name: clinicUserWithRole.name || '',
-      age: savedDoctor.age,
-      avatar: savedDoctor.avatar,
-      email: clinicUserWithRole.email ?? undefined,
-      phone: clinicUserWithRole.phone || undefined,
-      department: savedDoctor.department,
-      license_number: savedDoctor.license_number,
-      degree: savedDoctor.degree,
-      languages: savedDoctor.languages,
-      bio: savedDoctor.bio,
-      appoint_type: savedDoctor.appoint_type,
-      is_active: savedDoctor.is_active,
-    });
+    // Resolve first clinic branch to main branch id for sync
+    let mainBranchId: number | undefined;
+    if (doctorBranches?.[0]) {
+      const mainBranch = await this.mainBranchesService.findByClinicBranchId(
+        clinicId,
+        doctorBranches[0],
+      );
+      mainBranchId = mainBranch?.id ?? undefined;
+    }
     await this.mainDoctorsService.syncDoctor(clinicId, savedDoctor.id, {
       name: clinicUserWithRole.name || '',
       age: savedDoctor.age,
@@ -324,7 +334,7 @@ export class DoctorsService {
       bio: savedDoctor.bio,
       appoint_type: savedDoctor.appoint_type,
       is_active: savedDoctor.is_active,
-      branch_id: savedDoctor.branch_id,
+      branch_id: mainBranchId,
       experience_years: savedDoctor.experience_years,
       number_of_patients: savedDoctor.number_of_patients,
     });
@@ -379,12 +389,18 @@ export class DoctorsService {
       const doctorEmail = doctorUser.email ?? undefined;
       const doctorPhone = doctorUser.phone || undefined;
 
-      // Resolve clinic branch_id to main branch id (main doctors.branch_id references main branches.id)
+      // Resolve first doctor branch to main branch id (main doctors.branch_id references main branches.id)
       let mainBranchId: number | undefined;
-      if (clinicDoctor.branch_id) {
+      const repo = await this.getRepository();
+      const doctorWithBranches = await repo.findOne({
+        where: { id: clinicDoctor.id },
+        relations: ['doctorBranches'],
+      });
+      const firstBranchId = doctorWithBranches?.doctorBranches?.[0]?.branch_id;
+      if (firstBranchId) {
         const mainBranch = await this.mainBranchesService.findByClinicBranchId(
           clinicId,
-          clinicDoctor.branch_id,
+          firstBranchId,
         );
         mainBranchId = mainBranch?.id ?? undefined;
       }

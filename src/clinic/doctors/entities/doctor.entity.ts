@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 import { User } from '../../permissions/entities/user.entity';
 import { SlotTemplate } from '../../slot-template/entities/slot-template.entity';
-import { Branch } from '../../branches/entities/branch.entity';
+import { DoctorBranch } from '../../doctor-branches/entities/doctor-branch.entity';
 
 export enum Department {
   CARDIOLOGY = 'CARDIOLOGY',
@@ -55,12 +55,8 @@ export class Doctor {
   @Column({ name: 'clinic_id' })
   clinic_id: number;
 
-  @Column({ name: 'branch_id', nullable: true })
-  branch_id: number;
-
-  @ManyToOne(() => Branch, { nullable: true })
-  @JoinColumn({ name: 'branch_id' })
-  branch: Branch;
+  @OneToMany(() => DoctorBranch, (db) => db.doctor, { cascade: true })
+  doctorBranches: DoctorBranch[];
 
   @Column({ name: 'experience_years', type: 'int', nullable: true })
   experience_years: number;

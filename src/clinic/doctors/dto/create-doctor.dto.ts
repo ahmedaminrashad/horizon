@@ -111,21 +111,24 @@ export class CreateDoctorDto {
   @IsNotEmpty()
   user_id: number;
 
-  @ApiProperty({
-    description: 'Clinic ID',
-    example: 1,
-  })
-  @IsNumber()
-  @IsNotEmpty()
-  clinic_id: number;
-
   @ApiPropertyOptional({
-    description: 'Branch ID',
+    description: 'Clinic ID (set from URL /api/clinic/{clinicId}/doctors if omitted)',
     example: 1,
   })
   @IsNumber()
   @IsOptional()
-  branch_id?: number;
+  clinic_id?: number;
+
+  @ApiPropertyOptional({
+    description: 'Branch IDs to associate the doctor with (creates doctor_branches links)',
+    type: 'array',
+    items: { type: 'number' },
+    example: [1, 2],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  doctor_branches?: number[];
 
   @ApiPropertyOptional({
     description: 'Years of experience',
@@ -146,9 +149,12 @@ export class CreateDoctorDto {
   number_of_patients?: number;
 
   @ApiPropertyOptional({
-    description: 'Doctor services (service_id, duration, price, service_type)',
-    type: 'array',
-    items: { type: 'object' },
+    description: 'Doctor services: service_id, duration (minutes), price, service_type',
+    type: DoctorServiceItemDto,
+    isArray: true,
+    example: [
+      { service_id: 1, duration: 30, price: 100.5, service_type: 'consultation' },
+    ],
   })
   @IsOptional()
   @IsArray()

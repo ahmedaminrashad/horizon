@@ -122,12 +122,15 @@ export class RegisterDoctorDto {
   is_active?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Branch ID',
-    example: 1,
+    description: 'Branch IDs to associate the doctor with (creates doctor_branches links)',
+    type: 'array',
+    items: { type: 'number' },
+    example: [1, 2],
   })
-  @IsNumber()
   @IsOptional()
-  branch_id?: number;
+  @IsArray()
+  @IsNumber({}, { each: true })
+  doctor_branches?: number[];
 
   @ApiPropertyOptional({
     description: 'Years of experience',
@@ -148,20 +151,12 @@ export class RegisterDoctorDto {
   number_of_patients?: number;
 
   @ApiPropertyOptional({
-    description: 'Doctor services (service_id, duration, price, service_type)',
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        service_id: { type: 'number', example: 1 },
-        duration: { type: 'number', example: 30, description: 'Minutes' },
-        price: { type: 'number', example: 100.5 },
-        service_type: {
-          type: 'string',
-          enum: ['consultation', 'follow_up', 'online_consultation', 'home_visit', 'other'],
-        },
-      },
-    },
+    description: 'Doctor services: service_id, duration (minutes), price, service_type',
+    type: DoctorServiceItemDto,
+    isArray: true,
+    example: [
+      { service_id: 1, duration: 30, price: 100.5, service_type: 'consultation' },
+    ],
   })
   @IsOptional()
   @IsArray()
