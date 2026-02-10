@@ -82,7 +82,7 @@ export class DoctorsService {
     // Reload with user relation for syncing
     const doctorWithUser = await repository.findOne({
       where: { id: savedDoctor.id },
-      relations: ['user', 'slotTemplates', 'doctorBranches'],
+      relations: ['user', 'slotTemplates', 'doctorBranches', 'doctorServices', 'doctorServices.service'],
     });
 
     if (doctorWithUser) {
@@ -98,7 +98,7 @@ export class DoctorsService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await repository.findAndCount({
-      relations: ['user', 'slotTemplates', 'doctorBranches'],
+      relations: ['user', 'slotTemplates', 'doctorBranches', 'doctorServices', 'doctorServices.service'],
       skip,
       take: limit,
       order: {
@@ -125,7 +125,7 @@ export class DoctorsService {
     const repository = await this.getRepository();
     const doctor = await repository.findOne({
       where: { id },
-      relations: ['user', 'slotTemplates', 'doctorBranches'],
+      relations: ['user', 'slotTemplates', 'doctorBranches', 'doctorServices', 'doctorServices.service'],
     });
 
     if (!doctor) {
@@ -156,7 +156,7 @@ export class DoctorsService {
 
     const doctorWithUser = await repository.findOne({
       where: { id: savedDoctor.id },
-      relations: ['user', 'doctorBranches'],
+      relations: ['user', 'doctorBranches', 'doctorServices', 'doctorServices.service'],
     });
 
     if (doctorWithUser) {
@@ -295,7 +295,7 @@ export class DoctorsService {
     // Reload with user and slotTemplates relations for syncing
     const doctorWithUser = await doctorRepository.findOne({
       where: { id: savedDoctor.id },
-      relations: ['user', 'user.role', 'slotTemplates'],
+      relations: ['user', 'user.role', 'slotTemplates', 'doctorBranches', 'doctorServices', 'doctorServices.service'],
     });
 
     if (!doctorWithUser || !doctorWithUser.user) {

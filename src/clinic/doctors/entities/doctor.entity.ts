@@ -11,6 +11,7 @@ import {
 import { User } from '../../permissions/entities/user.entity';
 import { SlotTemplate } from '../../slot-template/entities/slot-template.entity';
 import { DoctorBranch } from '../../doctor-branches/entities/doctor-branch.entity';
+import { DoctorService } from '../../doctor-services/entities/doctor-service.entity';
 
 export enum Department {
   CARDIOLOGY = 'CARDIOLOGY',
@@ -57,6 +58,9 @@ export class Doctor {
 
   @OneToMany(() => DoctorBranch, (db) => db.doctor, { cascade: true })
   doctorBranches: DoctorBranch[];
+
+  @OneToMany(() => DoctorService, (ds) => ds.doctor, { cascade: true })
+  doctorServices: DoctorService[];
 
   @Column({ name: 'experience_years', type: 'int', nullable: true })
   experience_years: number;

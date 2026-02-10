@@ -270,6 +270,29 @@ export class DoctorsController {
                   },
                 },
               },
+              doctorServices: {
+                type: 'array',
+                description: 'Doctor services (duration, price, service_type) with service details',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    doctor_id: { type: 'number' },
+                    service_id: { type: 'number' },
+                    duration: { type: 'number', nullable: true },
+                    price: { type: 'number', nullable: true },
+                    service_type: { type: 'string', nullable: true },
+                    service: {
+                      type: 'object',
+                      description: 'Clinic service entity',
+                      properties: {
+                        id: { type: 'number' },
+                        name: { type: 'string' },
+                      },
+                    },
+                  },
+                },
+              },
               createdAt: { type: 'string', format: 'date-time' },
               updatedAt: { type: 'string', format: 'date-time' },
             },
