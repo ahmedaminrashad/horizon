@@ -139,7 +139,7 @@ async function bootstrap() {
     },
   );
 
-  SwaggerModule.setup('api/documentation', app, document, {
+  SwaggerModule.setup('api/documentation/v1', app, document, {
     swaggerOptions: {
       persistAuthorization: false,
       tagsSorter: 'alpha',
