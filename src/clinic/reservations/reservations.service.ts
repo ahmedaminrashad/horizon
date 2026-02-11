@@ -255,7 +255,7 @@ export class ReservationsService {
       service: null,
       schedule_type:
         wh != null ? (wh.waterfall ? 'waterfall' : 'fixed') : null,
-      appoint_type: r.appoint_type ?? wh?.appoint_type ?? null,
+      appoint_type: r.appoint_type ?? null,
       appointment_types: doctor?.appointment_types ?? null,
       patient_last_visit: visits.last_visit,
       patient_next_visit: visits.next_visit,

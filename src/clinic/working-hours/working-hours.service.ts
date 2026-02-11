@@ -1281,9 +1281,6 @@ export class WorkingHoursService {
           if (createDto.branch_id !== undefined) {
             workingHourData.branch_id = createDto.branch_id;
           }
-          if (createDto.appoint_type !== undefined) {
-            workingHourData.appoint_type = createDto.appoint_type;
-          }
           const workingHour = repository.create(workingHourData);
           const saved = (await repository.save(
             workingHour,
@@ -1324,9 +1321,6 @@ export class WorkingHoursService {
         };
         if (createDto.branch_id !== undefined) {
           workingHourData.branch_id = createDto.branch_id;
-        }
-        if (createDto.appoint_type !== undefined) {
-          workingHourData.appoint_type = createDto.appoint_type;
         }
         workingHourData.break_hours_from = createDto.break_hours_from ?? null;
         workingHourData.break_hours_to = createDto.break_hours_to ?? null;

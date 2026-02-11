@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiTags,
+  ApiExcludeController,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
@@ -31,6 +32,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 
+@ApiExcludeController()
 @ApiTags('doctors/working-hours')
 @Controller('doctors/:doctorId/working-hours')
 @UseGuards(JwtAuthGuard, RolesGuard)
