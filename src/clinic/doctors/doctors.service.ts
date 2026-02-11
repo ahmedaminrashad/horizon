@@ -23,6 +23,7 @@ import { DoctorsService as MainDoctorsService } from '../../doctors/doctors.serv
 import { BranchesService as MainBranchesService } from '../../branches/branches.service';
 import { DoctorServicesService } from '../doctor-services/doctor-services.service';
 import { DoctorBranchesService } from '../doctor-branches/doctor-branches.service';
+import { sanitizeUserInEntity } from '../../common/utils/user.utils';
 
 @Injectable()
 export class DoctorsService {
@@ -114,7 +115,7 @@ export class DoctorsService {
       await this.syncToMainDoctors(clinicId, doctorWithUser);
     }
 
-    return doctorWithUser || savedDoctor;
+    return sanitizeUserInEntity(doctorWithUser || savedDoctor);
   }
 
   async findAll(clinicId: number, page: number = 1, limit: number = 10) {
@@ -133,7 +134,7 @@ export class DoctorsService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data,
+      data: data.map((d) => sanitizeUserInEntity(d)),
       meta: {
         total,
         page,
@@ -156,7 +157,7 @@ export class DoctorsService {
       throw new NotFoundException(`Doctor with ID ${id} not found`);
     }
 
-    return doctor;
+    return sanitizeUserInEntity(doctor);
   }
 
   async update(
@@ -191,7 +192,7 @@ export class DoctorsService {
       await this.syncToMainDoctors(clinicId, doctorWithUser);
     }
 
-    return doctorWithUser ?? savedDoctor;
+    return sanitizeUserInEntity(doctorWithUser ?? savedDoctor);
   }
 
   async remove(clinicId: number, id: number): Promise<void> {
@@ -401,10 +402,10 @@ export class DoctorsService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _, ...userWithoutPassword } = clinicUserWithRole;
 
-    // Return doctor with slotTemplates already loaded from doctorWithUser
+    // Return doctor with slotTemplates already loaded; strip password from doctor.user
     return {
       fullUser: userWithoutPassword,
-      doctor: doctorWithUser || savedDoctor,
+      doctor: sanitizeUserInEntity(doctorWithUser || savedDoctor),
       access_token,
     };
   }

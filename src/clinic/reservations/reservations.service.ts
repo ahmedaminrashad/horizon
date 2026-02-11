@@ -22,6 +22,7 @@ import { User as ClinicUser } from '../permissions/entities/user.entity';
 import { ClinicUser as ClinicUserLink } from '../../clinics/entities/clinic-user.entity';
 import { ClinicsService } from '../../clinics/clinics.service';
 import { UsersService } from '../../users/users.service';
+import { stripPasswordFromUser, sanitizeUserInEntity } from '../../common/utils/user.utils';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -245,6 +246,8 @@ export class ReservationsService {
     } | undefined;
     return {
       ...r,
+      doctor: r.doctor ? sanitizeUserInEntity(r.doctor as { user?: Record<string, unknown> }) : r.doctor,
+      patient: r.patient != null ? stripPasswordFromUser(r.patient as Record<string, unknown>) : r.patient,
       time: wh?.start_time ?? null,
       time_range:
         wh != null
@@ -294,13 +297,18 @@ export class ReservationsService {
     authenticatedUserId: number,
     isMainUser: boolean = false,
   ): Promise<Reservation> {
-    // patient_id must reference clinic DB users.id. If caller is main user, resolve to clinic user id.
-    const patientId = isMainUser
-      ? await this.getOrCreateClinicUserIdForMainUser(
-          authenticatedUserId,
-          clinicId,
-        )
-      : authenticatedUserId;
+    // patient_id must reference clinic DB users.id. Use user_id from body when provided; otherwise resolve from authenticated user.
+    let patientId: number;
+    if (createReservationDto.user_id != null) {
+      patientId = createReservationDto.user_id;
+    } else if (isMainUser) {
+      patientId = await this.getOrCreateClinicUserIdForMainUser(
+        authenticatedUserId,
+        clinicId,
+      );
+    } else {
+      patientId = authenticatedUserId;
+    }
 
     const repository = await this.getRepository();
 
@@ -327,9 +335,10 @@ export class ReservationsService {
     
     const fees = this.getFeesFromDoctorService(workingHour.doctor_services?.[0]);
 
+    const { user_id: _userId, ...dtoWithoutUserId } = createReservationDto;
     const reservation = repository.create({
-      ...createReservationDto,
-      patient_id: patientId, // Set from authenticated user
+      ...dtoWithoutUserId,
+      patient_id: patientId,
       date: reservationDate, // Date only
       status: ReservationStatus.PENDING, // Always default to PENDING
       paid: false, // Default to false

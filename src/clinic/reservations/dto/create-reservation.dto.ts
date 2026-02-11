@@ -22,6 +22,14 @@ export class CreateReservationDto {
   date: string;
 
   @ApiPropertyOptional({
+    example: 1,
+    description: 'Patient user ID (clinic DB users.id). When provided, used as reservation patient; otherwise uses authenticated user.',
+  })
+  @IsOptional()
+  @IsInt()
+  user_id?: number;
+
+  @ApiPropertyOptional({
     description: 'Appointment type: in-clinic, online, or home',
     enum: AppointType,
     example: AppointType.IN_CLINIC,
