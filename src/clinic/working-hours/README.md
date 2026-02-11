@@ -227,7 +227,7 @@ Doctor working hours define **per-doctor** availability: which days, times, bran
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/clinic/working-hours/doctors/:id` | Get all working hours for a doctor (includes `branch`, `doctor_service`). |
+| `GET` | `/api/clinic/working-hours/doctor-working-hours` | Get all working hours for a doctor. Required query: `doctor_id`. Optional: `date`, `service_id`, `clinic_id`. |
 | `GET` | `/api/clinic/working-hours/doctors/:doctorId/day/:day` | Get working hours for a doctor on a day. |
 | `GET` | `/api/clinic/working-hours/doctors/:doctorId/branch/:branchId` | Get working hours for a doctor at a branch. |
 | `POST` | `/api/clinic/working-hours/doctors/:doctorId` | Create one doctor working hour entry. |

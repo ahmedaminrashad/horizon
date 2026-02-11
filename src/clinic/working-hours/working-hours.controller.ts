@@ -379,27 +379,69 @@ export class WorkingHoursController {
   }
 
   // ==================== Doctor Working Hours Endpoints ====================
+  // Path is "doctor-working-hours" (not "doctors") so GET /api/clinic/working-hours/doctor-working-hours
+  // is not matched by clinic/:clinicId/doctors/:doctorId (which would return a doctor).
 
-  @Get('doctors/:id')
+  @Get('doctor-working-hours')
   @Permissions(ClinicPermission.READ_SETTING as string)
   @ApiOperation({
-    summary: 'Get all working hours for a doctor (clinic)',
+    summary: 'Get working hours for a doctor (clinic)',
     description:
-      'Retrieve all working hours for a doctor in the current clinic tenant.',
+      'Returns **working hours** (schedule slots) for the given doctor, not doctor profile. ' +
+      'Requires **doctor_id** query param. Optional: **date**, **service_id**, **clinic_id**.',
   })
-  @ApiParam({
-    name: 'id',
-    type: Number,
-    description: 'Doctor ID (clinic doctor id)',
-    example: 1,
+  @ApiQuery({
+    name: 'doctor_id',
+    required: true,
+    description:
+      'Doctor ID (clinic doctor id). Response is working hours for this doctor.',
+    schema: { type: 'integer', example: 1 },
+  })
+  @ApiQuery({
+    name: 'clinic_id',
+    required: false,
+    description: 'Filter by clinic ID',
+    schema: { type: 'integer', example: 1 },
+  })
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    description:
+      'Filter by date (YYYY-MM-DD); returns working hours for that day of the week',
+    schema: { type: 'string', example: '2024-01-15' },
+  })
+  @ApiQuery({
+    name: 'service_id',
+    required: false,
+    description: 'Filter to working hours that include this clinic service ID',
+    schema: { type: 'integer', example: 1 },
   })
   @ApiResponse({
     status: 200,
-    description: 'List of doctor working hours',
-    type: [DoctorWorkingHour],
+    description:
+      'Array of working hour records (day, start_time, end_time, branch, doctor_services, etc.), not doctor entities.',
+    type: DoctorWorkingHour,
+    isArray: true,
   })
-  getDoctorWorkingHours(@Param('id', ParseIntPipe) id: number) {
-    return this.workingHoursService.getDoctorWorkingHours(id);
+  getDoctorWorkingHours(
+    @Query('doctor_id', ParseIntPipe) doctorId: number,
+    @Query('clinic_id', new ParseIntPipe({ optional: true })) clinicId?: number,
+    @Query('date') date?: string,
+    @Query('service_id', new ParseIntPipe({ optional: true }))
+    serviceId?: number,
+  ) {
+    const filters: {
+      date?: string;
+      service_id?: number;
+      clinic_id?: number;
+    } = {};
+    if (clinicId != null) filters.clinic_id = clinicId;
+    if (date) filters.date = date;
+    if (serviceId != null) filters.service_id = serviceId;
+    return this.workingHoursService.getDoctorWorkingHours(
+      doctorId,
+      Object.keys(filters).length > 0 ? filters : undefined,
+    );
   }
 
   @Get('doctors/:doctorId/day/:day')
@@ -423,7 +465,8 @@ export class WorkingHoursController {
   @ApiResponse({
     status: 200,
     description: 'Doctor working hours for the day retrieved successfully',
-    type: [DoctorWorkingHour],
+    type: DoctorWorkingHour,
+    isArray: true,
   })
   getDoctorWorkingHoursByDay(
     @Param('doctorId', ParseIntPipe) doctorId: number,
@@ -453,7 +496,8 @@ export class WorkingHoursController {
   @ApiResponse({
     status: 200,
     description: 'Doctor working hours for the branch retrieved successfully',
-    type: [DoctorWorkingHour],
+    type: DoctorWorkingHour,
+    isArray: true,
   })
   getDoctorWorkingHoursByBranch(
     @Param('doctorId', ParseIntPipe) doctorId: number,
@@ -483,7 +527,8 @@ export class WorkingHoursController {
     status: 201,
     description:
       'Doctor working hours created (one per day in `days`). Returns the created working hours array.',
-    type: [DoctorWorkingHour],
+    type: DoctorWorkingHour,
+    isArray: true,
   })
   @ApiResponse({
     status: 400,
@@ -508,7 +553,8 @@ export class WorkingHoursController {
     status: 201,
     description:
       'Doctor working hours created (one per day per item). Returns the created working hours array.',
-    type: [DoctorWorkingHour],
+    type: DoctorWorkingHour,
+    isArray: true,
   })
   @ApiResponse({
     status: 400,

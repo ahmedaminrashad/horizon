@@ -1101,12 +1101,74 @@ export class WorkingHoursService {
   // ==================== Doctor Working Hours Methods ====================
 
   /**
-   * Get all working hours for a doctor
+   * Get all working hours for a doctor, with optional filters by date, doctor_id, service_id, and clinic_id.
+   * - date: ISO date (YYYY-MM-DD); filters to working hours for that day of the week.
+   * - doctor_id: if provided, overrides path doctor id.
+   * - service_id: only working hours that include this clinic service (via doctor_services).
+   * - clinic_id: only working hours for this clinic.
    */
-  async getDoctorWorkingHours(doctorId: number): Promise<DoctorWorkingHour[]> {
+  async getDoctorWorkingHours(
+    doctorId: number,
+    filters?: {
+      date?: string;
+      doctor_id?: number;
+      service_id?: number;
+      clinic_id?: number;
+    },
+  ): Promise<DoctorWorkingHour[]> {
     const repository = await this.getDoctorWorkingHoursRepository();
+
+    let day: DayOfWeek | undefined;
+    if (filters?.date) {
+      const d = new Date(filters.date);
+      if (!isNaN(d.getTime())) {
+        const dayNames: DayOfWeek[] = [
+          DayOfWeek.SUNDAY,
+          DayOfWeek.MONDAY,
+          DayOfWeek.TUESDAY,
+          DayOfWeek.WEDNESDAY,
+          DayOfWeek.THURSDAY,
+          DayOfWeek.FRIDAY,
+          DayOfWeek.SATURDAY,
+        ];
+        day = dayNames[d.getDay()];
+      }
+    }
+
+    const effectiveDoctorId = filters?.doctor_id ?? doctorId;
+    const where: {
+      doctor_id: number;
+      day?: DayOfWeek;
+      clinic_id?: number;
+    } = {
+      doctor_id: effectiveDoctorId,
+    };
+    if (day) where.day = day;
+    if (filters?.clinic_id != null) where.clinic_id = filters.clinic_id;
+
+    if (filters?.service_id != null) {
+      const qb = repository
+        .createQueryBuilder('dwh')
+        .leftJoinAndSelect('dwh.branch', 'branch')
+        .leftJoinAndSelect('dwh.doctor_services', 'ds')
+        .leftJoinAndSelect('ds.service', 'svc')
+        .where('dwh.doctor_id = :doctorId', { doctorId: effectiveDoctorId });
+      if (day) qb.andWhere('dwh.day = :day', { day });
+      if (filters.clinic_id != null)
+        qb.andWhere('dwh.clinic_id = :clinicId', {
+          clinicId: filters.clinic_id,
+        });
+      qb.andWhere(
+        'EXISTS (SELECT 1 FROM doctor_working_hour_doctor_services_doctor_service j JOIN doctor_services ds2 ON j.doctor_service_id = ds2.id WHERE j.doctor_working_hour_id = dwh.id AND ds2.service_id = :serviceId)',
+        { serviceId: filters.service_id },
+      )
+        .orderBy('dwh.day', 'ASC')
+        .addOrderBy('dwh.start_time', 'ASC');
+      return qb.getMany();
+    }
+
     return repository.find({
-      where: { doctor_id: doctorId },
+      where,
       relations: ['branch', 'doctor_services'],
       order: {
         day: 'ASC',
