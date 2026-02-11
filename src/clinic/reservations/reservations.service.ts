@@ -123,7 +123,7 @@ export class ReservationsService {
   }
 
   /**
-   * Get reservation fees from doctor service price (working hour's linked doctor_service).
+   * Get reservation fees from doctor service price (working hour's first linked doctor_service, if any).
    * Returns 0 if no doctor service or price is null/undefined.
    */
   private getFeesFromDoctorService(
@@ -325,7 +325,7 @@ export class ReservationsService {
       reservationDate,
     );
     
-    const fees = this.getFeesFromDoctorService(workingHour.doctor_service);
+    const fees = this.getFeesFromDoctorService(workingHour.doctor_services?.[0]);
 
     const reservation = repository.create({
       ...createReservationDto,
@@ -407,10 +407,10 @@ export class ReservationsService {
       );
     }
 
-    // Get the working hour with doctor_service for fees
+    // Get the working hour with doctor_services for fees
     const workingHour = await workingHourRepository.findOne({
       where: { id: workingHourId },
-      relations: ['doctor_service'],
+      relations: ['doctor_services'],
     });
 
     if (!workingHour) {
@@ -882,11 +882,11 @@ export class ReservationsService {
       const newWorkingHour = whRepo
         ? await whRepo.findOne({
             where: { id: updateReservationDto.doctor_working_hour_id },
-            relations: ['doctor_service'],
+            relations: ['doctor_services'],
           })
         : null;
       updatedFees = newWorkingHour
-        ? this.getFeesFromDoctorService(newWorkingHour.doctor_service)
+        ? this.getFeesFromDoctorService(newWorkingHour.doctor_services?.[0])
         : reservation.fees;
     } else {
       updatedFees =
@@ -1032,7 +1032,7 @@ export class ReservationsService {
 
     const workingHour = await workingHourRepository.findOne({
       where: { id: createMainUserReservationDto.doctor_working_hour_id },
-      relations: ['doctor_service'],
+      relations: ['doctor_services'],
     });
 
     if (!workingHour) {
@@ -1064,7 +1064,7 @@ export class ReservationsService {
       reservationDate,
     );
 
-    const fees = this.getFeesFromDoctorService(workingHour.doctor_service);
+    const fees = this.getFeesFromDoctorService(workingHour.doctor_services?.[0]);
 
     // Create reservation (fees from doctor service linked to working hour)
     const reservation = reservationRepository.create({

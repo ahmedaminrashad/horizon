@@ -3,7 +3,9 @@ import {
   Column,
   PrimaryGeneratedColumn,
   ManyToOne,
+  ManyToMany,
   JoinColumn,
+  JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
   Index,
@@ -48,12 +50,16 @@ export class DoctorWorkingHour {
   @JoinColumn({ name: 'branch_id' })
   branch: Branch;
 
-  @Column({ name: 'doctor_service_id', nullable: true })
-  doctor_service_id: number | null;
-
-  @ManyToOne(() => DoctorService, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'doctor_service_id' })
-  doctor_service: DoctorService | null;
+  @ManyToMany(() => DoctorService, { onDelete: 'CASCADE' })
+  @JoinTable({
+    name: 'doctor_working_hour_doctor_services_doctor_service',
+    joinColumn: { name: 'doctor_working_hour_id', referencedColumnName: 'id' },
+    inverseJoinColumn: {
+      name: 'doctor_service_id',
+      referencedColumnName: 'id',
+    },
+  })
+  doctor_services: DoctorService[];
 
   @Column({
     type: 'time',

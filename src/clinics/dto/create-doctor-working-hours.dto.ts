@@ -17,7 +17,7 @@ import { DayOfWeek } from '../entities/clinic-working-hour.entity';
  */
 export class CreateDoctorWorkingHoursDto {
   @ApiProperty({
-    description: 'Day of the week',
+    description: 'Day of the week for this slot',
     enum: DayOfWeek,
     example: DayOfWeek.MONDAY,
   })
@@ -26,7 +26,7 @@ export class CreateDoctorWorkingHoursDto {
   day: DayOfWeek;
 
   @ApiProperty({
-    description: 'Branch ID (optional, null for all branches)',
+    description: 'Branch ID (optional; omit for all branches)',
     type: Number,
     required: false,
     example: 1,
@@ -37,7 +37,7 @@ export class CreateDoctorWorkingHoursDto {
   branch_id?: number;
 
   @ApiProperty({
-    description: 'Start time in HH:MM:SS format',
+    description: 'Slot start time (HH:MM:SS)',
     example: '09:00:00',
   })
   @IsString()
@@ -48,7 +48,7 @@ export class CreateDoctorWorkingHoursDto {
   start_time: string;
 
   @ApiProperty({
-    description: 'End time in HH:MM:SS format',
+    description: 'Slot end time (HH:MM:SS)',
     example: '17:00:00',
   })
   @IsString()
@@ -59,7 +59,7 @@ export class CreateDoctorWorkingHoursDto {
   end_time: string;
 
   @ApiProperty({
-    description: 'Session duration in HH:MM:SS format (e.g., 00:30:00 for 30 minutes)',
+    description: 'Session duration HH:MM:SS (e.g. 00:30:00 for 30 min)',
     example: '00:30:00',
     required: false,
   })
@@ -71,7 +71,7 @@ export class CreateDoctorWorkingHoursDto {
   session_time?: string;
 
   @ApiProperty({
-    description: 'Whether this working hour is active',
+    description: 'Whether the slot is active',
     type: Boolean,
     default: true,
     required: false,
@@ -82,7 +82,7 @@ export class CreateDoctorWorkingHoursDto {
 
   @ApiProperty({
     description:
-      'Waterfall scheduling: if true, appointments cascade to next available slot',
+      'Waterfall: if true, appointments use next available slot within the range',
     type: Boolean,
     default: true,
     required: false,
@@ -92,7 +92,7 @@ export class CreateDoctorWorkingHoursDto {
   waterfall?: boolean;
 
   @ApiProperty({
-    description: 'Fees for this working hour slot',
+    description: 'Fees for this slot (optional)',
     type: Number,
     example: 100.5,
     required: false,
@@ -103,7 +103,7 @@ export class CreateDoctorWorkingHoursDto {
   fees?: number;
 
   @ApiProperty({
-    description: 'Whether this working hour slot is busy',
+    description: 'Whether the slot is marked busy',
     type: Boolean,
     default: false,
     required: false,
@@ -113,7 +113,8 @@ export class CreateDoctorWorkingHoursDto {
   busy?: boolean;
 
   @ApiProperty({
-    description: 'Maximum number of patients allowed for this slot. If not provided, will be set to 1 when waterfall is false.',
+    description:
+      'Max patients for this slot; default 1 when waterfall is false',
     type: Number,
     required: false,
     example: 5,
@@ -125,11 +126,11 @@ export class CreateDoctorWorkingHoursDto {
 }
 
 /**
- * DTO for bulk creating doctor working hours
+ * DTO for bulk creating doctor working hours (main DB)
  */
 export class CreateBulkDoctorWorkingHoursDto {
   @ApiProperty({
-    description: 'Doctor ID',
+    description: 'Doctor ID (main database)',
     type: Number,
     example: 1,
   })
@@ -139,8 +140,9 @@ export class CreateBulkDoctorWorkingHoursDto {
   doctor_id: number;
 
   @ApiProperty({
-    description: 'Array of working hours to create',
+    description: 'Array of working hour items (each with day, start_time, end_time, etc.)',
     type: [CreateDoctorWorkingHoursDto],
+    isArray: true,
   })
   @IsNotEmpty()
   working_hours: CreateDoctorWorkingHoursDto[];

@@ -23,7 +23,10 @@ import {
   CreateBulkDoctorWorkingHoursDto,
 } from './dto/create-doctor-working-hours.dto';
 import { UpdateDoctorWorkingHoursDto } from './dto/update-doctor-working-hours.dto';
-import { DayOfWeek, DoctorWorkingHour } from './entities/doctor-working-hour.entity';
+import {
+  DayOfWeek,
+  DoctorWorkingHour,
+} from './entities/doctor-working-hour.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -40,20 +43,23 @@ export class DoctorWorkingHoursController {
   @Get()
   @Roles('admin')
   @ApiOperation({
-    summary: 'Get all working hours for a doctor',
-    description: 'Retrieve all working hours for a specific doctor',
+    summary: 'List working hours for a doctor',
+    description:
+      'Returns all working hour records for the given doctor (main DB). ' +
+      'Each record includes doctor_id, clinic_id, day, start_time, end_time, branch_id, and other slot settings.',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (main database)',
     example: 1,
   })
   @ApiResponse({
     status: 200,
-    description: 'Doctor working hours retrieved successfully',
+    description: 'List of doctor working hours',
     type: [DoctorWorkingHour],
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   getWorkingHours(@Param('doctorId', ParseIntPipe) doctorId: number) {
     return this.doctorWorkingHoursService.getWorkingHours(doctorId);
   }
@@ -61,26 +67,28 @@ export class DoctorWorkingHoursController {
   @Get('day/:day')
   @Roles('admin')
   @ApiOperation({
-    summary: 'Get doctor working hours by day',
-    description: 'Retrieve working hours for a doctor on a specific day',
+    summary: 'Get working hours by day',
+    description:
+      'Returns working hours for the doctor on the given day of the week.',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (main database)',
     example: 1,
   })
   @ApiParam({
     name: 'day',
     enum: DayOfWeek,
-    description: 'Day of the week',
+    description: 'Day of the week (e.g. MONDAY, TUESDAY)',
     example: DayOfWeek.MONDAY,
   })
   @ApiResponse({
     status: 200,
-    description: 'Doctor working hours for the day retrieved successfully',
+    description: 'List of working hours for that day',
     type: [DoctorWorkingHour],
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   getWorkingHoursByDay(
     @Param('doctorId', ParseIntPipe) doctorId: number,
     @Param('day', new ParseEnumPipe(DayOfWeek)) day: DayOfWeek,
@@ -91,26 +99,29 @@ export class DoctorWorkingHoursController {
   @Get('branch/:branchId')
   @Roles('admin')
   @ApiOperation({
-    summary: 'Get doctor working hours by branch',
-    description: 'Retrieve working hours for a doctor at a specific branch',
+    summary: 'Get working hours by branch',
+    description:
+      'Returns working hours for the doctor at the given branch ' +
+      '(branch_id from main branches table).',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (main database)',
     example: 1,
   })
   @ApiParam({
     name: 'branchId',
     type: Number,
-    description: 'Branch ID',
+    description: 'Branch ID (main database)',
     example: 1,
   })
   @ApiResponse({
     status: 200,
-    description: 'Doctor working hours for the branch retrieved successfully',
+    description: 'List of working hours for that branch',
     type: [DoctorWorkingHour],
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   getWorkingHoursByBranch(
     @Param('doctorId', ParseIntPipe) doctorId: number,
     @Param('branchId', ParseIntPipe) branchId: number,
@@ -124,26 +135,29 @@ export class DoctorWorkingHoursController {
   @Post()
   @Roles('admin')
   @ApiOperation({
-    summary: 'Create doctor working hour (main DB)',
+    summary: 'Create a working hour',
     description:
-      'Create one working hour entry for a doctor (single day). Send `day` and times. `clinic_id` is set automatically from the doctor. Validates overlaps. Syncs to clinic database unless skipped.',
+      'Creates one working hour for the doctor (single day). Body: day, start_time, end_time. ' +
+      'Optional: branch_id, session_time, waterfall, is_active, fees, busy, patients_limit. ' +
+      'clinic_id is set from the doctor. Overlaps validated; syncs to clinic DB.',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID (main DB)',
+    description: 'Doctor ID (main database)',
     example: 1,
   })
   @ApiBody({ type: CreateDoctorWorkingHoursDto })
   @ApiResponse({
     status: 201,
-    description: 'Doctor working hour created. Returns the created record.',
+    description: 'Created working hour (single object)',
     type: DoctorWorkingHour,
   })
   @ApiResponse({
     status: 400,
-    description: 'Invalid time ranges or overlaps detected',
+    description: 'Validation error or time range overlap',
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   setWorkingHours(
     @Param('doctorId', ParseIntPipe) doctorId: number,
     @Body() createDto: CreateDoctorWorkingHoursDto,
@@ -154,26 +168,27 @@ export class DoctorWorkingHoursController {
   @Post('bulk')
   @Roles('admin')
   @ApiOperation({
-    summary: 'Bulk create doctor working hours (main DB)',
+    summary: 'Bulk create working hours',
     description:
-      'Create multiple working hour entries for a doctor. Each item has a single `day`; one record per item. `clinic_id` is set from the doctor. Validates overlaps. Syncs to clinic database.',
+      'Creates multiple working hours for the doctor. Body: `doctor_id` and `working_hours` array. Each item has one `day` and time range; one main-DB record per item. clinic_id is set from the doctor. Overlaps are validated. Syncs to clinic database.',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID (main DB)',
+    description: 'Doctor ID (main database)',
     example: 1,
   })
   @ApiBody({ type: CreateBulkDoctorWorkingHoursDto })
   @ApiResponse({
     status: 201,
-    description: 'Doctor working hours created. Returns the created records array.',
+    description: 'Array of created working hours',
     type: [DoctorWorkingHour],
   })
   @ApiResponse({
     status: 400,
-    description: 'Invalid time ranges or overlaps detected',
+    description: 'Validation error or time range overlap',
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   setBulkWorkingHours(@Body() createDto: CreateBulkDoctorWorkingHoursDto) {
     return this.doctorWorkingHoursService.setBulkWorkingHours(createDto);
   }
@@ -181,20 +196,20 @@ export class DoctorWorkingHoursController {
   @Post(':id')
   @Roles('admin')
   @ApiOperation({
-    summary: 'Update doctor working hour (main DB)',
+    summary: 'Update a working hour',
     description:
-      'Update an existing working hour by ID. Send only fields to change (partial body). Validates overlaps. Syncs to clinic database.',
+      'Updates an existing working hour by id. Send only the fields to change (partial body). Overlaps are re-validated. Syncs to clinic database.',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID (main DB)',
+    description: 'Doctor ID (main database)',
     example: 1,
   })
   @ApiParam({
     name: 'id',
     type: Number,
-    description: 'Working hour ID',
+    description: 'Working hour ID (main database)',
     example: 1,
   })
   @ApiBody({
@@ -203,13 +218,15 @@ export class DoctorWorkingHoursController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Doctor working hour updated successfully',
+    description: 'Updated working hour',
     type: DoctorWorkingHour,
   })
   @ApiResponse({
     status: 400,
-    description: 'Invalid time ranges or overlaps detected',
+    description: 'Validation error or time range overlap',
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Working hour not found' })
   updateWorkingHour(
     @Param('doctorId', ParseIntPipe) _doctorId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -221,29 +238,27 @@ export class DoctorWorkingHoursController {
   @Delete(':id')
   @Roles('admin')
   @ApiOperation({
-    summary: 'Delete doctor working hours',
-    description: 'Delete a specific working hour entry for a doctor',
+    summary: 'Delete a working hour',
+    description: 'Deletes the working hour by id (main database).',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (main database)',
     example: 1,
   })
   @ApiParam({
     name: 'id',
     type: Number,
-    description: 'Working hour ID',
+    description: 'Working hour ID to delete',
     example: 1,
   })
   @ApiResponse({
     status: 200,
-    description: 'Doctor working hours deleted successfully',
+    description: 'Working hour deleted',
   })
-  @ApiResponse({
-    status: 404,
-    description: 'Working hour not found',
-  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Working hour not found' })
   deleteWorkingHour(
     @Param('doctorId', ParseIntPipe) _doctorId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -255,18 +270,20 @@ export class DoctorWorkingHoursController {
   @Roles('admin')
   @ApiOperation({
     summary: 'Delete all working hours for a doctor',
-    description: 'Delete all working hour entries for a doctor',
+    description:
+      'Deletes every working hour record for the given doctor (main database).',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (main database)',
     example: 1,
   })
   @ApiResponse({
     status: 200,
-    description: 'All doctor working hours deleted successfully',
+    description: 'All working hours for the doctor deleted',
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   deleteWorkingHours(@Param('doctorId', ParseIntPipe) doctorId: number) {
     return this.doctorWorkingHoursService.deleteWorkingHours(doctorId);
   }
@@ -274,25 +291,27 @@ export class DoctorWorkingHoursController {
   @Delete('day/:day')
   @Roles('admin')
   @ApiOperation({
-    summary: 'Delete doctor working hours by day',
-    description: 'Delete all working hour entries for a doctor on a specific day',
+    summary: 'Delete working hours by day',
+    description:
+      'Deletes all working hour records for the doctor on the given day.',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (main database)',
     example: 1,
   })
   @ApiParam({
     name: 'day',
     enum: DayOfWeek,
-    description: 'Day of the week',
+    description: 'Day of the week (e.g. MONDAY)',
     example: DayOfWeek.MONDAY,
   })
   @ApiResponse({
     status: 200,
-    description: 'Doctor working hours for the day deleted successfully',
+    description: 'Working hours for that day deleted',
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   deleteWorkingHoursByDay(
     @Param('doctorId', ParseIntPipe) doctorId: number,
     @Param('day', new ParseEnumPipe(DayOfWeek)) day: DayOfWeek,
@@ -303,4 +322,3 @@ export class DoctorWorkingHoursController {
     );
   }
 }
-

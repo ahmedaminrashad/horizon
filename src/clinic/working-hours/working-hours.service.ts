@@ -128,21 +128,25 @@ export class WorkingHoursService {
   }
 
   /**
-   * Ensure doctor_service_id belongs to the given doctor (same clinic).
+   * Ensure each doctor_service id belongs to the given doctor; returns loaded DoctorService[].
    */
-  private async validateDoctorServiceForDoctor(
-    doctorServiceId: number,
+  private async getDoctorServicesByIdsAndDoctor(
+    ids: number[],
     doctorId: number,
-  ): Promise<void> {
+  ): Promise<DoctorService[]> {
+    if (!ids?.length) return [];
     const repo = await this.getDoctorServiceRepository();
-    const ds = await repo.findOne({
-      where: { id: doctorServiceId, doctor_id: doctorId },
+    const services = await repo.find({
+      where: { id: In(ids), doctor_id: doctorId },
     });
-    if (!ds) {
+    if (services.length !== ids.length) {
+      const foundIds = new Set(services.map((s) => s.id));
+      const missing = ids.filter((id) => !foundIds.has(id));
       throw new BadRequestException(
-        `Doctor service with ID ${doctorServiceId} is not found or does not belong to this doctor`,
+        `Doctor service(s) with ID(s) ${missing.join(', ')} not found or do not belong to this doctor`,
       );
     }
+    return services;
   }
 
   private async getBreakHoursRepository(): Promise<Repository<BreakHour>> {
@@ -1103,7 +1107,7 @@ export class WorkingHoursService {
     const repository = await this.getDoctorWorkingHoursRepository();
     return repository.find({
       where: { doctor_id: doctorId },
-      relations: ['branch', 'doctor_service'],
+      relations: ['branch', 'doctor_services'],
       order: {
         day: 'ASC',
         start_time: 'ASC',
@@ -1121,7 +1125,7 @@ export class WorkingHoursService {
     const repository = await this.getDoctorWorkingHoursRepository();
     return repository.find({
       where: { doctor_id: doctorId, day },
-      relations: ['branch', 'doctor_service'],
+      relations: ['branch', 'doctor_services'],
       order: {
         start_time: 'ASC',
       },
@@ -1138,7 +1142,7 @@ export class WorkingHoursService {
     const repository = await this.getDoctorWorkingHoursRepository();
     return repository.find({
       where: { doctor_id: doctorId, branch_id: branchId },
-      relations: ['branch', 'doctor_service'],
+      relations: ['branch', 'doctor_services'],
       order: {
         day: 'ASC',
         start_time: 'ASC',
@@ -1157,7 +1161,7 @@ export class WorkingHoursService {
     const repository = await this.getDoctorWorkingHoursRepository();
     return repository.find({
       where: { doctor_id: doctorId, branch_id: branchId, day },
-      relations: ['branch', 'doctor_service'],
+      relations: ['branch', 'doctor_services'],
       order: {
         start_time: 'ASC',
       },
@@ -1181,12 +1185,11 @@ export class WorkingHoursService {
     }
     const clinicId = doctor.clinic_id;
 
-    if (createDto.doctor_service_id != null) {
-      await this.validateDoctorServiceForDoctor(
-        createDto.doctor_service_id,
-        doctorId,
-      );
-    }
+    const doctorServiceIds = createDto.doctor_service_ids ?? [];
+    const doctorServices =
+      doctorServiceIds.length > 0
+        ? await this.getDoctorServicesByIdsAndDoctor(doctorServiceIds, doctorId)
+        : [];
 
     // Validate time range
     this.validateTimeRange(createDto.start_time, createDto.end_time);
@@ -1278,9 +1281,6 @@ export class WorkingHoursService {
           if (createDto.branch_id !== undefined) {
             workingHourData.branch_id = createDto.branch_id;
           }
-          if (createDto.doctor_service_id !== undefined) {
-            workingHourData.doctor_service_id = createDto.doctor_service_id;
-          }
           if (createDto.appoint_type !== undefined) {
             workingHourData.appoint_type = createDto.appoint_type;
           }
@@ -1288,6 +1288,10 @@ export class WorkingHoursService {
           const saved = (await repository.save(
             workingHour,
           )) as unknown as DoctorWorkingHour;
+          if (doctorServices.length > 0) {
+            (saved as any).doctor_services = doctorServices;
+            await repository.save(saved);
+          }
           allCreated.push(saved);
         }
       } else {
@@ -1321,9 +1325,6 @@ export class WorkingHoursService {
         if (createDto.branch_id !== undefined) {
           workingHourData.branch_id = createDto.branch_id;
         }
-        if (createDto.doctor_service_id !== undefined) {
-          workingHourData.doctor_service_id = createDto.doctor_service_id;
-        }
         if (createDto.appoint_type !== undefined) {
           workingHourData.appoint_type = createDto.appoint_type;
         }
@@ -1333,6 +1334,10 @@ export class WorkingHoursService {
         const saved = (await repository.save(
           workingHour,
         )) as unknown as DoctorWorkingHour;
+        if (doctorServices.length > 0) {
+          (saved as any).doctor_services = doctorServices;
+          await repository.save(saved);
+        }
         allCreated.push(saved);
       }
     }
@@ -1365,12 +1370,14 @@ export class WorkingHoursService {
     const createdHours: DoctorWorkingHour[] = [];
 
     for (const workingHourDto of createDto.working_hours) {
-      if (workingHourDto.doctor_service_id != null) {
-        await this.validateDoctorServiceForDoctor(
-          workingHourDto.doctor_service_id,
-          createDto.doctor_id,
-        );
-      }
+      const idsForItem = workingHourDto.doctor_service_ids ?? [];
+      const doctorServicesForItem =
+        idsForItem.length > 0
+          ? await this.getDoctorServicesByIdsAndDoctor(
+              idsForItem,
+              createDto.doctor_id,
+            )
+          : [];
       this.validateTimeRange(
         workingHourDto.start_time,
         workingHourDto.end_time,
@@ -1436,13 +1443,14 @@ export class WorkingHoursService {
               if (workingHourDto.branch_id !== undefined) {
                 workingHourData.branch_id = workingHourDto.branch_id;
               }
-              if (workingHourDto.doctor_service_id !== undefined) {
-                workingHourData.doctor_service_id = workingHourDto.doctor_service_id;
-              }
               const workingHour = repository.create(workingHourData);
               const saved = (await repository.save(
                 workingHour,
               )) as unknown as DoctorWorkingHour;
+              if (doctorServicesForItem.length > 0) {
+                (saved as any).doctor_services = doctorServicesForItem;
+                await repository.save(saved);
+              }
               createdHours.push(saved);
             }
           }
@@ -1477,13 +1485,14 @@ export class WorkingHoursService {
             if (workingHourDto.branch_id !== undefined) {
               workingHourData.branch_id = workingHourDto.branch_id;
             }
-            if (workingHourDto.doctor_service_id !== undefined) {
-              workingHourData.doctor_service_id = workingHourDto.doctor_service_id;
-            }
             const workingHour = repository.create(workingHourData);
             const saved = (await repository.save(
               workingHour,
             )) as unknown as DoctorWorkingHour;
+            if (doctorServicesForItem.length > 0) {
+              (saved as any).doctor_services = doctorServicesForItem;
+              await repository.save(saved);
+            }
             createdHours.push(saved);
           }
         }
@@ -1515,11 +1524,16 @@ export class WorkingHoursService {
       throw new BadRequestException(`Working hour with ID ${id} not found`);
     }
 
-    if (updateDto.doctor_service_id != null) {
-      await this.validateDoctorServiceForDoctor(
-        updateDto.doctor_service_id,
-        workingHour.doctor_id,
-      );
+    let updateDoctorServices: DoctorService[] | undefined;
+    const updateIds = updateDto.doctor_service_ids;
+    if (updateIds !== undefined) {
+      updateDoctorServices =
+        updateIds.length > 0
+          ? await this.getDoctorServicesByIdsAndDoctor(
+              updateIds,
+              workingHour.doctor_id,
+            )
+          : [];
     }
 
     // If updating time range, validate it
@@ -1577,10 +1591,6 @@ export class WorkingHoursService {
     Object.assign(workingHour, {
       day: workingHour.day,
       branch_id: updateDto.branch_id ?? workingHour.branch_id,
-      doctor_service_id:
-        updateDto.doctor_service_id !== undefined
-          ? updateDto.doctor_service_id
-          : workingHour.doctor_service_id,
       start_time: startTime,
       end_time: endTime,
       is_active:
@@ -1598,6 +1608,10 @@ export class WorkingHoursService {
           : workingHour.busy,
       patients_limit: patientsLimit,
     });
+
+    if (updateDoctorServices !== undefined) {
+      (workingHour as any).doctor_services = updateDoctorServices;
+    }
 
     const saved = await repository.save(workingHour);
 

@@ -158,15 +158,16 @@ export class ClinicCreateDoctorWorkingHoursDto {
 
   @ApiProperty({
     description:
-      'Doctor service ID (from doctor_services) to associate with this working hour. Must belong to the same doctor.',
-    type: Number,
+      'Doctor service IDs (from doctor_services) to associate with this working hour. All must belong to the same doctor.',
+    type: [Number],
     required: false,
-    example: 1,
+    example: [1, 2],
   })
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  doctor_service_id?: number;
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  doctor_service_ids?: number[];
 }
 
 /**
