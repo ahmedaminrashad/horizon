@@ -57,15 +57,6 @@ export class PaginationQueryDto {
   question_id?: number;
 
   @ApiPropertyOptional({
-    description: 'Filter by reservation ID',
-    example: 1,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  reservation_id?: number;
-
-  @ApiPropertyOptional({
     description: 'Filter by clinic ID',
     example: 1,
   })

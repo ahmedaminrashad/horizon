@@ -45,6 +45,7 @@ import { CreateDoctorFilesTable1776000000025 } from './1776000000025-CreateDocto
 import { AppointmentTypesArrayOnDoctors1776000000026 } from './1776000000026-AppointmentTypesArrayOnDoctors';
 import { AddBreakHoursFromToToDoctorWorkingHours1776000000027 } from './1776000000027-AddBreakHoursFromToToDoctorWorkingHours';
 import { RemoveFeesFromDoctorWorkingHours1776000000028 } from './1776000000028-RemoveFeesFromDoctorWorkingHours';
+import { RemoveReservationIdFromPatientQuestionAnswers1776000000029 } from './1776000000029-RemoveReservationIdFromPatientQuestionAnswers';
 
 /**
  * List of all clinic migrations in order
@@ -97,4 +98,5 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   AppointmentTypesArrayOnDoctors1776000000026,
   AddBreakHoursFromToToDoctorWorkingHours1776000000027,
   RemoveFeesFromDoctorWorkingHours1776000000028,
+  RemoveReservationIdFromPatientQuestionAnswers1776000000029,
 ];

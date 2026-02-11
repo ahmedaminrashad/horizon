@@ -30,14 +30,6 @@ export class CreatePatientQuestionAnswerDto {
   question_id: number;
 
   @ApiPropertyOptional({
-    description: 'Reservation ID',
-    example: 1,
-  })
-  @IsOptional()
-  @IsInt()
-  reservation_id?: number | null;
-
-  @ApiPropertyOptional({
     description: 'Yes/no answer',
     example: true,
   })

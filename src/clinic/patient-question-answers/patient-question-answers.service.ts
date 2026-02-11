@@ -12,7 +12,6 @@ import { PatientQuestionAnswer } from './entities/patient-question-answer.entity
 import { User } from '../permissions/entities/user.entity';
 import { Doctor } from '../doctors/entities/doctor.entity';
 import { Question } from '../questions/entities/question.entity';
-import { Reservation } from '../reservations/entities/reservation.entity';
 import { CreatePatientQuestionAnswerDto } from './dto/create-patient-question-answer.dto';
 import { UpdatePatientQuestionAnswerDto } from './dto/update-patient-question-answer.dto';
 
@@ -71,27 +70,6 @@ export class PatientQuestionAnswersService {
     if (!doctor) {
       throw new BadRequestException(
         `Doctor with id ${doctorId} not found in this clinic.`,
-      );
-    }
-  }
-
-  private async ensureReservationExistsAndInClinic(
-    reservationId: number,
-    clinicId: number,
-  ): Promise<void> {
-    const repo = await this.getRepository(Reservation);
-    const reservation = await repo.findOne({
-      where: { id: reservationId },
-      relations: ['doctor'],
-    });
-    if (!reservation) {
-      throw new BadRequestException(
-        `Reservation with id ${reservationId} not found.`,
-      );
-    }
-    if (reservation.doctor.clinic_id !== clinicId) {
-      throw new BadRequestException(
-        `Reservation with id ${reservationId} does not belong to this clinic.`,
       );
     }
   }
@@ -181,12 +159,6 @@ export class PatientQuestionAnswersService {
       createDto.question_id,
       clinicId,
     );
-    if (createDto.reservation_id != null) {
-      await this.ensureReservationExistsAndInClinic(
-        createDto.reservation_id,
-        clinicId,
-      );
-    }
     const repository = await this.getAnswerRepository();
     const existing = await repository.findOne({
       where: {
@@ -195,9 +167,6 @@ export class PatientQuestionAnswersService {
       },
     });
     if (existing) {
-      if (createDto.reservation_id !== undefined) {
-        existing.reservation_id = createDto.reservation_id;
-      }
       if (createDto.is_answer_yes !== undefined) {
         existing.is_answer_yes = createDto.is_answer_yes;
       }
@@ -223,7 +192,6 @@ export class PatientQuestionAnswersService {
       patient_id?: number;
       doctor_id?: number;
       question_id?: number;
-      reservation_id?: number;
       clinic_id?: number;
     },
   ): Promise<{
@@ -241,7 +209,6 @@ export class PatientQuestionAnswersService {
       .leftJoinAndSelect('answer.patient', 'patient')
       .leftJoinAndSelect('answer.doctor', 'doctor')
       .leftJoinAndSelect('answer.question', 'question')
-      .leftJoinAndSelect('answer.reservation', 'reservation')
       .where('answer.clinic_id = :clinicId', { clinicId: effectiveClinicId })
       .orderBy('answer.createdAt', 'DESC')
       .skip(skip)
@@ -262,11 +229,6 @@ export class PatientQuestionAnswersService {
         questionId: filters.question_id,
       });
     }
-    if (filters?.reservation_id != null) {
-      qb.andWhere('answer.reservation_id = :reservationId', {
-        reservationId: filters.reservation_id,
-      });
-    }
 
     const [data, total] = await qb.getManyAndCount();
     const totalPages = Math.ceil(total / limit);
@@ -281,7 +243,7 @@ export class PatientQuestionAnswersService {
     const repository = await this.getAnswerRepository();
     const answer = await repository.findOne({
       where: { id, clinic_id: clinicId },
-      relations: ['patient', 'doctor', 'question', 'reservation'],
+      relations: ['patient', 'doctor', 'question'],
     });
     if (!answer) {
       throw new NotFoundException(
@@ -303,13 +265,6 @@ export class PatientQuestionAnswersService {
         clinicId,
       );
       answer.doctor_id = question.doctor_id;
-    }
-    // patient_id and doctor_id are not updatable from body (doctor_id comes from question)
-    if (updateDto.reservation_id != null) {
-      await this.ensureReservationExistsAndInClinic(
-        updateDto.reservation_id,
-        clinicId,
-      );
     }
     const repository = await this.getAnswerRepository();
     Object.assign(answer, updateDto);

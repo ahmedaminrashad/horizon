@@ -90,7 +90,6 @@ export class PatientQuestionAnswersController {
   @ApiQuery({ name: 'patient_id', required: false, type: Number })
   @ApiQuery({ name: 'doctor_id', required: false, type: Number })
   @ApiQuery({ name: 'question_id', required: false, type: Number })
-  @ApiQuery({ name: 'reservation_id', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Paginated list of answers' })
   findAll(
     @ClinicId() clinicId: number,
@@ -106,14 +105,12 @@ export class PatientQuestionAnswersController {
       patient_id?: number;
       doctor_id?: number;
       question_id?: number;
-      reservation_id?: number;
       clinic_id?: number;
     } = {
       patient_id: paginationQuery.patient_id,
       doctor_id: paginationQuery.doctor_id,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- query param
       question_id: paginationQuery.question_id,
-      reservation_id: paginationQuery.reservation_id,
       clinic_id: paginationQuery.clinic_id,
     };
     return this.patientQuestionAnswersService.findAll(

@@ -11,9 +11,8 @@ import {
 import { User } from '../../permissions/entities/user.entity';
 import { Doctor } from '../../doctors/entities/doctor.entity';
 import { Question } from '../../questions/entities/question.entity';
-import { Reservation } from '../../reservations/entities/reservation.entity';
 
-/** One answer per patient per question (same reservation or re-submit updates the record). */
+/** One answer per patient per question (re-submit updates the record). */
 @Entity('patient_question_answers')
 @Unique('UQ_patient_question_answer_patient_question', [
   'patient_id',
@@ -46,13 +45,6 @@ export class PatientQuestionAnswer {
   @ManyToOne(() => Question, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'question_id' })
   question: Question;
-
-  @Column({ name: 'reservation_id', nullable: true })
-  reservation_id: number | null;
-
-  @ManyToOne(() => Reservation, { onDelete: 'SET NULL', nullable: true })
-  @JoinColumn({ name: 'reservation_id' })
-  reservation: Reservation | null;
 
   @Column({ name: 'is_answer_yes', type: 'boolean', nullable: true })
   is_answer_yes: boolean | null;
