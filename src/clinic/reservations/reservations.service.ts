@@ -246,8 +246,8 @@ export class ReservationsService {
     } | undefined;
     return {
       ...r,
-      doctor: r.doctor ? sanitizeUserInEntity(r.doctor as { user?: Record<string, unknown> }) : r.doctor,
-      patient: r.patient != null ? stripPasswordFromUser(r.patient as Record<string, unknown>) : r.patient,
+      doctor: r.doctor ? sanitizeUserInEntity(r.doctor) : r.doctor,
+      patient: r.patient != null ? stripPasswordFromUser(r.patient as unknown as Record<string, unknown>) : r.patient,
       time: wh?.start_time ?? null,
       time_range:
         wh != null
@@ -262,7 +262,7 @@ export class ReservationsService {
       appointment_types: doctor?.appointment_types ?? null,
       patient_last_visit: visits.last_visit,
       patient_next_visit: visits.next_visit,
-    };
+    } as unknown as Reservation;
   }
 
   /**

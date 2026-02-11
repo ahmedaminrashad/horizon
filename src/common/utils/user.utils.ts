@@ -12,12 +12,10 @@ export function stripPasswordFromUser<T extends Record<string, unknown>>(
 /**
  * Return a copy of an entity that has a nested `user` property, with user.password removed.
  */
-export function sanitizeUserInEntity<T extends { user?: Record<string, unknown> }>(
-  entity: T,
-): T {
-  if (entity.user && typeof entity.user === 'object') {
+export function sanitizeUserInEntity<T extends { user?: unknown }>(entity: T): T {
+  if (entity.user != null && typeof entity.user === 'object' && 'password' in entity.user) {
     const safeUser = stripPasswordFromUser(entity.user as Record<string, unknown>);
-    return { ...entity, user: safeUser };
+    return { ...entity, user: safeUser } as T;
   }
   return entity;
 }
