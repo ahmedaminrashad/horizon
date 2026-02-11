@@ -170,6 +170,7 @@ async function bootstrap() {
     customSiteTitle: 'Horizon Backend API Documentation',
   });
 
+  
   const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
 }
