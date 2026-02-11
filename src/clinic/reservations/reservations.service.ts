@@ -297,10 +297,15 @@ export class ReservationsService {
     authenticatedUserId: number,
     isMainUser: boolean = false,
   ): Promise<Reservation> {
-    // patient_id must reference clinic DB users.id. Use user_id from body when provided; otherwise resolve from authenticated user.
+    // patient_id must reference clinic DB users.id. Use main_user_id from body when provided (resolve to clinic user); otherwise resolve from authenticated user.
     let patientId: number;
-    if (createReservationDto.user_id != null) {
-      patientId = createReservationDto.user_id;
+    let mainUserId: number | null = null;
+    if (createReservationDto.main_user_id != null) {
+      mainUserId = createReservationDto.main_user_id;
+      patientId = await this.getOrCreateClinicUserIdForMainUser(
+        createReservationDto.main_user_id,
+        clinicId,
+      );
     } else if (isMainUser) {
       patientId = await this.getOrCreateClinicUserIdForMainUser(
         authenticatedUserId,
@@ -335,10 +340,11 @@ export class ReservationsService {
     
     const fees = this.getFeesFromDoctorService(workingHour.doctor_services?.[0]);
 
-    const { user_id: _userId, ...dtoWithoutUserId } = createReservationDto;
+    const { main_user_id: _mainUserId, ...dtoWithoutMainUserId } = createReservationDto;
     const reservation = repository.create({
-      ...dtoWithoutUserId,
+      ...dtoWithoutMainUserId,
       patient_id: patientId,
+      main_user_id: mainUserId ?? undefined,
       date: reservationDate, // Date only
       status: ReservationStatus.PENDING, // Always default to PENDING
       paid: false, // Default to false
