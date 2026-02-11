@@ -59,6 +59,70 @@ export class ReservationsService {
   }
 
   /**
+   * Resolve main user id to clinic user id (users.id in clinic tenant DB).
+   * Uses existing clinic_user link if present; otherwise finds or creates a user in the clinic DB by phone and sets the link.
+   */
+  private async getOrCreateClinicUserIdForMainUser(
+    mainUserId: number,
+    clinicId: number,
+  ): Promise<number> {
+    const existing = await this.clinicsService.getClinicUserIdForMainUser(
+      mainUserId,
+      clinicId,
+    );
+    if (existing != null) return existing;
+
+    const mainUser = await this.usersService.findOne(mainUserId);
+    if (!mainUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const clinicUserRepository =
+      await this.tenantRepositoryService.getRepository<ClinicUser>(ClinicUser);
+    if (!clinicUserRepository) {
+      throw new BadRequestException(
+        'Clinic context not found. Cannot resolve patient to clinic user.',
+      );
+    }
+
+    let clinicUser = await clinicUserRepository.findOne({
+      where: { phone: mainUser.phone },
+    });
+
+    if (!clinicUser) {
+      if (mainUser.email) {
+        const existingByEmail = await clinicUserRepository.findOne({
+          where: { email: mainUser.email },
+        });
+        if (existingByEmail) {
+          throw new BadRequestException(
+            'User with this email already exists in clinic',
+          );
+        }
+      }
+      const randomPassword = await bcrypt.hash(
+        Math.random().toString(36).slice(-8),
+        10,
+      );
+      clinicUser = clinicUserRepository.create({
+        name: mainUser.name ?? undefined,
+        phone: mainUser.phone,
+        email: mainUser.email ?? undefined,
+        password: randomPassword,
+        package_id: 0,
+      });
+      clinicUser = await clinicUserRepository.save(clinicUser);
+    }
+
+    await this.clinicsService.setClinicUserIdForMainUser(
+      mainUserId,
+      clinicId,
+      clinicUser.id,
+    );
+    return clinicUser.id;
+  }
+
+  /**
    * Get reservation fees from doctor service price (working hour's linked doctor_service).
    * Returns 0 if no doctor service or price is null/undefined.
    */
@@ -224,9 +288,22 @@ export class ReservationsService {
     };
   }
 
-  async create(clinicId: number, createReservationDto: CreateReservationDto, patientId: number): Promise<Reservation> {
+  async create(
+    clinicId: number,
+    createReservationDto: CreateReservationDto,
+    authenticatedUserId: number,
+    isMainUser: boolean = false,
+  ): Promise<Reservation> {
+    // patient_id must reference clinic DB users.id. If caller is main user, resolve to clinic user id.
+    const patientId = isMainUser
+      ? await this.getOrCreateClinicUserIdForMainUser(
+          authenticatedUserId,
+          clinicId,
+        )
+      : authenticatedUserId;
+
     const repository = await this.getRepository();
-    
+
     // Parse the date from the request
     const reservationDate = new Date(createReservationDto.date);
     // Set time to start of day to ensure it's a date only

@@ -174,9 +174,15 @@ export class ReservationsController {
     if (!clinicId) {
       throw new Error('Clinic ID is required');
     }
-    // Get patient_id from authenticated user
-    const patientId = req.user?.userId || 0;
-    return this.reservationsService.create(clinicId, createReservationDto, patientId);
+    // patient_id must be the clinic DB user id (FK to users.id). Resolve main user -> clinic user if needed.
+    const userId = req.user?.userId ?? 0;
+    const isMainUser = req.user?.isMainUser === true;
+    return this.reservationsService.create(
+      clinicId,
+      createReservationDto,
+      userId,
+      isMainUser,
+    );
   }
 
   @Get('clinic/:clinicId/reservations')
