@@ -12,6 +12,7 @@ import { User } from '../../permissions/entities/user.entity';
 import { SlotTemplate } from '../../slot-template/entities/slot-template.entity';
 import { DoctorBranch } from '../../doctor-branches/entities/doctor-branch.entity';
 import { DoctorService } from '../../doctor-services/entities/doctor-service.entity';
+import { DoctorFile } from '../../doctor-files/entities/doctor-file.entity';
 
 export enum Department {
   CARDIOLOGY = 'CARDIOLOGY',
@@ -38,8 +39,17 @@ export class Doctor {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'int' })
-  age: number;
+  @Column({ type: 'int', nullable: true })
+  age: number | null;
+
+  @Column({ name: 'date_of_birth', type: 'date', nullable: true })
+  date_of_birth: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  gender: string | null;
+
+  @Column({ name: 'second_phone', type: 'varchar', length: 50, nullable: true })
+  second_phone: string | null;
 
   @Column({
     type: 'enum',
@@ -61,6 +71,9 @@ export class Doctor {
 
   @OneToMany(() => DoctorService, (ds) => ds.doctor, { cascade: true })
   doctorServices: DoctorService[];
+
+  @OneToMany(() => DoctorFile, (df) => df.doctor, { cascade: true })
+  doctorFiles: DoctorFile[];
 
   @Column({ name: 'experience_years', type: 'int', nullable: true })
   experience_years: number;
@@ -87,12 +100,12 @@ export class Doctor {
   bio: string;
 
   @Column({
-    name: 'appoint_type',
-    type: 'enum',
-    enum: AppointType,
+    name: 'appointment_types',
+    type: 'simple-array',
     nullable: true,
+    comment: 'Comma-separated: in-clinic, online, home',
   })
-  appoint_type: AppointType;
+  appointment_types: AppointType[];
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
   is_active: boolean;

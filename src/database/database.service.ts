@@ -19,6 +19,7 @@ import { Question } from '../clinic/questions/entities/question.entity';
 import { PatientQuestionAnswer } from '../clinic/patient-question-answers/entities/patient-question-answer.entity';
 import { DoctorService } from '../clinic/doctor-services/entities/doctor-service.entity';
 import { DoctorBranch } from '../clinic/doctor-branches/entities/doctor-branch.entity';
+import { DoctorFile } from '../clinic/doctor-files/entities/doctor-file.entity';
 
 @Injectable()
 export class DatabaseService {
@@ -102,6 +103,7 @@ export class DatabaseService {
       PatientQuestionAnswer,
       DoctorService,
       DoctorBranch,
+      DoctorFile,
     ];
 
     const sanitizedDbName = this.sanitizeDatabaseName(databaseName);

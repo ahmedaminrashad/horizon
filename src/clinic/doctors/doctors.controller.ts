@@ -47,6 +47,7 @@ import { RegisterDoctorDto } from './dto/register-doctor.dto';
 import { WorkingHoursService } from '../working-hours/working-hours.service';
 import { DoctorWorkingHour } from '../working-hours/entities/doctor-working-hour.entity';
 import { DayOfWeek } from '../working-hours/entities/working-hour.entity';
+import { DoctorFilesService } from '../doctor-files/doctor-files.service';
 
 @ApiTags('clinic/doctors')
 @Controller('clinic/:clinicId/doctors')
@@ -56,6 +57,7 @@ export class DoctorsController {
   constructor(
     private readonly doctorsService: DoctorsService,
     private readonly workingHoursService: WorkingHoursService,
+    private readonly doctorFilesService: DoctorFilesService,
   ) {}
 
   @Post()
@@ -244,7 +246,10 @@ export class DoctorsController {
             type: 'object',
             properties: {
               id: { type: 'number' },
-              age: { type: 'number' },
+              age: { type: 'number', nullable: true },
+              date_of_birth: { type: 'string', format: 'date', nullable: true },
+              gender: { type: 'string', nullable: true },
+              second_phone: { type: 'string', nullable: true },
               department: { type: 'string', enum: Object.values(Department) },
               user_id: { type: 'number' },
               clinic_id: { type: 'number' },
@@ -293,6 +298,11 @@ export class DoctorsController {
                   },
                 },
               },
+              appointment_types: {
+                type: 'array',
+                description: 'Appointment types (e.g. in-clinic, online, home)',
+                items: { type: 'string' },
+              },
               createdAt: { type: 'string', format: 'date-time' },
               updatedAt: { type: 'string', format: 'date-time' },
             },
@@ -322,6 +332,110 @@ export class DoctorsController {
     const page = paginationQuery.page || 1;
     const limit = paginationQuery.limit || 10;
     return this.doctorsService.findAll(clinicId, page, limit);
+  }
+
+  @Get(':doctorId/files')
+  @UseGuards(ClinicPermissionsGuard)
+  @Permissions(ClinicPermission.UPDATE_DOCTOR as string)
+  @ApiOperation({ summary: 'List doctor files' })
+  @ApiParam({ name: 'clinicId', type: Number })
+  @ApiParam({ name: 'doctorId', type: Number })
+  @ApiResponse({ status: 200, description: 'List of doctor files' })
+  async getDoctorFiles(
+    @ClinicId() clinicId: number,
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+  ) {
+    if (!clinicId) throw new Error('Clinic ID is required');
+    return this.doctorFilesService.findByDoctorId(doctorId);
+  }
+
+  @Post(':doctorId/files')
+  @UseGuards(ClinicPermissionsGuard)
+  @Permissions(ClinicPermission.UPDATE_DOCTOR as string)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads/doctor-files',
+        filename: (req, file, cb) => {
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const ext = extname(file.originalname);
+          cb(null, `doctor-file-${uniqueSuffix}${ext}`);
+        },
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+      fileFilter: (req, file, cb) => {
+        const allowed = /\.(pdf|jpg|jpeg|png|gif|webp|doc|docx)$/i.test(
+          file.originalname,
+        );
+        if (!allowed) {
+          return cb(
+            new BadRequestException(
+              'Allowed: pdf, images (jpg/png/gif/webp), doc/docx',
+            ),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload a doctor file' })
+  @ApiParam({ name: 'clinicId', type: Number })
+  @ApiParam({ name: 'doctorId', type: Number })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        file_name: { type: 'string', example: 'license.pdf' },
+        file_type: { type: 'string', example: 'certificate' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'File uploaded' })
+  @ApiResponse({ status: 404, description: 'Doctor not found' })
+  async uploadDoctorFile(
+    @ClinicId() clinicId: number,
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+    @Body('file_name') fileName?: string,
+    @Body('file_type') fileType?: string,
+  ) {
+    if (!clinicId) throw new Error('Clinic ID is required');
+    const filePath = `/uploads/doctor-files/${file.filename}`;
+    return this.doctorFilesService.create(
+      doctorId,
+      filePath,
+      fileName ?? file.originalname,
+      fileType,
+    );
+  }
+
+  @Delete(':doctorId/files/:fileId')
+  @UseGuards(ClinicPermissionsGuard)
+  @Permissions(ClinicPermission.UPDATE_DOCTOR as string)
+  @ApiOperation({ summary: 'Delete a doctor file' })
+  @ApiParam({ name: 'clinicId', type: Number })
+  @ApiParam({ name: 'doctorId', type: Number })
+  @ApiParam({ name: 'fileId', type: Number })
+  @ApiResponse({ status: 200, description: 'File deleted' })
+  @ApiResponse({ status: 404, description: 'File not found' })
+  async deleteDoctorFile(
+    @ClinicId() clinicId: number,
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Param('fileId', ParseIntPipe) fileId: number,
+  ) {
+    if (!clinicId) throw new Error('Clinic ID is required');
+    await this.doctorFilesService.remove(doctorId, fileId);
   }
 
   @Get(':doctorId')

@@ -9,9 +9,9 @@ import {
   IsEnum,
   IsArray,
   ValidateNested,
-  Matches,
   IsBoolean,
   Min,
+  IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Department, AppointType } from '../entities/doctor.entity';
@@ -46,13 +46,34 @@ export class RegisterDoctorDto {
   @MinLength(6)
   password: string;
 
-  @ApiProperty({
-    description: 'Doctor age',
+  @ApiPropertyOptional({
+    description: 'Doctor age (optional if date_of_birth is provided; then age is calculated)',
     example: 35,
   })
   @IsNumber()
-  @IsNotEmpty()
-  age: number;
+  @IsOptional()
+  age?: number;
+
+  @ApiPropertyOptional({
+    description: 'Date of birth (YYYY-MM-DD). When provided, age is calculated in the backend.',
+    example: '1990-05-15',
+  })
+  @IsOptional()
+  @IsDateString()
+  date_of_birth?: string;
+
+  @ApiPropertyOptional({ description: 'Gender', example: 'male' })
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @ApiPropertyOptional({
+    description: 'Second phone number',
+    example: '+201234567890',
+  })
+  @IsOptional()
+  @IsString()
+  second_phone?: string;
 
   @ApiProperty({
     description: 'Doctor department',
@@ -104,13 +125,15 @@ export class RegisterDoctorDto {
   bio?: string;
 
   @ApiPropertyOptional({
-    description: 'Appointment type',
+    description: 'Appointment types (multi-select): in-clinic, online, home',
     enum: AppointType,
-    example: AppointType.IN_CLINIC,
+    isArray: true,
+    example: [AppointType.IN_CLINIC, AppointType.ONLINE],
   })
-  @IsEnum(AppointType)
   @IsOptional()
-  appoint_type?: AppointType;
+  @IsArray()
+  @IsEnum(AppointType, { each: true })
+  appointment_types?: AppointType[];
 
   @ApiPropertyOptional({
     description: 'Whether the doctor is active',

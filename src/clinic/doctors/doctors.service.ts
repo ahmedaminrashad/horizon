@@ -41,6 +41,20 @@ export class DoctorsService {
     private doctorBranchesService: DoctorBranchesService,
   ) {}
 
+  /**
+   * Calculate age in years from date of birth (YYYY-MM-DD string or Date).
+   */
+  private ageFromDateOfBirth(dob: string | Date | null | undefined): number | null {
+    if (dob == null) return null;
+    const birth = typeof dob === 'string' ? new Date(dob) : dob;
+    if (isNaN(birth.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age >= 0 ? age : null;
+  }
+
   private async getRepository(): Promise<Repository<Doctor>> {
     const repository =
       await this.tenantRepositoryService.getRepository<Doctor>(Doctor);
@@ -61,7 +75,17 @@ export class DoctorsService {
     const repository = await this.getRepository();
     const { doctor_branches: doctorBranches, ...doctorData } = createDoctorDto;
     (doctorData as CreateDoctorDto).clinic_id = clinicId;
-    const doctor = repository.create(doctorData as CreateDoctorDto);
+    const dto = doctorData as CreateDoctorDto;
+    if (dto.date_of_birth != null) {
+      const computed = this.ageFromDateOfBirth(dto.date_of_birth);
+      if (computed != null) (dto as { age?: number }).age = computed;
+    }
+    if (dto.age == null && (dto as { date_of_birth?: string }).date_of_birth == null) {
+      throw new BadRequestException(
+        'Either age or date_of_birth is required for the doctor.',
+      );
+    }
+    const doctor = repository.create(dto);
     const savedDoctor = await repository.save(doctor);
 
     if (doctorBranches?.length) {
@@ -82,7 +106,7 @@ export class DoctorsService {
     // Reload with user relation for syncing
     const doctorWithUser = await repository.findOne({
       where: { id: savedDoctor.id },
-      relations: ['user', 'slotTemplates', 'doctorBranches', 'doctorServices', 'doctorServices.service'],
+      relations: ['user', 'slotTemplates', 'doctorBranches', 'doctorServices', 'doctorServices.service', 'doctorFiles'],
     });
 
     if (doctorWithUser) {
@@ -125,7 +149,7 @@ export class DoctorsService {
     const repository = await this.getRepository();
     const doctor = await repository.findOne({
       where: { id },
-      relations: ['user', 'slotTemplates', 'doctorBranches', 'doctorServices', 'doctorServices.service'],
+      relations: ['user', 'slotTemplates', 'doctorBranches', 'doctorServices', 'doctorServices.service', 'doctorFiles'],
     });
 
     if (!doctor) {
@@ -145,6 +169,10 @@ export class DoctorsService {
 
     const { doctor_branches: doctorBranches, ...rest } = updateDoctorDto;
     Object.assign(doctor, rest);
+    if (rest.date_of_birth != null) {
+      const computed = this.ageFromDateOfBirth(rest.date_of_birth);
+      if (computed != null) (doctor as { age?: number }).age = computed;
+    }
     const savedDoctor = await repository.save(doctor);
 
     if (doctorBranches !== undefined) {
@@ -156,7 +184,7 @@ export class DoctorsService {
 
     const doctorWithUser = await repository.findOne({
       where: { id: savedDoctor.id },
-      relations: ['user', 'doctorBranches', 'doctorServices', 'doctorServices.service'],
+      relations: ['user', 'doctorBranches', 'doctorServices', 'doctorServices.service', 'doctorFiles'],
     });
 
     if (doctorWithUser) {
@@ -210,6 +238,9 @@ export class DoctorsService {
     // Extract user data and doctor-specific data
     const {
       age,
+      date_of_birth,
+      gender,
+      second_phone,
       department,
       password,
       avatar,
@@ -217,14 +248,25 @@ export class DoctorsService {
       degree,
       languages,
       bio,
-      appoint_type,
       is_active,
+      appointment_types,
       doctor_services: doctorServices,
       doctor_branches: doctorBranches,
       experience_years,
       number_of_patients,
       ...userData
     } = registerDoctorDto;
+
+    const resolvedAge =
+      date_of_birth != null
+        ? this.ageFromDateOfBirth(date_of_birth)
+        : age;
+    const finalAge = resolvedAge ?? age ?? null;
+    if (finalAge == null) {
+      throw new BadRequestException(
+        'Either age or date_of_birth is required for the doctor.',
+      );
+    }
 
     // Check if phone already exists in clinic database
     const clinicUserRepository = clinicDataSource.getRepository(ClinicUser);
@@ -263,7 +305,10 @@ export class DoctorsService {
     // Create doctor record in clinic database
     const doctorRepository = clinicDataSource.getRepository(Doctor);
     const doctor = doctorRepository.create({
-      age,
+      age: finalAge,
+      date_of_birth: date_of_birth ?? null,
+      gender: gender ?? null,
+      second_phone: second_phone ?? null,
       department,
       user_id: savedClinicUser.id,
       clinic_id: clinicId,
@@ -274,7 +319,7 @@ export class DoctorsService {
       degree,
       languages,
       bio,
-      appoint_type,
+      appointment_types: appointment_types ?? undefined,
       is_active: is_active !== undefined ? is_active : true,
     });
 
@@ -295,7 +340,7 @@ export class DoctorsService {
     // Reload with user and slotTemplates relations for syncing
     const doctorWithUser = await doctorRepository.findOne({
       where: { id: savedDoctor.id },
-      relations: ['user', 'user.role', 'slotTemplates', 'doctorBranches', 'doctorServices', 'doctorServices.service'],
+      relations: ['user', 'user.role', 'slotTemplates', 'doctorBranches', 'doctorServices', 'doctorServices.service', 'doctorFiles'],
     });
 
     if (!doctorWithUser || !doctorWithUser.user) {
@@ -323,7 +368,7 @@ export class DoctorsService {
     }
     await this.mainDoctorsService.syncDoctor(clinicId, savedDoctor.id, {
       name: clinicUserWithRole.name || '',
-      age: savedDoctor.age,
+      age: savedDoctor.age ?? undefined,
       avatar: savedDoctor.avatar,
       email: clinicUserWithRole.email ?? undefined,
       phone: clinicUserWithRole.phone || undefined,
@@ -332,7 +377,11 @@ export class DoctorsService {
       degree: savedDoctor.degree,
       languages: savedDoctor.languages,
       bio: savedDoctor.bio,
-      appoint_type: savedDoctor.appoint_type,
+      appoint_type:
+        Array.isArray(savedDoctor.appointment_types) &&
+        savedDoctor.appointment_types.length > 0
+          ? savedDoctor.appointment_types[0]
+          : undefined,
       is_active: savedDoctor.is_active,
       branch_id: mainBranchId,
       experience_years: savedDoctor.experience_years,
@@ -408,7 +457,7 @@ export class DoctorsService {
       // Sync to main doctors table
       await this.mainDoctorsService.syncDoctor(clinicId, clinicDoctor.id, {
         name: doctorName,
-        age: clinicDoctor.age,
+        age: clinicDoctor.age ?? undefined,
         avatar: clinicDoctor.avatar,
         email: doctorEmail,
         phone: doctorPhone,
@@ -417,7 +466,11 @@ export class DoctorsService {
         degree: clinicDoctor.degree,
         languages: clinicDoctor.languages,
         bio: clinicDoctor.bio,
-        appoint_type: clinicDoctor.appoint_type,
+        appoint_type:
+          Array.isArray(clinicDoctor.appointment_types) &&
+          clinicDoctor.appointment_types.length > 0
+            ? clinicDoctor.appointment_types[0]
+            : undefined,
         is_active: clinicDoctor.is_active,
         branch_id: mainBranchId,
         experience_years: clinicDoctor.experience_years,

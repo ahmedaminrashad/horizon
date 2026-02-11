@@ -495,7 +495,7 @@ export class ReservationsService {
 
           await this.mainDoctorsService.syncDoctor(clinicId, doctorId, {
             name: doctorName,
-            age: doctor.age,
+            age: doctor.age ?? undefined,
             avatar: doctor.avatar,
             email: doctor.user?.email,
             phone: doctor.user?.phone,
@@ -504,7 +504,11 @@ export class ReservationsService {
             degree: doctor.degree,
             languages: doctor.languages,
             bio: doctor.bio,
-            appoint_type: doctor.appoint_type,
+            appoint_type:
+              Array.isArray(doctor.appointment_types) &&
+              doctor.appointment_types.length > 0
+                ? doctor.appointment_types[0]
+                : undefined,
             is_active: doctor.is_active,
             branch_id: mainBranchId,
             experience_years: doctor.experience_years,
@@ -1202,7 +1206,7 @@ export class ReservationsService {
             clinicReservation.doctor_id,
             {
               name: clinicDoctor.user?.name || 'Unknown',
-              age: clinicDoctor.age,
+              age: clinicDoctor.age ?? undefined,
               avatar: clinicDoctor.avatar,
               email: clinicDoctor.user?.email,
               phone: clinicDoctor.user?.phone,
@@ -1211,7 +1215,11 @@ export class ReservationsService {
               degree: clinicDoctor.degree,
               languages: clinicDoctor.languages,
               bio: clinicDoctor.bio,
-              appoint_type: clinicDoctor.appoint_type,
+              appoint_type:
+                Array.isArray(clinicDoctor.appointment_types) &&
+                clinicDoctor.appointment_types.length > 0
+                  ? clinicDoctor.appointment_types[0]
+                  : undefined,
               is_active: clinicDoctor.is_active,
               branch_id: mainBranchId,
               experience_years: clinicDoctor.experience_years,

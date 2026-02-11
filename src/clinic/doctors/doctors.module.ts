@@ -14,6 +14,7 @@ import { BranchesModule as MainBranchesModule } from '../../branches/branches.mo
 import { WorkingHoursModule } from '../working-hours/working-hours.module';
 import { DoctorServicesModule } from '../doctor-services/doctor-services.module';
 import { DoctorBranchesModule } from '../doctor-branches/doctor-branches.module';
+import { DoctorFilesModule } from '../doctor-files/doctor-files.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { DoctorBranchesModule } from '../doctor-branches/doctor-branches.module'
     WorkingHoursModule,
     DoctorServicesModule,
     DoctorBranchesModule,
+    DoctorFilesModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
