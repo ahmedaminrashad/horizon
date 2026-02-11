@@ -106,7 +106,6 @@ export class WorkingHoursController {
 
   @Post()
   @Permissions(ClinicPermission.UPDATE_SETTING as string)
-
   @ApiOperation({
     summary: 'Set working hours for the clinic',
     description:
@@ -384,18 +383,19 @@ export class WorkingHoursController {
   @Get('doctors/:id')
   @Permissions(ClinicPermission.READ_SETTING as string)
   @ApiOperation({
-    summary: 'Get all working hours for a doctor',
-    description: 'Retrieve all working hours for a specific doctor',
+    summary: 'Get all working hours for a doctor (clinic)',
+    description:
+      'Retrieve all working hours for a doctor in the current clinic tenant.',
   })
   @ApiParam({
     name: 'id',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (clinic doctor id)',
     example: 1,
   })
   @ApiResponse({
     status: 200,
-    description: 'Doctor working hours retrieved successfully',
+    description: 'List of doctor working hours',
     type: [DoctorWorkingHour],
   })
   getDoctorWorkingHours(@Param('id', ParseIntPipe) id: number) {
@@ -405,13 +405,13 @@ export class WorkingHoursController {
   @Get('doctors/:doctorId/day/:day')
   @Permissions(ClinicPermission.READ_SETTING as string)
   @ApiOperation({
-    summary: 'Get doctor working hours by day',
-    description: 'Retrieve working hours for a doctor on a specific day',
+    summary: 'Get doctor working hours by day (clinic)',
+    description: 'Retrieve working hours for a doctor on a specific day.',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (clinic doctor id)',
     example: 1,
   })
   @ApiParam({
@@ -435,13 +435,13 @@ export class WorkingHoursController {
   @Get('doctors/:doctorId/branch/:branchId')
   @Permissions(ClinicPermission.READ_SETTING as string)
   @ApiOperation({
-    summary: 'Get doctor working hours by branch',
-    description: 'Retrieve working hours for a doctor at a specific branch',
+    summary: 'Get doctor working hours by branch (clinic)',
+    description: 'Retrieve working hours for a doctor at a specific branch.',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (clinic doctor id)',
     example: 1,
   })
   @ApiParam({
@@ -468,21 +468,22 @@ export class WorkingHoursController {
   @Post('doctors/:doctorId')
   @Permissions(ClinicPermission.UPDATE_SETTING as string)
   @ApiOperation({
-    summary: 'Create doctor working hours',
+    summary: 'Create doctor working hours (clinic)',
     description:
-      'Create a new working hour entry for a doctor. Validates for overlaps and invalid ranges.',
+      'Create working hour entries for a doctor. Send `days` (array of weekdays); one working hour is created per day with the same settings. Validates overlaps.',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (clinic doctor id)',
     example: 1,
   })
   @ApiBody({ type: ClinicCreateDoctorWorkingHoursDto })
   @ApiResponse({
     status: 201,
-    description: 'Doctor working hours created successfully',
-    type: DoctorWorkingHour,
+    description:
+      'Doctor working hours created (one per day in `days`). Returns the created working hours array.',
+    type: [DoctorWorkingHour],
   })
   @ApiResponse({
     status: 400,
@@ -498,35 +499,38 @@ export class WorkingHoursController {
   @Post('doctors/bulk')
   @Permissions(ClinicPermission.UPDATE_SETTING as string)
   @ApiOperation({
-    summary: 'Bulk create doctor working hours',
+    summary: 'Bulk create doctor working hours (clinic)',
     description:
-      'Create multiple working hour entries for a doctor at once. Validates for overlaps and invalid ranges.',
+      'Create working hour entries for a doctor. Each item has `days` (array); one working hour is created per day per item. Validates overlaps.',
   })
   @ApiBody({ type: CreateBulkDoctorWorkingHoursDto })
   @ApiResponse({
     status: 201,
-    description: 'Doctor working hours created successfully',
+    description:
+      'Doctor working hours created (one per day per item). Returns the created working hours array.',
     type: [DoctorWorkingHour],
   })
   @ApiResponse({
     status: 400,
     description: 'Invalid time ranges or overlaps detected',
   })
-  setBulkDoctorWorkingHours(@Body() createDto: CreateBulkDoctorWorkingHoursDto) {
+  setBulkDoctorWorkingHours(
+    @Body() createDto: CreateBulkDoctorWorkingHoursDto,
+  ) {
     return this.workingHoursService.setBulkDoctorWorkingHours(createDto);
   }
 
   @Post('doctors/:doctorId/update/:id')
   @Permissions(ClinicPermission.UPDATE_SETTING as string)
   @ApiOperation({
-    summary: 'Update doctor working hours',
+    summary: 'Update doctor working hour (clinic)',
     description:
-      'Update an existing working hour entry for a doctor. Validates for overlaps and invalid ranges.',
+      'Update an existing working hour by ID. Send only fields to change (e.g. start_time, end_time, branch_id). The day of the record cannot be changed. Body is partial; `days` is ignored.',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (clinic doctor id)',
     example: 1,
   })
   @ApiParam({
@@ -535,10 +539,13 @@ export class WorkingHoursController {
     description: 'Working hour ID',
     example: 1,
   })
-  @ApiBody({ type: ClinicCreateDoctorWorkingHoursDto })
+  @ApiBody({
+    type: ClinicCreateDoctorWorkingHoursDto,
+    description: 'Partial: only include fields to update. `days` is ignored.',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Doctor working hours updated successfully',
+    description: 'Doctor working hour updated successfully',
     type: DoctorWorkingHour,
   })
   @ApiResponse({
@@ -556,13 +563,13 @@ export class WorkingHoursController {
   @Delete('doctors/:doctorId/:id')
   @Permissions(ClinicPermission.UPDATE_SETTING as string)
   @ApiOperation({
-    summary: 'Delete doctor working hours',
-    description: 'Delete a specific working hour entry for a doctor',
+    summary: 'Delete doctor working hour (clinic)',
+    description: 'Delete a specific working hour entry for a doctor.',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (clinic doctor id)',
     example: 1,
   })
   @ApiParam({
@@ -573,7 +580,7 @@ export class WorkingHoursController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Doctor working hours deleted successfully',
+    description: 'Doctor working hour deleted successfully',
   })
   @ApiResponse({
     status: 400,
@@ -610,12 +617,13 @@ export class WorkingHoursController {
   @Permissions(ClinicPermission.UPDATE_SETTING as string)
   @ApiOperation({
     summary: 'Delete doctor working hours by day',
-    description: 'Delete all working hour entries for a doctor on a specific day',
+    description:
+      'Delete all working hour entries for a doctor on a specific day',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (clinic doctor id)',
     example: 1,
   })
   @ApiParam({

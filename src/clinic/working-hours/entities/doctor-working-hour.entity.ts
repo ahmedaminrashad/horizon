@@ -20,6 +20,7 @@ import { DayOfWeek } from './working-hour.entity';
 @Entity('doctor_working_hours')
 @Index('IDX_doctor_working_hours_doctor_day', ['doctor_id', 'day'])
 @Index('IDX_doctor_working_hours_branch', ['branch_id'])
+@Index('IDX_doctor_working_hours_clinic_id', ['clinic_id'])
 export class DoctorWorkingHour {
   @PrimaryGeneratedColumn()
   id: number;
@@ -30,6 +31,9 @@ export class DoctorWorkingHour {
   @ManyToOne(() => Doctor, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'doctor_id' })
   doctor: Doctor;
+
+  @Column({ name: 'clinic_id' })
+  clinic_id: number;
 
   @Column({
     type: 'enum',

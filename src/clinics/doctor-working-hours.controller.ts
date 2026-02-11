@@ -22,6 +22,7 @@ import {
   CreateDoctorWorkingHoursDto,
   CreateBulkDoctorWorkingHoursDto,
 } from './dto/create-doctor-working-hours.dto';
+import { UpdateDoctorWorkingHoursDto } from './dto/update-doctor-working-hours.dto';
 import { DayOfWeek, DoctorWorkingHour } from './entities/doctor-working-hour.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -123,20 +124,20 @@ export class DoctorWorkingHoursController {
   @Post()
   @Roles('admin')
   @ApiOperation({
-    summary: 'Create doctor working hours',
+    summary: 'Create doctor working hour (main DB)',
     description:
-      'Create a new working hour entry for a doctor. Validates for overlaps and invalid ranges. Automatically syncs to clinic database.',
+      'Create one working hour entry for a doctor (single day). Send `day` and times. `clinic_id` is set automatically from the doctor. Validates overlaps. Syncs to clinic database unless skipped.',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (main DB)',
     example: 1,
   })
   @ApiBody({ type: CreateDoctorWorkingHoursDto })
   @ApiResponse({
     status: 201,
-    description: 'Doctor working hours created successfully',
+    description: 'Doctor working hour created. Returns the created record.',
     type: DoctorWorkingHour,
   })
   @ApiResponse({
@@ -153,20 +154,20 @@ export class DoctorWorkingHoursController {
   @Post('bulk')
   @Roles('admin')
   @ApiOperation({
-    summary: 'Bulk create doctor working hours',
+    summary: 'Bulk create doctor working hours (main DB)',
     description:
-      'Create multiple working hour entries for a doctor at once. Validates for overlaps and invalid ranges. Automatically syncs to clinic database.',
+      'Create multiple working hour entries for a doctor. Each item has a single `day`; one record per item. `clinic_id` is set from the doctor. Validates overlaps. Syncs to clinic database.',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (main DB)',
     example: 1,
   })
   @ApiBody({ type: CreateBulkDoctorWorkingHoursDto })
   @ApiResponse({
     status: 201,
-    description: 'Doctor working hours created successfully',
+    description: 'Doctor working hours created. Returns the created records array.',
     type: [DoctorWorkingHour],
   })
   @ApiResponse({
@@ -180,14 +181,14 @@ export class DoctorWorkingHoursController {
   @Post(':id')
   @Roles('admin')
   @ApiOperation({
-    summary: 'Update doctor working hours',
+    summary: 'Update doctor working hour (main DB)',
     description:
-      'Update an existing working hour entry for a doctor. Validates for overlaps and invalid ranges. Automatically syncs to clinic database.',
+      'Update an existing working hour by ID. Send only fields to change (partial body). Validates overlaps. Syncs to clinic database.',
   })
   @ApiParam({
     name: 'doctorId',
     type: Number,
-    description: 'Doctor ID',
+    description: 'Doctor ID (main DB)',
     example: 1,
   })
   @ApiParam({
@@ -196,10 +197,13 @@ export class DoctorWorkingHoursController {
     description: 'Working hour ID',
     example: 1,
   })
-  @ApiBody({ type: CreateDoctorWorkingHoursDto })
+  @ApiBody({
+    type: UpdateDoctorWorkingHoursDto,
+    description: 'Partial body: only include fields to update',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Doctor working hours updated successfully',
+    description: 'Doctor working hour updated successfully',
     type: DoctorWorkingHour,
   })
   @ApiResponse({

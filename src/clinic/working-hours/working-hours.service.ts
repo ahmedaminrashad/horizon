@@ -12,6 +12,7 @@ import { WorkingHour, DayOfWeek } from './entities/working-hour.entity';
 import { BreakHour } from './entities/break-hour.entity';
 import { DoctorWorkingHour } from './entities/doctor-working-hour.entity';
 import { Doctor } from '../doctors/entities/doctor.entity';
+import { DoctorService } from '../doctor-services/entities/doctor-service.entity';
 import { CreateWorkingHoursDto } from './dto/create-working-hours.dto';
 import { CreateBreakHoursDto } from './dto/create-break-hours.dto';
 import {
@@ -22,6 +23,7 @@ import { ClinicWorkingHoursService } from '../../clinics/clinic-working-hours.se
 import { DoctorWorkingHoursService } from '../../clinics/doctor-working-hours.service';
 import type { CreateClinicWorkingHoursDto } from '../../clinics/dto/create-clinic-working-hours.dto';
 import type { CreateClinicBreakHoursDto } from '../../clinics/dto/create-clinic-break-hours.dto';
+import type { CreateDoctorWorkingHoursDto } from '../../clinics/dto/create-doctor-working-hours.dto';
 import { ClinicWorkingHour } from '../../clinics/entities/clinic-working-hour.entity';
 import { Doctor as MainDoctor } from '../../doctors/entities/doctor.entity';
 
@@ -98,6 +100,49 @@ export class WorkingHoursService {
 
     // Get repository from tenant DataSource directly to ensure we're using the correct database
     return tenantDataSource.getRepository<DoctorWorkingHour>(DoctorWorkingHour);
+  }
+
+  private async getDoctorServiceRepository(): Promise<
+    Repository<DoctorService>
+  > {
+    if (!this.tenantRepositoryService.isTenantContext()) {
+      throw new BadRequestException(
+        'Clinic context not found. Please ensure you are accessing this endpoint as a clinic user.',
+      );
+    }
+    const tenantDatabase =
+      this.tenantRepositoryService.getCurrentTenantDatabase();
+    if (!tenantDatabase) {
+      throw new BadRequestException(
+        'Tenant database context is not set. Please ensure you are accessing this endpoint as a clinic user.',
+      );
+    }
+    const tenantDataSource =
+      await this.tenantDataSourceService.getTenantDataSource(tenantDatabase);
+    if (!tenantDataSource || !tenantDataSource.isInitialized) {
+      throw new BadRequestException(
+        `Clinic database "${tenantDatabase}" is not accessible. Please ensure the database exists and migrations have been run.`,
+      );
+    }
+    return tenantDataSource.getRepository<DoctorService>(DoctorService);
+  }
+
+  /**
+   * Ensure doctor_service_id belongs to the given doctor (same clinic).
+   */
+  private async validateDoctorServiceForDoctor(
+    doctorServiceId: number,
+    doctorId: number,
+  ): Promise<void> {
+    const repo = await this.getDoctorServiceRepository();
+    const ds = await repo.findOne({
+      where: { id: doctorServiceId, doctor_id: doctorId },
+    });
+    if (!ds) {
+      throw new BadRequestException(
+        `Doctor service with ID ${doctorServiceId} is not found or does not belong to this doctor`,
+      );
+    }
   }
 
   private async getBreakHoursRepository(): Promise<Repository<BreakHour>> {
@@ -1120,16 +1165,33 @@ export class WorkingHoursService {
   }
 
   /**
-   * Create or update doctor working hours
+   * Create doctor working hours for multiple days (same settings per day).
    */
   async setDoctorWorkingHours(
     doctorId: number,
     createDto: ClinicCreateDoctorWorkingHoursDto,
-  ): Promise<DoctorWorkingHour> {
+  ): Promise<DoctorWorkingHour[]> {
+    const doctorRepository = await this.getDoctorRepository();
+    const doctor = await doctorRepository.findOne({
+      where: { id: doctorId },
+      select: ['id', 'clinic_id'],
+    });
+    if (!doctor) {
+      throw new BadRequestException(`Doctor with ID ${doctorId} not found`);
+    }
+    const clinicId = doctor.clinic_id;
+
+    if (createDto.doctor_service_id != null) {
+      await this.validateDoctorServiceForDoctor(
+        createDto.doctor_service_id,
+        doctorId,
+      );
+    }
+
     // Validate time range
     this.validateTimeRange(createDto.start_time, createDto.end_time);
 
-    // Validate break hours if provided (must be within working hours, and from < to)
+    // Validate break hours if provided
     if (createDto.break_hours_from != null || createDto.break_hours_to != null) {
       if (
         createDto.break_hours_from == null ||
@@ -1155,198 +1217,34 @@ export class WorkingHoursService {
     }
 
     const repository = await this.getDoctorWorkingHoursRepository();
-
-    // Check for existing working hours on the same day, branch, and time overlap
-    const whereCondition: any = {
-      doctor_id: doctorId,
-      day: createDto.day,
-      is_active: true,
-    };
-    if (createDto.branch_id !== undefined) {
-      whereCondition.branch_id = createDto.branch_id;
-    } else {
-      whereCondition.branch_id = null;
-    }
-    const existing = await repository.find({
-      where: whereCondition,
-    });
-
     const waterfall = createDto.waterfall ?? true;
     const sessionTime = createDto.session_time;
+    const allCreated: DoctorWorkingHour[] = [];
 
-    // If waterfall is false/0 and session_time is provided, generate multiple slots
-    if (!waterfall && sessionTime) {
-      const timeSlots = this.generateTimeSlots(
-        createDto.start_time,
-        createDto.end_time,
-        sessionTime,
-      );
-
-      if (timeSlots.length === 0) {
-        throw new BadRequestException(
-          'No time slots can be generated with the provided parameters',
-        );
-      }
-
-      // Check for overlaps with all slots
-      for (const existingHour of existing) {
-        for (const slot of timeSlots) {
-          if (
-            this.rangesOverlap(
-              existingHour.start_time,
-              existingHour.end_time,
-              slot.start_time,
-              slot.end_time,
-            )
-          ) {
-            throw new BadRequestException(
-              `Working hours overlap with existing schedule on ${createDto.day} ` +
-                `(${existingHour.start_time} - ${existingHour.end_time})`,
-            );
-          }
-        }
-      }
-
-      // Create multiple working hour records
-      const createdHours: DoctorWorkingHour[] = [];
-      for (const slot of timeSlots) {
-        const workingHourData: any = {
-          doctor_id: doctorId,
-          day: createDto.day,
-          start_time: slot.start_time,
-          end_time: slot.end_time,
-          is_active: createDto.is_active ?? true,
-          waterfall: false,
-          session_time: sessionTime,
-          busy: createDto.busy ?? false,
-          patients_limit: createDto.patients_limit ?? 1, // If not waterfall, default to 1
-        };
-        if (createDto.branch_id !== undefined) {
-          workingHourData.branch_id = createDto.branch_id;
-        }
-        if (createDto.doctor_service_id !== undefined) {
-          workingHourData.doctor_service_id = createDto.doctor_service_id;
-        }
-        if (createDto.appoint_type !== undefined) {
-          workingHourData.appoint_type = createDto.appoint_type;
-        }
-        // Break is not set per fixed slot; use single-record flow if break is needed
-        const workingHour = repository.create(workingHourData);
-        const saved = (await repository.save(
-          workingHour,
-        )) as unknown as DoctorWorkingHour;
-        createdHours.push(saved);
-      }
-
-      // Sync all created hours to main database
-      await this.syncDoctorWorkingHoursToMain(doctorId, createdHours);
-
-      // Return the first created hour for backward compatibility
-      return createdHours[0];
-    }
-
-    // Original logic for waterfall = true (single record)
-    // Check for overlaps
-    for (const existingHour of existing) {
-      if (
-        this.rangesOverlap(
-          existingHour.start_time,
-          existingHour.end_time,
-          createDto.start_time,
-          createDto.end_time,
-        )
-      ) {
-        throw new BadRequestException(
-          `Working hours overlap with existing schedule on ${createDto.day} ` +
-            `(${existingHour.start_time} - ${existingHour.end_time})`,
-        );
-      }
-    }
-
-    // Create new working hour
-    const workingHourData: any = {
-      doctor_id: doctorId,
-      day: createDto.day,
-      start_time: createDto.start_time,
-      end_time: createDto.end_time,
-      is_active: createDto.is_active ?? true,
-      waterfall: waterfall,
-      session_time: sessionTime,
-      busy: createDto.busy ?? false,
-      patients_limit: waterfall ? (createDto.patients_limit ?? null) : 1, // If not waterfall, set to 1
-    };
-    if (createDto.branch_id !== undefined) {
-      workingHourData.branch_id = createDto.branch_id;
-    }
-    if (createDto.doctor_service_id !== undefined) {
-      workingHourData.doctor_service_id = createDto.doctor_service_id;
-    }
-    if (createDto.appoint_type !== undefined) {
-      workingHourData.appoint_type = createDto.appoint_type;
-    }
-    workingHourData.break_hours_from =
-      createDto.break_hours_from ?? null;
-    workingHourData.break_hours_to = createDto.break_hours_to ?? null;
-    const workingHour = repository.create(workingHourData);
-
-    const saved = (await repository.save(
-      workingHour,
-    )) as unknown as DoctorWorkingHour;
-
-    // Sync to main database
-    await this.syncDoctorWorkingHoursToMain(doctorId, [saved]);
-
-    return saved;
-  }
-
-  /**
-   * Bulk create doctor working hours
-   */
-  async setBulkDoctorWorkingHours(
-    createDto: CreateBulkDoctorWorkingHoursDto,
-  ): Promise<DoctorWorkingHour[]> {
-    const repository = await this.getDoctorWorkingHoursRepository();
-    const createdHours: DoctorWorkingHour[] = [];
-
-    for (const workingHourDto of createDto.working_hours) {
-      // Validate time range
-      this.validateTimeRange(
-        workingHourDto.start_time,
-        workingHourDto.end_time,
-      );
-
-      const waterfall = workingHourDto.waterfall ?? true;
-      const sessionTime = workingHourDto.session_time;
-
-      // Check for existing working hours on the same day, branch, and time overlap
+    for (const day of createDto.days) {
       const whereCondition: any = {
-        doctor_id: createDto.doctor_id,
-        day: workingHourDto.day,
+        doctor_id: doctorId,
+        day,
         is_active: true,
       };
-      if (workingHourDto.branch_id !== undefined) {
-        whereCondition.branch_id = workingHourDto.branch_id;
+      if (createDto.branch_id !== undefined) {
+        whereCondition.branch_id = createDto.branch_id;
       } else {
         whereCondition.branch_id = null;
       }
-      const existing = await repository.find({
-        where: whereCondition,
-      });
+      const existing = await repository.find({ where: whereCondition });
 
-      // If waterfall is false/0 and session_time is provided, generate multiple slots
       if (!waterfall && sessionTime) {
         const timeSlots = this.generateTimeSlots(
-          workingHourDto.start_time,
-          workingHourDto.end_time,
+          createDto.start_time,
+          createDto.end_time,
           sessionTime,
         );
-
         if (timeSlots.length === 0) {
-          continue; // Skip this working hour if no slots can be generated
+          throw new BadRequestException(
+            'No time slots can be generated with the provided parameters',
+          );
         }
-
-        // Check for overlaps with all slots
-        let hasOverlap = false;
         for (const existingHour of existing) {
           for (const slot of timeSlots) {
             if (
@@ -1357,26 +1255,224 @@ export class WorkingHoursService {
                 slot.end_time,
               )
             ) {
+              throw new BadRequestException(
+                `Working hours overlap with existing schedule on ${day} ` +
+                  `(${existingHour.start_time} - ${existingHour.end_time})`,
+              );
+            }
+          }
+        }
+        for (const slot of timeSlots) {
+          const workingHourData: any = {
+            doctor_id: doctorId,
+            clinic_id: clinicId,
+            day,
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+            is_active: createDto.is_active ?? true,
+            waterfall: false,
+            session_time: sessionTime,
+            busy: createDto.busy ?? false,
+            patients_limit: createDto.patients_limit ?? 1,
+          };
+          if (createDto.branch_id !== undefined) {
+            workingHourData.branch_id = createDto.branch_id;
+          }
+          if (createDto.doctor_service_id !== undefined) {
+            workingHourData.doctor_service_id = createDto.doctor_service_id;
+          }
+          if (createDto.appoint_type !== undefined) {
+            workingHourData.appoint_type = createDto.appoint_type;
+          }
+          const workingHour = repository.create(workingHourData);
+          const saved = (await repository.save(
+            workingHour,
+          )) as unknown as DoctorWorkingHour;
+          allCreated.push(saved);
+        }
+      } else {
+        for (const existingHour of existing) {
+          if (
+            this.rangesOverlap(
+              existingHour.start_time,
+              existingHour.end_time,
+              createDto.start_time,
+              createDto.end_time,
+            )
+          ) {
+            throw new BadRequestException(
+              `Working hours overlap with existing schedule on ${day} ` +
+                `(${existingHour.start_time} - ${existingHour.end_time})`,
+            );
+          }
+        }
+        const workingHourData: any = {
+          doctor_id: doctorId,
+          clinic_id: clinicId,
+          day,
+          start_time: createDto.start_time,
+          end_time: createDto.end_time,
+          is_active: createDto.is_active ?? true,
+          waterfall,
+          session_time: sessionTime,
+          busy: createDto.busy ?? false,
+          patients_limit: waterfall ? (createDto.patients_limit ?? null) : 1,
+        };
+        if (createDto.branch_id !== undefined) {
+          workingHourData.branch_id = createDto.branch_id;
+        }
+        if (createDto.doctor_service_id !== undefined) {
+          workingHourData.doctor_service_id = createDto.doctor_service_id;
+        }
+        if (createDto.appoint_type !== undefined) {
+          workingHourData.appoint_type = createDto.appoint_type;
+        }
+        workingHourData.break_hours_from = createDto.break_hours_from ?? null;
+        workingHourData.break_hours_to = createDto.break_hours_to ?? null;
+        const workingHour = repository.create(workingHourData);
+        const saved = (await repository.save(
+          workingHour,
+        )) as unknown as DoctorWorkingHour;
+        allCreated.push(saved);
+      }
+    }
+
+    if (allCreated.length > 0) {
+      await this.syncDoctorWorkingHoursToMain(doctorId, allCreated);
+    }
+    return allCreated;
+  }
+
+  /**
+   * Bulk create doctor working hours
+   */
+  async setBulkDoctorWorkingHours(
+    createDto: CreateBulkDoctorWorkingHoursDto,
+  ): Promise<DoctorWorkingHour[]> {
+    const doctorRepository = await this.getDoctorRepository();
+    const doctor = await doctorRepository.findOne({
+      where: { id: createDto.doctor_id },
+      select: ['id', 'clinic_id'],
+    });
+    if (!doctor) {
+      throw new BadRequestException(
+        `Doctor with ID ${createDto.doctor_id} not found`,
+      );
+    }
+    const clinicId = doctor.clinic_id;
+
+    const repository = await this.getDoctorWorkingHoursRepository();
+    const createdHours: DoctorWorkingHour[] = [];
+
+    for (const workingHourDto of createDto.working_hours) {
+      if (workingHourDto.doctor_service_id != null) {
+        await this.validateDoctorServiceForDoctor(
+          workingHourDto.doctor_service_id,
+          createDto.doctor_id,
+        );
+      }
+      this.validateTimeRange(
+        workingHourDto.start_time,
+        workingHourDto.end_time,
+      );
+      const waterfall = workingHourDto.waterfall ?? true;
+      const sessionTime = workingHourDto.session_time;
+      const days = workingHourDto.days ?? [];
+
+      for (const day of days) {
+        const whereCondition: any = {
+          doctor_id: createDto.doctor_id,
+          day,
+          is_active: true,
+        };
+        if (workingHourDto.branch_id !== undefined) {
+          whereCondition.branch_id = workingHourDto.branch_id;
+        } else {
+          whereCondition.branch_id = null;
+        }
+        const existing = await repository.find({
+          where: whereCondition,
+        });
+
+        if (!waterfall && sessionTime) {
+          const timeSlots = this.generateTimeSlots(
+            workingHourDto.start_time,
+            workingHourDto.end_time,
+            sessionTime,
+          );
+          if (timeSlots.length === 0) continue;
+
+          let hasOverlap = false;
+          for (const existingHour of existing) {
+            for (const slot of timeSlots) {
+              if (
+                this.rangesOverlap(
+                  existingHour.start_time,
+                  existingHour.end_time,
+                  slot.start_time,
+                  slot.end_time,
+                )
+              ) {
+                hasOverlap = true;
+                break;
+              }
+            }
+            if (hasOverlap) break;
+          }
+          if (!hasOverlap) {
+            for (const slot of timeSlots) {
+              const workingHourData: any = {
+                doctor_id: createDto.doctor_id,
+                clinic_id: clinicId,
+                day,
+                start_time: slot.start_time,
+                end_time: slot.end_time,
+                is_active: workingHourDto.is_active ?? true,
+                waterfall: false,
+                session_time: sessionTime,
+                busy: workingHourDto.busy ?? false,
+                patients_limit: workingHourDto.patients_limit ?? 1,
+              };
+              if (workingHourDto.branch_id !== undefined) {
+                workingHourData.branch_id = workingHourDto.branch_id;
+              }
+              if (workingHourDto.doctor_service_id !== undefined) {
+                workingHourData.doctor_service_id = workingHourDto.doctor_service_id;
+              }
+              const workingHour = repository.create(workingHourData);
+              const saved = (await repository.save(
+                workingHour,
+              )) as unknown as DoctorWorkingHour;
+              createdHours.push(saved);
+            }
+          }
+        } else {
+          let hasOverlap = false;
+          for (const existingHour of existing) {
+            if (
+              this.rangesOverlap(
+                existingHour.start_time,
+                existingHour.end_time,
+                workingHourDto.start_time,
+                workingHourDto.end_time,
+              )
+            ) {
               hasOverlap = true;
               break;
             }
           }
-          if (hasOverlap) break;
-        }
-
-        if (!hasOverlap) {
-          // Create multiple working hour records
-          for (const slot of timeSlots) {
+          if (!hasOverlap) {
             const workingHourData: any = {
               doctor_id: createDto.doctor_id,
-              day: workingHourDto.day,
-              start_time: slot.start_time,
-              end_time: slot.end_time,
+              clinic_id: clinicId,
+              day,
+              start_time: workingHourDto.start_time,
+              end_time: workingHourDto.end_time,
               is_active: workingHourDto.is_active ?? true,
-              waterfall: false,
+              waterfall,
               session_time: sessionTime,
               busy: workingHourDto.busy ?? false,
-              patients_limit: workingHourDto.patients_limit ?? 1, // If not waterfall, default to 1
+              patients_limit: waterfall ? (workingHourDto.patients_limit ?? null) : 1,
             };
             if (workingHourDto.branch_id !== undefined) {
               workingHourData.branch_id = workingHourDto.branch_id;
@@ -1390,49 +1486,6 @@ export class WorkingHoursService {
             )) as unknown as DoctorWorkingHour;
             createdHours.push(saved);
           }
-        }
-      } else {
-        // Original logic for waterfall = true (single record)
-        // Check for overlaps
-        let hasOverlap = false;
-        for (const existingHour of existing) {
-          if (
-            this.rangesOverlap(
-              existingHour.start_time,
-              existingHour.end_time,
-              workingHourDto.start_time,
-              workingHourDto.end_time,
-            )
-          ) {
-            hasOverlap = true;
-            break;
-          }
-        }
-
-        if (!hasOverlap) {
-          const workingHourData: any = {
-            doctor_id: createDto.doctor_id,
-            day: workingHourDto.day,
-            start_time: workingHourDto.start_time,
-            end_time: workingHourDto.end_time,
-            is_active: workingHourDto.is_active ?? true,
-            waterfall: waterfall,
-            session_time: sessionTime,
-            busy: workingHourDto.busy ?? false,
-            patients_limit: waterfall ? (workingHourDto.patients_limit ?? null) : 1, // If not waterfall, set to 1
-          };
-          if (workingHourDto.branch_id !== undefined) {
-            workingHourData.branch_id = workingHourDto.branch_id;
-          }
-          if (workingHourDto.doctor_service_id !== undefined) {
-            workingHourData.doctor_service_id = workingHourDto.doctor_service_id;
-          }
-          const workingHour = repository.create(workingHourData);
-
-          const saved = (await repository.save(
-            workingHour,
-          )) as unknown as DoctorWorkingHour;
-          createdHours.push(saved);
         }
       }
     }
@@ -1462,6 +1515,13 @@ export class WorkingHoursService {
       throw new BadRequestException(`Working hour with ID ${id} not found`);
     }
 
+    if (updateDto.doctor_service_id != null) {
+      await this.validateDoctorServiceForDoctor(
+        updateDto.doctor_service_id,
+        workingHour.doctor_id,
+      );
+    }
+
     // If updating time range, validate it
     const startTime = updateDto.start_time ?? workingHour.start_time;
     const endTime = updateDto.end_time ?? workingHour.end_time;
@@ -1473,7 +1533,7 @@ export class WorkingHoursService {
       const existing = await repository.find({
         where: {
           doctor_id: workingHour.doctor_id,
-          day: updateDto.day ?? workingHour.day,
+          day: workingHour.day,
           branch_id: updateDto.branch_id ?? workingHour.branch_id ?? null,
           is_active: true,
         },
@@ -1490,7 +1550,7 @@ export class WorkingHoursService {
             )
           ) {
             throw new BadRequestException(
-              `Working hours overlap with existing schedule on ${updateDto.day ?? workingHour.day} ` +
+              `Working hours overlap with existing schedule on ${workingHour.day} ` +
                 `(${existingHour.start_time} - ${existingHour.end_time})`,
             );
           }
@@ -1515,7 +1575,7 @@ export class WorkingHoursService {
 
     // Update fields
     Object.assign(workingHour, {
-      day: updateDto.day ?? workingHour.day,
+      day: workingHour.day,
       branch_id: updateDto.branch_id ?? workingHour.branch_id,
       doctor_service_id:
         updateDto.doctor_service_id !== undefined
@@ -1616,13 +1676,11 @@ export class WorkingHoursService {
         return;
       }
 
-      // Sync each working hour to main database
+      // Sync each working hour to main database (main DB uses single day per record)
       for (const workingHour of workingHoursArray) {
-        // Convert clinic working hour to main database DTO format
-        const createDto: ClinicCreateDoctorWorkingHoursDto = {
+        const createDto: CreateDoctorWorkingHoursDto = {
           day: workingHour.day,
           branch_id: workingHour.branch_id ?? undefined,
-          doctor_service_id: workingHour.doctor_service_id ?? undefined,
           start_time: workingHour.start_time,
           end_time: workingHour.end_time,
           is_active: workingHour.is_active,
@@ -1632,7 +1690,6 @@ export class WorkingHoursService {
           patients_limit: workingHour.patients_limit ?? null,
         };
 
-        // Sync to main database (skip clinic sync to prevent circular sync)
         await this.doctorWorkingHoursService.setWorkingHours(
           mainDoctor.id,
           createDto,

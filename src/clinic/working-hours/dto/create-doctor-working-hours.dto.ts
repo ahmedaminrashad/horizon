@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { PartialType } from '@nestjs/swagger';
 import {
   IsEnum,
   IsString,
@@ -7,8 +8,9 @@ import {
   IsOptional,
   IsBoolean,
   IsInt,
-  IsNumber,
+  IsArray,
   Min,
+  ArrayMinSize,
 } from 'class-validator';
 import { DayOfWeek } from '../entities/working-hour.entity';
 import { AppointType } from '../../doctors/entities/doctor.entity';
@@ -18,13 +20,16 @@ import { AppointType } from '../../doctors/entities/doctor.entity';
  */
 export class ClinicCreateDoctorWorkingHoursDto {
   @ApiProperty({
-    description: 'Day of the week',
+    description:
+      'Days of the week (creates one working hour per day with same settings)',
     enum: DayOfWeek,
-    example: DayOfWeek.MONDAY,
+    isArray: true,
+    example: [DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY],
   })
-  @IsEnum(DayOfWeek)
-  @IsNotEmpty()
-  day: DayOfWeek;
+  @IsArray()
+  @ArrayMinSize(1, { message: 'At least one day is required' })
+  @IsEnum(DayOfWeek, { each: true })
+  days: DayOfWeek[];
 
   @ApiProperty({
     description: 'Branch ID (optional, null for all branches)',
@@ -60,7 +65,8 @@ export class ClinicCreateDoctorWorkingHoursDto {
   end_time: string;
 
   @ApiProperty({
-    description: 'Break start time in HH:MM:SS format (must be within start_time–end_time)',
+    description:
+      'Break start time in HH:MM:SS format (must be within start_time–end_time)',
     example: '13:00:00',
     required: false,
   })
@@ -72,7 +78,8 @@ export class ClinicCreateDoctorWorkingHoursDto {
   break_hours_from?: string;
 
   @ApiProperty({
-    description: 'Break end time in HH:MM:SS format (must be within start_time–end_time, after break_hours_from)',
+    description:
+      'Break end time in HH:MM:SS format (must be within start_time–end_time, after break_hours_from)',
     example: '14:00:00',
     required: false,
   })
@@ -128,7 +135,8 @@ export class ClinicCreateDoctorWorkingHoursDto {
   busy?: boolean;
 
   @ApiProperty({
-    description: 'Maximum number of patients allowed for this slot. If not provided, will be set to 1 when waterfall is false.',
+    description:
+      'Maximum number of patients allowed for this slot. If not provided, will be set to 1 when waterfall is false.',
     type: Number,
     required: false,
     example: 5,
@@ -150,7 +158,7 @@ export class ClinicCreateDoctorWorkingHoursDto {
 
   @ApiProperty({
     description:
-      'Doctor service ID (from doctor_services) to associate with this working hour',
+      'Doctor service ID (from doctor_services) to associate with this working hour. Must belong to the same doctor.',
     type: Number,
     required: false,
     example: 1,
@@ -160,6 +168,14 @@ export class ClinicCreateDoctorWorkingHoursDto {
   @Min(1)
   doctor_service_id?: number;
 }
+
+/**
+ * DTO for updating a single doctor working hour (clinic).
+ * Partial of create DTO; `days` is ignored (used only on create).
+ */
+export class UpdateClinicDoctorWorkingHoursDto extends PartialType(
+  ClinicCreateDoctorWorkingHoursDto,
+) {}
 
 /**
  * DTO for bulk creating doctor working hours

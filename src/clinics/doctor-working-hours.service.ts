@@ -227,6 +227,7 @@ export class DoctorWorkingHoursService {
       for (const slot of timeSlots) {
         const workingHourData: any = {
           doctor_id: doctorId,
+          clinic_id: doctor.clinic_id,
           day: createDto.day,
           start_time: slot.start_time,
           end_time: slot.end_time,
@@ -275,6 +276,7 @@ export class DoctorWorkingHoursService {
     // Create new working hour
     const workingHourData: any = {
       doctor_id: doctorId,
+      clinic_id: doctor.clinic_id,
       day: createDto.day,
       start_time: createDto.start_time,
       end_time: createDto.end_time,
@@ -382,6 +384,7 @@ export class DoctorWorkingHoursService {
           for (const slot of timeSlots) {
             const workingHourData: any = {
               doctor_id: createDto.doctor_id,
+              clinic_id: doctor.clinic_id,
               day: workingHourDto.day,
               start_time: slot.start_time,
               end_time: slot.end_time,
@@ -427,6 +430,7 @@ export class DoctorWorkingHoursService {
         if (!hasOverlap) {
           const workingHourData: any = {
             doctor_id: createDto.doctor_id,
+            clinic_id: doctor.clinic_id,
             day: workingHourDto.day,
             start_time: workingHourDto.start_time,
             end_time: workingHourDto.end_time,
@@ -643,6 +647,7 @@ export class DoctorWorkingHoursService {
           // Create new
           const clinicWorkingHourData: any = {
             doctor_id: doctor.clinic_doctor_id,
+            clinic_id: doctor.clinic_id,
             day: workingHour.day,
             start_time: workingHour.start_time,
             end_time: workingHour.end_time,
