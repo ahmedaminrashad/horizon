@@ -60,6 +60,30 @@ export class ClinicCreateDoctorWorkingHoursDto {
   end_time: string;
 
   @ApiProperty({
+    description: 'Break start time in HH:MM:SS format (must be within start_time–end_time)',
+    example: '13:00:00',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/, {
+    message: 'break_hours_from must be in HH:MM:SS format',
+  })
+  break_hours_from?: string;
+
+  @ApiProperty({
+    description: 'Break end time in HH:MM:SS format (must be within start_time–end_time, after break_hours_from)',
+    example: '14:00:00',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/, {
+    message: 'break_hours_to must be in HH:MM:SS format',
+  })
+  break_hours_to?: string;
+
+  @ApiProperty({
     description:
       'Session duration in HH:MM:SS format (e.g., 00:30:00 for 30 minutes)',
     example: '00:30:00',
@@ -92,16 +116,6 @@ export class ClinicCreateDoctorWorkingHoursDto {
   @IsOptional()
   @IsBoolean()
   waterfall?: boolean;
-
-  @ApiProperty({
-    description: 'Fees for this working hour slot (required)',
-    type: Number,
-    example: 100.5,
-  })
-  @IsNotEmpty()
-  @IsNumber()
-  @Min(0)
-  fees: number;
 
   @ApiProperty({
     description: 'Whether this working hour slot is busy',

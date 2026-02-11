@@ -119,10 +119,18 @@ export class DoctorsController {
           type: 'object',
           properties: {
             id: { type: 'number' },
-            age: { type: 'number' },
+            age: { type: 'number', nullable: true },
+            date_of_birth: { type: 'string', format: 'date', nullable: true },
+            gender: { type: 'string', nullable: true },
+            second_phone: { type: 'string', nullable: true },
             department: { type: 'string', enum: Object.values(Department) },
             user_id: { type: 'number' },
             clinic_id: { type: 'number' },
+            appointment_types: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'e.g. in-clinic, online, home',
+            },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
           },
@@ -447,7 +455,85 @@ export class DoctorsController {
     description: 'Clinic ID (can be from JWT token or route parameter)',
   })
   @ApiParam({ name: 'doctorId', type: Number, description: 'Doctor ID' })
-  @ApiResponse({ status: 200, description: 'Doctor found' })
+  @ApiResponse({
+    status: 200,
+    description: 'Doctor found',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number' },
+        age: { type: 'number', nullable: true },
+        date_of_birth: { type: 'string', format: 'date', nullable: true },
+        gender: { type: 'string', nullable: true },
+        second_phone: { type: 'string', nullable: true },
+        department: { type: 'string', enum: Object.values(Department) },
+        user_id: { type: 'number' },
+        clinic_id: { type: 'number' },
+        user: {
+          type: 'object',
+          nullable: true,
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string', nullable: true },
+            phone: { type: 'string' },
+            email: { type: 'string', nullable: true },
+          },
+        },
+        doctorBranches: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              doctor_id: { type: 'number' },
+              branch_id: { type: 'number' },
+            },
+          },
+        },
+        doctorServices: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              doctor_id: { type: 'number' },
+              service_id: { type: 'number' },
+              duration: { type: 'number', nullable: true },
+              price: { type: 'number', nullable: true },
+              service_type: { type: 'string', nullable: true },
+              service: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number' },
+                  name: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        doctorFiles: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              doctor_id: { type: 'number' },
+              file_path: { type: 'string' },
+              file_name: { type: 'string', nullable: true },
+              file_type: { type: 'string', nullable: true },
+            },
+          },
+        },
+        appointment_types: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'e.g. in-clinic, online, home',
+        },
+        createdAt: { type: 'string', format: 'date-time' },
+        updatedAt: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
   @ApiResponse({ status: 404, description: 'Doctor not found' })
   findOne(@ClinicId() clinicId: number, @Param('doctorId') doctorId: string) {
     if (!clinicId) {

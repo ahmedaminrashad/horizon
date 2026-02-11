@@ -59,6 +59,18 @@ export class ReservationsService {
   }
 
   /**
+   * Get reservation fees from doctor service price (working hour's linked doctor_service).
+   * Returns 0 if no doctor service or price is null/undefined.
+   */
+  private getFeesFromDoctorService(
+    doctorService: { price?: number | string | null } | null | undefined,
+  ): number {
+    if (doctorService?.price == null) return 0;
+    const n = Number(doctorService.price);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  /**
    * Get last_visit and next_visit dates per patient (clinic DB).
    */
   private async getClinicPatientVisitDates(
@@ -163,7 +175,10 @@ export class ReservationsService {
       next_visit: null,
     };
     const patient = r.patient as { name?: string } | undefined;
-    const doctor = r.doctor as { user?: { name?: string } } | undefined;
+    const doctor = r.doctor as {
+      user?: { name?: string };
+      appointment_types?: string[];
+    } | undefined;
     return {
       ...r,
       time: wh?.start_time ?? null,
@@ -177,6 +192,7 @@ export class ReservationsService {
       schedule_type:
         wh != null ? (wh.waterfall ? 'waterfall' : 'fixed') : null,
       appoint_type: r.appoint_type ?? wh?.appoint_type ?? null,
+      appointment_types: doctor?.appointment_types ?? null,
       patient_last_visit: visits.last_visit,
       patient_next_visit: visits.next_visit,
     };
@@ -232,16 +248,15 @@ export class ReservationsService {
       reservationDate,
     );
     
-    // Get fees from working hour
-    const fees = workingHour.fees ?? 0;
-    
+    const fees = this.getFeesFromDoctorService(workingHour.doctor_service);
+
     const reservation = repository.create({
       ...createReservationDto,
       patient_id: patientId, // Set from authenticated user
       date: reservationDate, // Date only
       status: ReservationStatus.PENDING, // Always default to PENDING
       paid: false, // Default to false
-      fees: fees, // Set from working hour
+      fees, // From doctor service linked to working hour
     });
 
     const savedReservation = await repository.save(reservation);
@@ -315,9 +330,10 @@ export class ReservationsService {
       );
     }
 
-    // Get the working hour
+    // Get the working hour with doctor_service for fees
     const workingHour = await workingHourRepository.findOne({
       where: { id: workingHourId },
+      relations: ['doctor_service'],
     });
 
     if (!workingHour) {
@@ -782,10 +798,25 @@ export class ReservationsService {
       );
     }
     
-    // Update fees from working hour if working hour changed
-    const updatedFees = updateReservationDto.doctor_working_hour_id !== undefined 
-      ? (workingHour.fees ?? reservation.fees)
-      : reservation.fees;
+    // When changing working hour, set fees from new working hour's doctor service; otherwise keep or use DTO
+    let updatedFees: number;
+    if (updateReservationDto.doctor_working_hour_id !== undefined) {
+      const whRepo = await this.tenantRepositoryService.getRepository<DoctorWorkingHour>(DoctorWorkingHour);
+      const newWorkingHour = whRepo
+        ? await whRepo.findOne({
+            where: { id: updateReservationDto.doctor_working_hour_id },
+            relations: ['doctor_service'],
+          })
+        : null;
+      updatedFees = newWorkingHour
+        ? this.getFeesFromDoctorService(newWorkingHour.doctor_service)
+        : reservation.fees;
+    } else {
+      updatedFees =
+        updateReservationDto.fees !== undefined
+          ? updateReservationDto.fees
+          : reservation.fees;
+    }
 
     const updateData: Partial<Reservation> = {
       ...updateReservationDto,
@@ -924,6 +955,7 @@ export class ReservationsService {
 
     const workingHour = await workingHourRepository.findOne({
       where: { id: createMainUserReservationDto.doctor_working_hour_id },
+      relations: ['doctor_service'],
     });
 
     if (!workingHour) {
@@ -955,10 +987,9 @@ export class ReservationsService {
       reservationDate,
     );
 
-    // Get fees from working hour
-    const fees = workingHour.fees ?? 0;
+    const fees = this.getFeesFromDoctorService(workingHour.doctor_service);
 
-    // Create reservation
+    // Create reservation (fees from doctor service linked to working hour)
     const reservation = reservationRepository.create({
       doctor_id: createMainUserReservationDto.doctor_id,
       patient_id: clinicUser.id,
@@ -966,7 +997,7 @@ export class ReservationsService {
       date: reservationDate,
       status: ReservationStatus.PENDING,
       paid: false,
-      fees: fees,
+      fees,
       main_user_id: mainUser.id,
     });
 

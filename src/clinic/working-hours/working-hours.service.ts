@@ -1129,6 +1129,31 @@ export class WorkingHoursService {
     // Validate time range
     this.validateTimeRange(createDto.start_time, createDto.end_time);
 
+    // Validate break hours if provided (must be within working hours, and from < to)
+    if (createDto.break_hours_from != null || createDto.break_hours_to != null) {
+      if (
+        createDto.break_hours_from == null ||
+        createDto.break_hours_to == null
+      ) {
+        throw new BadRequestException(
+          'Both break_hours_from and break_hours_to must be provided together',
+        );
+      }
+      this.validateTimeRange(
+        createDto.break_hours_from,
+        createDto.break_hours_to,
+      );
+      const workStart = this.timeToMinutes(createDto.start_time);
+      const workEnd = this.timeToMinutes(createDto.end_time);
+      const breakStart = this.timeToMinutes(createDto.break_hours_from);
+      const breakEnd = this.timeToMinutes(createDto.break_hours_to);
+      if (breakStart < workStart || breakEnd > workEnd) {
+        throw new BadRequestException(
+          `Break time ${createDto.break_hours_from}-${createDto.break_hours_to} must be within working hours ${createDto.start_time}-${createDto.end_time}`,
+        );
+      }
+    }
+
     const repository = await this.getDoctorWorkingHoursRepository();
 
     // Check for existing working hours on the same day, branch, and time overlap
@@ -1193,7 +1218,6 @@ export class WorkingHoursService {
           is_active: createDto.is_active ?? true,
           waterfall: false,
           session_time: sessionTime,
-          fees: createDto.fees,
           busy: createDto.busy ?? false,
           patients_limit: createDto.patients_limit ?? 1, // If not waterfall, default to 1
         };
@@ -1203,6 +1227,10 @@ export class WorkingHoursService {
         if (createDto.doctor_service_id !== undefined) {
           workingHourData.doctor_service_id = createDto.doctor_service_id;
         }
+        if (createDto.appoint_type !== undefined) {
+          workingHourData.appoint_type = createDto.appoint_type;
+        }
+        // Break is not set per fixed slot; use single-record flow if break is needed
         const workingHour = repository.create(workingHourData);
         const saved = (await repository.save(
           workingHour,
@@ -1244,7 +1272,6 @@ export class WorkingHoursService {
       is_active: createDto.is_active ?? true,
       waterfall: waterfall,
       session_time: sessionTime,
-      fees: createDto.fees,
       busy: createDto.busy ?? false,
       patients_limit: waterfall ? (createDto.patients_limit ?? null) : 1, // If not waterfall, set to 1
     };
@@ -1254,6 +1281,12 @@ export class WorkingHoursService {
     if (createDto.doctor_service_id !== undefined) {
       workingHourData.doctor_service_id = createDto.doctor_service_id;
     }
+    if (createDto.appoint_type !== undefined) {
+      workingHourData.appoint_type = createDto.appoint_type;
+    }
+    workingHourData.break_hours_from =
+      createDto.break_hours_from ?? null;
+    workingHourData.break_hours_to = createDto.break_hours_to ?? null;
     const workingHour = repository.create(workingHourData);
 
     const saved = (await repository.save(
@@ -1342,7 +1375,6 @@ export class WorkingHoursService {
               is_active: workingHourDto.is_active ?? true,
               waterfall: false,
               session_time: sessionTime,
-              fees: workingHourDto.fees,
               busy: workingHourDto.busy ?? false,
               patients_limit: workingHourDto.patients_limit ?? 1, // If not waterfall, default to 1
             };
@@ -1386,7 +1418,6 @@ export class WorkingHoursService {
             is_active: workingHourDto.is_active ?? true,
             waterfall: waterfall,
             session_time: sessionTime,
-            fees: workingHourDto.fees,
             busy: workingHourDto.busy ?? false,
             patients_limit: waterfall ? (workingHourDto.patients_limit ?? null) : 1, // If not waterfall, set to 1
           };
@@ -1501,10 +1532,6 @@ export class WorkingHoursService {
         updateDto.session_time !== undefined
           ? updateDto.session_time
           : workingHour.session_time,
-      fees:
-        updateDto.fees !== undefined
-          ? updateDto.fees
-          : workingHour.fees,
       busy:
         updateDto.busy !== undefined
           ? updateDto.busy
@@ -1601,7 +1628,6 @@ export class WorkingHoursService {
           is_active: workingHour.is_active,
           waterfall: workingHour.waterfall,
           session_time: workingHour.session_time,
-          fees: workingHour.fees ?? 0,
           busy: workingHour.busy ?? false,
           patients_limit: workingHour.patients_limit ?? null,
         };

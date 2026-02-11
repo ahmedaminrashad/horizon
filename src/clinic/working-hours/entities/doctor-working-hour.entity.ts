@@ -64,6 +64,22 @@ export class DoctorWorkingHour {
   end_time: string;
 
   @Column({
+    name: 'break_hours_from',
+    type: 'time',
+    nullable: true,
+    comment: 'Start time of break within this working hour (e.g., 13:00:00)',
+  })
+  break_hours_from: string | null;
+
+  @Column({
+    name: 'break_hours_to',
+    type: 'time',
+    nullable: true,
+    comment: 'End time of break within this working hour (e.g., 14:00:00)',
+  })
+  break_hours_to: string | null;
+
+  @Column({
     type: 'time',
     nullable: true,
     comment: 'Session duration (e.g., 00:30:00 for 30 minutes)',
@@ -84,15 +100,6 @@ export class DoctorWorkingHour {
     if false, appointments will be rejected if the slot is not available`,
   })
   waterfall: boolean;
-
-  @Column({
-    type: 'decimal',
-    precision: 10,
-    scale: 2,
-    nullable: false,
-    comment: 'Fees for this working hour slot',
-  })
-  fees: number;
 
   @Column({
     type: 'boolean',
