@@ -118,18 +118,86 @@ export class DoctorsService {
     return sanitizeUserInEntity(doctorWithUser || savedDoctor);
   }
 
-  async findAll(clinicId: number, page: number = 1, limit: number = 10) {
+  async findAll(
+    clinicId: number,
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    specialty?: string,
+  ) {
     const repository = await this.getRepository();
     const skip = (page - 1) * limit;
 
-    const [data, total] = await repository.findAndCount({
-      relations: ['user', 'slotTemplates', 'doctorBranches', 'doctorServices', 'doctorServices.service'],
-      skip,
-      take: limit,
-      order: {
-        createdAt: 'DESC',
-      },
-    });
+    const searchTrimmed = search?.trim();
+    const hasSearch = searchTrimmed && searchTrimmed.length > 0;
+    const searchId = hasSearch ? parseInt(searchTrimmed, 10) : NaN;
+    const isNumericId =
+      !Number.isNaN(searchId) && String(searchId) === searchTrimmed;
+
+    const specialtyList =
+      specialty
+        ?.split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0) ?? [];
+    const hasSpecialtyFilter = specialtyList.length > 0;
+
+    let data: Doctor[];
+    let total: number;
+
+    if (hasSearch || hasSpecialtyFilter) {
+      const qb = repository
+        .createQueryBuilder('doctor')
+        .leftJoinAndSelect('doctor.user', 'user')
+        .leftJoinAndSelect('doctor.slotTemplates', 'slotTemplates')
+        .leftJoinAndSelect('doctor.doctorBranches', 'doctorBranches')
+        .leftJoinAndSelect('doctor.doctorServices', 'doctorServices')
+        .leftJoinAndSelect('doctorServices.service', 'service')
+        .orderBy('doctor.createdAt', 'DESC')
+        .skip(skip)
+        .take(limit);
+
+      const params: Record<string, string | number | string[]> = {};
+
+      if (hasSearch) {
+        const likeArg = `%${searchTrimmed.replace(/%/g, '\\%')}%`;
+        const orConditions: string[] = [];
+        params.like = likeArg;
+
+        if (isNumericId) {
+          orConditions.push('doctor.id = :searchId');
+          params.searchId = searchId;
+        }
+        orConditions.push(
+          'user.name LIKE :like',
+          'user.phone LIKE :like',
+          'user.email LIKE :like',
+        );
+        qb.andWhere(`(${orConditions.join(' OR ')})`);
+      }
+
+      if (hasSpecialtyFilter) {
+        qb.andWhere('doctor.specialty IN (:...specialties)');
+        params.specialties = specialtyList;
+      }
+
+      qb.setParameters(params);
+      [data, total] = await qb.getManyAndCount();
+    } else {
+      [data, total] = await repository.findAndCount({
+        relations: [
+          'user',
+          'slotTemplates',
+          'doctorBranches',
+          'doctorServices',
+          'doctorServices.service',
+        ],
+        skip,
+        take: limit,
+        order: {
+          createdAt: 'DESC',
+        },
+      });
+    }
 
     const totalPages = Math.ceil(total / limit);
 

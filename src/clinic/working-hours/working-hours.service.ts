@@ -13,6 +13,7 @@ import { BreakHour } from './entities/break-hour.entity';
 import { DoctorWorkingHour } from './entities/doctor-working-hour.entity';
 import { Doctor } from '../doctors/entities/doctor.entity';
 import { DoctorService } from '../doctor-services/entities/doctor-service.entity';
+import { Service } from '../services/entities/service.entity';
 import { CreateWorkingHoursDto } from './dto/create-working-hours.dto';
 import { CreateBreakHoursDto } from './dto/create-break-hours.dto';
 import {
@@ -128,16 +129,17 @@ export class WorkingHoursService {
   }
 
   /**
-   * Ensure each doctor_service id belongs to the given doctor; returns loaded DoctorService[].
+   * Ensure each doctor_service id belongs to the given doctor; returns loaded DoctorService[] with service relation (for waterfall validation).
    */
   private async getDoctorServicesByIdsAndDoctor(
     ids: number[],
     doctorId: number,
-  ): Promise<DoctorService[]> {
+  ): Promise<(DoctorService & { service?: Service })[]> {
     if (!ids?.length) return [];
     const repo = await this.getDoctorServiceRepository();
     const services = await repo.find({
       where: { id: In(ids), doctor_id: doctorId },
+      relations: ['service'],
     });
     if (services.length !== ids.length) {
       const foundIds = new Set(services.map((s) => s.id));
@@ -147,6 +149,29 @@ export class WorkingHoursService {
       );
     }
     return services;
+  }
+
+  /**
+   * Validate that all linked services have waterfall equal to the doctor working hour's waterfall.
+   */
+  private validateServicesWaterfallMatches(
+    doctorServices: (DoctorService & { service?: Service })[],
+    workingHourWaterfall: boolean,
+  ): void {
+    if (doctorServices.length === 0) return;
+    for (const ds of doctorServices) {
+      const serviceWaterfall = ds.service?.waterfall;
+      if (
+        serviceWaterfall !== undefined &&
+        serviceWaterfall !== workingHourWaterfall
+      ) {
+        const serviceName = ds.service?.name ?? `service_id ${ds.service_id}`;
+        throw new BadRequestException(
+          `Service "${serviceName}" has waterfall=${serviceWaterfall}, but doctor working hour has waterfall=${workingHourWaterfall}. ` +
+            'Linked services must have the same waterfall value as the working hour.',
+        );
+      }
+    }
   }
 
   private async getBreakHoursRepository(): Promise<Repository<BreakHour>> {
@@ -1114,6 +1139,7 @@ export class WorkingHoursService {
       doctor_id?: number;
       service_id?: number;
       clinic_id?: number;
+      appointment_type?: string;
     },
   ): Promise<DoctorWorkingHour[]> {
     const repository = await this.getDoctorWorkingHoursRepository();
@@ -1146,7 +1172,10 @@ export class WorkingHoursService {
     if (day) where.day = day;
     if (filters?.clinic_id != null) where.clinic_id = filters.clinic_id;
 
-    if (filters?.service_id != null) {
+    const useQb =
+      filters?.service_id != null || (filters?.appointment_type?.trim()?.length ?? 0) > 0;
+
+    if (useQb) {
       const qb = repository
         .createQueryBuilder('dwh')
         .leftJoinAndSelect('dwh.branch', 'branch')
@@ -1154,16 +1183,23 @@ export class WorkingHoursService {
         .leftJoinAndSelect('ds.service', 'svc')
         .where('dwh.doctor_id = :doctorId', { doctorId: effectiveDoctorId });
       if (day) qb.andWhere('dwh.day = :day', { day });
-      if (filters.clinic_id != null)
+      if (filters?.clinic_id != null)
         qb.andWhere('dwh.clinic_id = :clinicId', {
           clinicId: filters.clinic_id,
         });
-      qb.andWhere(
-        'EXISTS (SELECT 1 FROM doctor_working_hour_doctor_services_doctor_service j JOIN doctor_services ds2 ON j.doctor_service_id = ds2.id WHERE j.doctor_working_hour_id = dwh.id AND ds2.service_id = :serviceId)',
-        { serviceId: filters.service_id },
-      )
-        .orderBy('dwh.day', 'ASC')
-        .addOrderBy('dwh.start_time', 'ASC');
+      if (filters?.service_id != null) {
+        qb.andWhere(
+          'EXISTS (SELECT 1 FROM doctor_working_hour_doctor_services_doctor_service j JOIN doctor_services ds2 ON j.doctor_service_id = ds2.id WHERE j.doctor_working_hour_id = dwh.id AND ds2.service_id = :serviceId)',
+          { serviceId: filters.service_id },
+        );
+      }
+      if (filters?.appointment_type?.trim()) {
+        qb.innerJoin('dwh.doctor', 'doctor');
+        qb.andWhere('doctor.appointment_types LIKE :appointmentType', {
+          appointmentType: `%${filters.appointment_type.trim()}%`,
+        });
+      }
+      qb.orderBy('dwh.day', 'ASC').addOrderBy('dwh.start_time', 'ASC');
       return qb.getMany();
     }
 
@@ -1253,6 +1289,9 @@ export class WorkingHoursService {
         ? await this.getDoctorServicesByIdsAndDoctor(doctorServiceIds, doctorId)
         : [];
 
+    const waterfall = createDto.waterfall ?? true;
+    this.validateServicesWaterfallMatches(doctorServices, waterfall);
+
     // Validate time range
     this.validateTimeRange(createDto.start_time, createDto.end_time);
 
@@ -1282,7 +1321,6 @@ export class WorkingHoursService {
     }
 
     const repository = await this.getDoctorWorkingHoursRepository();
-    const waterfall = createDto.waterfall ?? true;
     const sessionTime = createDto.session_time;
     const allCreated: DoctorWorkingHour[] = [];
 
@@ -1434,11 +1472,12 @@ export class WorkingHoursService {
               createDto.doctor_id,
             )
           : [];
+      const waterfall = workingHourDto.waterfall ?? true;
+      this.validateServicesWaterfallMatches(doctorServicesForItem, waterfall);
       this.validateTimeRange(
         workingHourDto.start_time,
         workingHourDto.end_time,
       );
-      const waterfall = workingHourDto.waterfall ?? true;
       const sessionTime = workingHourDto.session_time;
       const days = workingHourDto.days ?? [];
 
@@ -1592,6 +1631,15 @@ export class WorkingHoursService {
           : [];
     }
 
+    // Determine waterfall value (needed for service validation)
+    const waterfall =
+      updateDto.waterfall !== undefined
+        ? updateDto.waterfall
+        : workingHour.waterfall;
+    if (updateDoctorServices && updateDoctorServices.length > 0) {
+      this.validateServicesWaterfallMatches(updateDoctorServices, waterfall);
+    }
+
     // If updating time range, validate it
     const startTime = updateDto.start_time ?? workingHour.start_time;
     const endTime = updateDto.end_time ?? workingHour.end_time;
@@ -1627,11 +1675,6 @@ export class WorkingHoursService {
         }
       }
     }
-
-    // Determine waterfall value
-    const waterfall = updateDto.waterfall !== undefined
-      ? updateDto.waterfall
-      : workingHour.waterfall;
 
     // Determine patients_limit: if waterfall is false, set to 1; otherwise use provided value or keep existing
     let patientsLimit: number | null;

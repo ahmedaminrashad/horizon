@@ -56,6 +56,9 @@ export class Service {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   is_active: boolean;
 
+  @Column({ type: 'boolean', default: true })
+  waterfall: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

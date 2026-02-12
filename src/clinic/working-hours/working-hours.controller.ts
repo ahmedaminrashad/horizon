@@ -416,6 +416,16 @@ export class WorkingHoursController {
     description: 'Filter to working hours that include this clinic service ID',
     schema: { type: 'integer', example: 1 },
   })
+  @ApiQuery({
+    name: 'appointment_type',
+    required: false,
+    description: 'Filter by doctor appointment type (in-clinic, online, home)',
+    schema: {
+      type: 'string',
+      enum: ['in-clinic', 'online', 'home'],
+      example: 'in-clinic',
+    },
+  })
   @ApiResponse({
     status: 200,
     description:
@@ -429,15 +439,19 @@ export class WorkingHoursController {
     @Query('date') date?: string,
     @Query('service_id', new ParseIntPipe({ optional: true }))
     serviceId?: number,
+    @Query('appointment_type') appointmentType?: string,
   ) {
     const filters: {
       date?: string;
       service_id?: number;
       clinic_id?: number;
+      appointment_type?: string;
     } = {};
     if (clinicId != null) filters.clinic_id = clinicId;
     if (date) filters.date = date;
     if (serviceId != null) filters.service_id = serviceId;
+    if (appointmentType?.trim())
+      filters.appointment_type = appointmentType.trim();
     return this.workingHoursService.getDoctorWorkingHours(
       doctorId,
       Object.keys(filters).length > 0 ? filters : undefined,

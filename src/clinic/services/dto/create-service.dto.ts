@@ -88,4 +88,14 @@ export class CreateServiceDto {
   @IsBoolean()
   @IsOptional()
   is_active?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Waterfall scheduling: if true, appointments cascade to next available slot; if false, fixed slots.',
+    example: true,
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  waterfall?: boolean;
 }

@@ -242,6 +242,22 @@ export class DoctorsController {
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description:
+      'Search by doctor id, or user name, phone, or email (partial match)',
+    example: 'ahmed',
+  })
+  @ApiQuery({
+    name: 'specialty',
+    required: false,
+    type: String,
+    description:
+      'Filter by doctor specialty. Comma-separated for multiple (e.g. Cardiology,Pediatrics)',
+    example: 'Cardiology',
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated list of doctors',
@@ -333,13 +349,21 @@ export class DoctorsController {
   findAll(
     @ClinicId() clinicId: number,
     @Query() paginationQuery: PaginationQueryDto,
+    @Query('search') search?: string,
+    @Query('specialty') specialty?: string,
   ) {
     if (!clinicId) {
       throw new Error('Clinic ID is required');
     }
     const page = paginationQuery.page || 1;
     const limit = paginationQuery.limit || 10;
-    return this.doctorsService.findAll(clinicId, page, limit);
+    return this.doctorsService.findAll(
+      clinicId,
+      page,
+      limit,
+      search,
+      specialty,
+    );
   }
 
   @Get(':doctorId/files')
