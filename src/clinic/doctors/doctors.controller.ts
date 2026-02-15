@@ -349,8 +349,6 @@ export class DoctorsController {
   findAll(
     @ClinicId() clinicId: number,
     @Query() paginationQuery: PaginationQueryDto,
-    @Query('search') search?: string,
-    @Query('specialty') specialty?: string,
   ) {
     if (!clinicId) {
       throw new Error('Clinic ID is required');
@@ -361,8 +359,8 @@ export class DoctorsController {
       clinicId,
       page,
       limit,
-      search,
-      specialty,
+      paginationQuery.search,
+      paginationQuery.specialty,
     );
   }
 
