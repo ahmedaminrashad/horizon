@@ -227,7 +227,6 @@ export class DoctorsService {
 
     return sanitizeUserInEntity(doctor);
   }
-
   async update(
     clinicId: number,
     id: number,
