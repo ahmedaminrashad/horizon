@@ -231,6 +231,15 @@ export class ClinicsService {
   }
 
   /**
+   * Returns clinic by id without loading any relations (country, city, branches, package, etc.).
+   */
+  async findOneWithoutRelations(id: number): Promise<Clinic | null> {
+    return this.clinicsRepository.findOne({
+      where: { id },
+    });
+  }
+
+  /**
    * Get main users (patients) linked to clinic via clinic_user table.
    * @param clinicId Clinic ID (or use options.clinic_id to filter by another clinic).
    * @param options Optional: phone (legacy), search (name, phone, email, patient id), is_active, clinic_id.

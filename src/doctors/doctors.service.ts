@@ -121,6 +121,17 @@ export class DoctorsService {
     });
   }
 
+  /**
+   * Find main doctor by email or phone (for doctor login).
+   */
+  async findOneByEmailOrPhone(emailOrPhone: string): Promise<Doctor | null> {
+    const trimmed = (emailOrPhone ?? '').trim();
+    if (!trimmed) return null;
+    return this.doctorsRepository.findOne({
+      where: [{ email: trimmed }, { phone: trimmed }],
+    });
+  }
+
   async syncDoctor(
     clinicId: number,
     clinicDoctorId: number,
