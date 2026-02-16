@@ -170,47 +170,111 @@ export class ClinicAuthService {
     };
   }
 
-  async login(clinicId: number, clinicLoginDto: ClinicLoginDto) {
-    // Get clinic from clinics table to find database_name
-    // Note: Tenant context is automatically set by ClinicTenantGuard
-    const clinic = await this.clinicsService.findOne(clinicId);
-
-    if (!clinic || !clinic.database_name) {
+  /**
+   * Clinic login when clinic_id is not in the path: resolve clinic by phone from clinics table, then validate user in clinic DB.
+   */
+  async loginByPhone(clinicLoginDto: ClinicLoginDto) {
+    const clinic = await this.clinicsService.findOneByPhone(clinicLoginDto.phone);
+    if (!clinic?.database_name) {
       throw new NotFoundException('Clinic not found');
     }
 
-    // Get user repository from clinic database
+    const clinicDataSource =
+      await this.tenantDataSourceService.getTenantDataSource(
+        clinic.database_name,
+      );
+    if (!clinicDataSource) {
+      throw new NotFoundException('Clinic database not available');
+    }
+
+    const clinicUserRepo = clinicDataSource.getRepository(ClinicUser);
+    const clinicDbUser = await clinicUserRepo.findOne({
+      where: { phone: clinicLoginDto.phone },
+      relations: ['role', 'role.permissions'],
+    });
+    if (!clinicDbUser) {
+      throw new UnauthorizedException(
+        this.translationService.t('Invalid credentials'),
+      );
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      clinicLoginDto.password,
+      clinicDbUser.password,
+    );
+    if (!isPasswordValid) {
+      throw new UnauthorizedException(
+        this.translationService.t('Invalid credentials'),
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...result } = clinicDbUser;
+
+    await this.clinicsService.updateLastActive(clinic.id);
+
+    const payload = {
+      sub: clinicDbUser.id,
+      role_id: clinicDbUser.role_id,
+      database_name: clinic.database_name,
+      clinic_id: clinic.id,
+      role_slug: clinicDbUser.role?.slug,
+    };
+
+    const dashboard = await this.getDashboardStatsFromDataSource(
+      clinicDataSource,
+    );
+
+    return {
+      ...result,
+      access_token: this.jwtService.sign(payload),
+      dashboard: {
+        total_appointments_last_7_days: dashboard.total_appointments_last_7_days,
+        total_revenue_last_7_days: dashboard.total_revenue_last_7_days,
+        doctor_workload_today: dashboard.doctor_workload_today,
+        cancellations_last_7_days: dashboard.cancellations_last_7_days,
+      },
+    };
+  }
+
+  /**
+   * Clinic login with clinic_id from path (tenant context set by guard). Kept for backward compatibility.
+   */
+  async login(clinicId: number, clinicLoginDto: ClinicLoginDto) {
+    const clinic = await this.clinicsService.findOneWithoutRelations(clinicId);
+    if (!clinic?.database_name) {
+      throw new NotFoundException('Clinic not found');
+    }
+
     const userRepository =
       await this.tenantRepositoryService.getRepository<ClinicUser>(ClinicUser);
 
-    // Find user in clinic database by phone
     const clinicDbUser = await userRepository.findOne({
       where: { phone: clinicLoginDto.phone },
       relations: ['role', 'role.permissions'],
     });
 
     if (!clinicDbUser) {
-      throw new UnauthorizedException(this.translationService.t('Invalid credentials'));
+      throw new UnauthorizedException(
+        this.translationService.t('Invalid credentials'),
+      );
     }
 
-    // Validate password
     const isPasswordValid = await bcrypt.compare(
       clinicLoginDto.password,
       clinicDbUser.password,
     );
-
     if (!isPasswordValid) {
-      throw new UnauthorizedException(this.translationService.t('Invalid credentials'));
+      throw new UnauthorizedException(
+        this.translationService.t('Invalid credentials'),
+      );
     }
 
-    // Remove password from response
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _password, ...result } = clinicDbUser;
 
-    // Update clinic's last_active timestamp
     await this.clinicsService.updateLastActive(clinicId);
 
-    // Generate token with clinic context
     const payload = {
       sub: clinicDbUser.id,
       role_id: clinicDbUser.role_id,

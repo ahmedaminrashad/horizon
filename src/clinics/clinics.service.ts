@@ -240,6 +240,17 @@ export class ClinicsService {
   }
 
   /**
+   * Returns clinic by phone (no relations). Used for clinic login by phone.
+   */
+  async findOneByPhone(phone: string): Promise<Clinic | null> {
+    const trimmed = (phone ?? '').trim();
+    if (!trimmed) return null;
+    return this.clinicsRepository.findOne({
+      where: { phone: trimmed },
+    });
+  }
+
+  /**
    * Get main users (patients) linked to clinic via clinic_user table.
    * @param clinicId Clinic ID (or use options.clinic_id to filter by another clinic).
    * @param options Optional: phone (legacy), search (name, phone, email, patient id), is_active, clinic_id.
