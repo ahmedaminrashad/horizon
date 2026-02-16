@@ -258,6 +258,8 @@ export class ClinicAuthService {
       throw new NotFoundException('Clinic not found');
     }
 
+    console.info('clinic', clinic);
+
     const clinicDataSource =
       await this.tenantDataSourceService.getTenantDataSource(
         clinic.database_name,
@@ -268,7 +270,7 @@ export class ClinicAuthService {
 
     const clinicUserRepo = clinicDataSource.getRepository(ClinicUser);
     const clinicDbUser = await clinicUserRepo.findOne({
-      where: { email: mainDoctor.email },
+      where: [{ email: identifier }, { phone: identifier }],
       relations: ['role', 'role.permissions'],
     });
     if (!clinicDbUser) {
