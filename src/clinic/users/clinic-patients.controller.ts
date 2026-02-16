@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   ParseIntPipe,
@@ -15,10 +16,11 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiBody,
-  ApiQuery,
 } from '@nestjs/swagger';
 import { ClinicsService } from '../../clinics/clinics.service';
 import { AddClinicPatientDto } from './dto/add-clinic-patient.dto';
+import { UpdateClinicPatientDto } from './dto/update-clinic-patient.dto';
+import { ClinicPatientsQueryDto } from './dto/clinic-patients-query.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
@@ -38,14 +40,10 @@ export class ClinicPatientsController {
   @Permissions(ClinicPermission.READ_USER as string)
   @ApiOperation({
     summary: 'Get main users (patients) linked to clinic via clinic_user',
+    description:
+      'Supports search (name, phone, email, patient ID) and filter by is_active, clinic_id.',
   })
   @ApiParam({ name: 'clinicId', type: Number, example: 1 })
-  @ApiQuery({
-    name: 'phone',
-    required: false,
-    type: String,
-    description: 'Filter patients by phone (partial match)',
-  })
   @ApiResponse({
     status: 200,
     description: 'List of main users linked to this clinic',
@@ -57,6 +55,7 @@ export class ClinicPatientsController {
           id: { type: 'number' },
           user_id: { type: 'number' },
           clinic_id: { type: 'number' },
+          is_active: { type: 'boolean' },
           createdAt: { type: 'string', format: 'date-time' },
           user: {
             type: 'object',
@@ -72,11 +71,19 @@ export class ClinicPatientsController {
     },
   })
   @ApiResponse({ status: 404, description: 'Clinic not found' })
-  getPatients(@ClinicId() clinicId: number, @Query('phone') phone?: string) {
+  getPatients(
+    @ClinicId() clinicId: number,
+    @Query() query: ClinicPatientsQueryDto,
+  ) {
     if (!clinicId) {
       throw new Error('Clinic ID is required');
     }
-    return this.clinicsService.getClinicPatients(clinicId, phone);
+    return this.clinicsService.getClinicPatients(clinicId, {
+      phone: query.phone,
+      search: query.search,
+      is_active: query.is_active,
+      clinic_id: query.clinic_id,
+    });
   }
 
   @Post()
@@ -103,6 +110,7 @@ export class ClinicPatientsController {
         id: { type: 'number' },
         user_id: { type: 'number' },
         clinic_id: { type: 'number' },
+        is_active: { type: 'boolean' },
         createdAt: { type: 'string', format: 'date-time' },
         user: {
           type: 'object',
@@ -142,6 +150,7 @@ export class ClinicPatientsController {
         id: { type: 'number' },
         user_id: { type: 'number' },
         clinic_id: { type: 'number' },
+        is_active: { type: 'boolean' },
         createdAt: { type: 'string', format: 'date-time' },
         user: {
           type: 'object',
@@ -164,5 +173,53 @@ export class ClinicPatientsController {
       throw new Error('Clinic ID is required');
     }
     return this.clinicsService.getClinicPatientById(clinicId, patientId);
+  }
+
+  @Patch(':patientId')
+  @UseGuards(ClinicPermissionsGuard)
+  @Permissions(ClinicPermission.UPDATE_USER as string)
+  @ApiOperation({
+    summary: 'Update patient data and/or status (is_active)',
+  })
+  @ApiParam({ name: 'clinicId', type: Number, example: 1 })
+  @ApiParam({
+    name: 'patientId',
+    type: Number,
+    description: 'User ID of the patient',
+  })
+  @ApiBody({ type: UpdateClinicPatientDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Patient updated',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number' },
+        user_id: { type: 'number' },
+        clinic_id: { type: 'number' },
+        is_active: { type: 'boolean' },
+        createdAt: { type: 'string', format: 'date-time' },
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string', nullable: true },
+            phone: { type: 'string' },
+            email: { type: 'string', nullable: true },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Clinic or patient not found' })
+  updatePatient(
+    @ClinicId() clinicId: number,
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Body() dto: UpdateClinicPatientDto,
+  ) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.clinicsService.updateClinicPatient(clinicId, patientId, dto);
   }
 }

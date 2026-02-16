@@ -24,6 +24,7 @@ import { CreateReservationDto } from './dto/create-reservation.dto';
 import { CreateMainUserReservationDto } from './dto/create-main-user-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { ReservationsQueryDto } from './dto/reservations-query.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
@@ -189,26 +190,37 @@ export class ReservationsController {
   @UseGuards(ClinicTenantGuard, JwtAuthGuard, ClinicPermissionsGuard)
   @ApiBearerAuth('JWT-auth')
   @Permissions(ClinicPermission.READ_RESERVATION as string)
-  @ApiOperation({ summary: 'Get all reservations with pagination' })
+  @ApiOperation({
+    summary: 'Get all reservations with pagination',
+    description:
+      'Supports search (patient name, phone), filters: from_date, to_date, doctor_id, service_id, status, schedule_type (waterfall/fixed), appoint_type.',
+  })
   @ApiParam({
     name: 'clinicId',
     type: Number,
     description: 'Clinic ID',
     example: 1,
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({ status: 200, description: 'List of reservations' })
   findAll(
     @ClinicId() clinicId: number,
-    @Query() paginationQuery: PaginationQueryDto,
+    @Query() query: ReservationsQueryDto,
   ) {
     if (!clinicId) {
       throw new Error('Clinic ID is required');
     }
-    const page = paginationQuery.page || 1;
-    const limit = paginationQuery.limit || 10;
-    return this.reservationsService.findAll(clinicId, page, limit);
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    return this.reservationsService.findAll(clinicId, page, limit, {
+      search: query.search,
+      from_date: query.from_date,
+      to_date: query.to_date,
+      doctor_id: query.doctor_id,
+      service_id: query.service_id,
+      status: query.status,
+      schedule_type: query.schedule_type,
+      appoint_type: query.appoint_type,
+    });
   }
 
   @Get('clinic/:clinicId/reservations/:id')

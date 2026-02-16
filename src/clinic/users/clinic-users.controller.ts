@@ -14,12 +14,11 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-  ApiQuery,
 } from '@nestjs/swagger';
 import { ClinicUsersService } from './clinic-users.service';
 import { CreateClinicUserDto } from './dto/create-clinic-user.dto';
 import { UpdateClinicUserDto } from './dto/update-clinic-user.dto';
-import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { ClinicUsersQueryDto } from './dto/clinic-users-query.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
@@ -54,20 +53,24 @@ export class ClinicUsersController {
   @Get()
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.READ_USER as string)
-  @ApiOperation({ summary: 'Get all clinic users with pagination' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiOperation({
+    summary: 'Get all clinic users with pagination',
+    description: 'Supports search (name, email, phone) and filter by role_id.',
+  })
   @ApiResponse({ status: 200, description: 'List of users' })
   findAll(
     @ClinicId() clinicId: number,
-    @Query() paginationQuery: PaginationQueryDto,
+    @Query() query: ClinicUsersQueryDto,
   ) {
     if (!clinicId) {
       throw new Error('Clinic ID is required');
     }
-    const page = paginationQuery.page || 1;
-    const limit = paginationQuery.limit || 10;
-    return this.clinicUsersService.findAll(clinicId, page, limit);
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    return this.clinicUsersService.findAll(clinicId, page, limit, {
+      search: query.search,
+      role_id: query.role_id,
+    });
   }
 
   @Get(':id')

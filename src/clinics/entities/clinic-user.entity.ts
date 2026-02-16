@@ -33,6 +33,9 @@ export class ClinicUser {
   @Column({ name: 'clinic_user_id', type: 'int', nullable: true })
   clinic_user_id: number | null;
 
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  is_active: boolean;
+
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;

@@ -74,18 +74,34 @@ export class ClinicUsersService {
     return userWithoutPassword;
   }
 
-  async findAll(clinicId: number, page: number = 1, limit: number = 10) {
+  async findAll(
+    clinicId: number,
+    page: number = 1,
+    limit: number = 10,
+    options?: { search?: string; role_id?: number },
+  ) {
     const repository = await this.getRepository();
     const skip = (page - 1) * limit;
 
-    const [data, total] = await repository.findAndCount({
-      relations: ['role'],
-      skip,
-      take: limit,
-      order: {
-        createdAt: 'DESC',
-      },
-    });
+    const qb = repository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .orderBy('user.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    if (options?.search?.trim()) {
+      const term = `%${options.search.trim()}%`;
+      qb.andWhere(
+        '(user.name ILIKE :term OR user.phone ILIKE :term OR user.email ILIKE :term)',
+        { term },
+      );
+    }
+    if (options?.role_id != null) {
+      qb.andWhere('user.role_id = :roleId', { roleId: options.role_id });
+    }
+
+    const [data, total] = await qb.getManyAndCount();
 
     // Remove password from response
     const usersWithoutPassword = data.map((user) => {

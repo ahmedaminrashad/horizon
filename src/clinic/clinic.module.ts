@@ -15,14 +15,15 @@ import { DoctorServicesModule } from './doctor-services/doctor-services.module';
 import { DoctorBranchesModule } from './doctor-branches/doctor-branches.module';
 import { ClinicRolesModule } from './roles/clinic-roles.module';
 import { ClinicPermissionsModule } from './permissions/clinic-permissions.module';
+import { SearchModule } from './search/search.module';
 import { ClinicTenantInterceptor } from './interceptors/clinic-tenant.interceptor';
 import { DatabaseModule } from '../database/database.module';
 import { UsersModule } from '../users/users.module';
 import { ClinicsModule } from '../clinics/clinics.module';
 
 @Module({
-  imports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, WorkingHoursModule, QuestionsModule, PatientQuestionAnswersModule, DoctorServicesModule, DoctorBranchesModule, ClinicRolesModule, ClinicPermissionsModule, DatabaseModule, UsersModule, ClinicsModule],
-  exports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, WorkingHoursModule, QuestionsModule, PatientQuestionAnswersModule, DoctorServicesModule, DoctorBranchesModule, ClinicRolesModule, ClinicPermissionsModule],
+  imports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, WorkingHoursModule, QuestionsModule, PatientQuestionAnswersModule, DoctorServicesModule, DoctorBranchesModule, ClinicRolesModule, ClinicPermissionsModule, SearchModule, DatabaseModule, UsersModule, ClinicsModule],
+  exports: [DoctorsModule, ClinicAuthModule, SlotTemplateModule, ClinicSettingsModule, ReservationsModule, ClinicUsersModule, ClinicServicesModule, BranchesModule, WorkingHoursModule, QuestionsModule, PatientQuestionAnswersModule, DoctorServicesModule, DoctorBranchesModule, ClinicRolesModule, ClinicPermissionsModule, SearchModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,

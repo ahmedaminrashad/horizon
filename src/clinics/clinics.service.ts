@@ -232,25 +232,66 @@ export class ClinicsService {
 
   /**
    * Get main users (patients) linked to clinic via clinic_user table.
-   * @param phone Optional filter by user phone (partial match).
+   * @param clinicId Clinic ID (or use options.clinic_id to filter by another clinic).
+   * @param options Optional: phone (legacy), search (name, phone, email, patient id), is_active, clinic_id.
    */
-  async getClinicPatients(clinicId: number, phone?: string) {
+  async getClinicPatients(
+    clinicId: number,
+    options?: {
+      phone?: string;
+      search?: string;
+      is_active?: boolean;
+      clinic_id?: number;
+    },
+  ) {
+    const effectiveClinicId = options?.clinic_id ?? clinicId;
     const clinic = await this.clinicsRepository.findOne({
-      where: { id: clinicId },
+      where: { id: effectiveClinicId },
     });
     if (!clinic) {
-      throw new NotFoundException(`Clinic with ID ${clinicId} not found`);
+      throw new NotFoundException(
+        `Clinic with ID ${effectiveClinicId} not found`,
+      );
     }
 
     const qb = this.clinicUserRepository
       .createQueryBuilder('cu')
       .leftJoinAndSelect('cu.user', 'user')
-      .where('cu.clinic_id = :clinicId', { clinicId })
+      .where('cu.clinic_id = :clinicId', { clinicId: effectiveClinicId })
       .orderBy('cu.createdAt', 'DESC');
 
-    if (phone && phone.trim()) {
+    const phone = options?.phone?.trim();
+    if (phone) {
       qb.andWhere('user.phone LIKE :phone', {
-        phone: `%${phone.trim()}%`,
+        phone: `%${phone}%`,
+      });
+    }
+
+    if (options?.is_active !== undefined) {
+      qb.andWhere('cu.is_active = :isActive', {
+        isActive: options.is_active,
+      });
+    }
+
+    const search = options?.search?.trim();
+    if (search) {
+      const searchId = parseInt(search, 10);
+      const isNumericId =
+        !Number.isNaN(searchId) && String(searchId) === search;
+      const likeArg = `%${search.replace(/%/g, '\\%')}%`;
+      const orParts: string[] = [
+        'user.name LIKE :searchLike',
+        'user.phone LIKE :searchLike',
+        'user.email LIKE :searchLike',
+      ];
+      if (isNumericId) {
+        orParts.push('(cu.id = :searchId OR user.id = :searchId)');
+      }
+      qb.andWhere(`(${orParts.join(' OR ')})`);
+      qb.setParameters({
+        ...qb.getParameters(),
+        searchLike: likeArg,
+        ...(isNumericId && { searchId }),
       });
     }
 
@@ -372,6 +413,45 @@ export class ClinicsService {
     });
     await this.clinicUserRepository.save(clinicUser);
     return this.getClinicPatientById(clinicId, user.id);
+  }
+
+  /**
+   * Update a clinic patient: user data (name, phone, email) and/or link status (is_active).
+   */
+  async updateClinicPatient(
+    clinicId: number,
+    patientId: number,
+    dto: {
+      is_active?: boolean;
+      name?: string;
+      phone?: string;
+      email?: string;
+    },
+  ) {
+    const clinicUser = await this.clinicUserRepository.findOne({
+      where: { clinic_id: clinicId, user_id: patientId },
+      relations: ['user'],
+    });
+    if (!clinicUser) {
+      throw new NotFoundException(
+        `Patient with ID ${patientId} not found in clinic ${clinicId}`,
+      );
+    }
+
+    if (dto.is_active !== undefined) {
+      clinicUser.is_active = dto.is_active;
+      await this.clinicUserRepository.save(clinicUser);
+    }
+
+    const userUpdates: { name?: string; phone?: string; email?: string } = {};
+    if (dto.name !== undefined) userUpdates.name = dto.name;
+    if (dto.phone !== undefined) userUpdates.phone = dto.phone;
+    if (dto.email !== undefined) userUpdates.email = dto.email;
+    if (Object.keys(userUpdates).length > 0) {
+      await this.usersService.update(clinicUser.user_id, userUpdates);
+    }
+
+    return this.getClinicPatientById(clinicId, patientId);
   }
 
   async updateLastActive(id: number): Promise<void> {

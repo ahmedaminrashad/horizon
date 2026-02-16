@@ -625,18 +625,77 @@ export class ReservationsService {
     }
   }
 
-  async findAll(clinicId: number, page: number = 1, limit: number = 10) {
+  async findAll(
+    clinicId: number,
+    page: number = 1,
+    limit: number = 10,
+    filters?: {
+      search?: string;
+      from_date?: string;
+      to_date?: string;
+      doctor_id?: number;
+      service_id?: number;
+      status?: ReservationStatus;
+      schedule_type?: 'waterfall' | 'fixed';
+      appoint_type?: string;
+    },
+  ) {
     const repository = await this.getRepository();
     const skip = (page - 1) * limit;
 
-    const [rawData, total] = await repository.findAndCount({
-      relations: ['doctor', 'doctor.user', 'patient', 'doctor_working_hour'],
-      skip,
-      take: limit,
-      order: {
-        date: 'DESC',
-      },
-    });
+    const qb = repository
+      .createQueryBuilder('r')
+      .leftJoinAndSelect('r.doctor', 'doctor')
+      .leftJoinAndSelect('doctor.user', 'doctorUser')
+      .leftJoinAndSelect('r.patient', 'patient')
+      .leftJoinAndSelect('r.doctor_working_hour', 'wh')
+      .orderBy('r.date', 'DESC')
+      .addOrderBy('r.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    if (filters?.search?.trim()) {
+      const term = `%${filters.search.trim()}%`;
+      qb.andWhere(
+        '(patient.name ILIKE :searchTerm OR patient.phone ILIKE :searchTerm)',
+        { searchTerm: term },
+      );
+    }
+    if (filters?.from_date) {
+      qb.andWhere('r.date >= :fromDate', {
+        fromDate: filters.from_date,
+      });
+    }
+    if (filters?.to_date) {
+      qb.andWhere('r.date <= :toDate', {
+        toDate: filters.to_date,
+      });
+    }
+    if (filters?.doctor_id != null) {
+      qb.andWhere('r.doctor_id = :doctorId', {
+        doctorId: filters.doctor_id,
+      });
+    }
+    if (filters?.service_id != null) {
+      qb.innerJoin('wh.doctor_services', 'ds', 'ds.id = :serviceId', {
+        serviceId: filters.service_id,
+      });
+    }
+    if (filters?.status) {
+      qb.andWhere('r.status = :status', { status: filters.status });
+    }
+    if (filters?.schedule_type === 'waterfall') {
+      qb.andWhere('wh.waterfall = :waterfallTrue', { waterfallTrue: true });
+    } else if (filters?.schedule_type === 'fixed') {
+      qb.andWhere('wh.waterfall = :waterfallFalse', { waterfallFalse: false });
+    }
+    if (filters?.appoint_type) {
+      qb.andWhere('r.appoint_type = :appointType', {
+        appointType: filters.appoint_type,
+      });
+    }
+
+    const [rawData, total] = await qb.getManyAndCount();
 
     const patientIds = [
       ...new Set(rawData.map((r) => r.patient_id).filter((id) => id != null)),
