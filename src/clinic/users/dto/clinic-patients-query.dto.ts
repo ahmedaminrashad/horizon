@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsBoolean } from 'class-validator';
+import { IsOptional, IsString, IsBoolean, IsInt, Min } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
 export class ClinicPatientsQueryDto {
@@ -20,17 +20,19 @@ export class ClinicPatientsQueryDto {
   search?: string;
 
   @ApiPropertyOptional({
-    description: 'Filter by active status',
+    description: 'Filter by active status (true/false, 1/0, or "true"/"false")',
     example: true,
   })
   @IsOptional()
-  @Transform(({ value }) =>
-    value === 'true' || value === true
-      ? true
-      : value === 'false' || value === false
-        ? false
-        : undefined,
-  )
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true || value === 1 || value === '1') {
+      return true;
+    }
+    if (value === 'false' || value === false || value === 0 || value === '0') {
+      return false;
+    }
+    return undefined;
+  })
   @IsBoolean()
   is_active?: boolean;
 
@@ -40,5 +42,30 @@ export class ClinicPatientsQueryDto {
   })
   @IsOptional()
   @Type(() => Number)
+  @IsInt()
   clinic_id?: number;
+
+  @ApiPropertyOptional({ description: 'Page number for pagination (whitelisted)', example: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ description: 'Items per page (whitelisted)', example: 10 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number;
+
+  @ApiPropertyOptional({ description: 'Sort field (whitelisted, not yet applied)', example: 'createdAt' })
+  @IsOptional()
+  @IsString()
+  sort?: string;
+
+  @ApiPropertyOptional({ description: 'Sort order (whitelisted, not yet applied)', example: 'desc' })
+  @IsOptional()
+  @IsString()
+  order?: string;
 }

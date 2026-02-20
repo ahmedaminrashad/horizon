@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   Query,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -76,7 +77,7 @@ export class ClinicPatientsController {
     @Query() query: ClinicPatientsQueryDto,
   ) {
     if (!clinicId) {
-      throw new Error('Clinic ID is required');
+      throw new BadRequestException('Clinic ID is required');
     }
     return this.clinicsService.getClinicPatients(clinicId, {
       phone: query.phone,

@@ -19,6 +19,7 @@ import { ClinicUsersService } from './clinic-users.service';
 import { CreateClinicUserDto } from './dto/create-clinic-user.dto';
 import { UpdateClinicUserDto } from './dto/update-clinic-user.dto';
 import { ClinicUsersQueryDto } from './dto/clinic-users-query.dto';
+import { CLINIC_USERS_PAGINATION_MAX_LIMIT } from './dto/pagination-query.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
 import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
@@ -66,7 +67,10 @@ export class ClinicUsersController {
       throw new Error('Clinic ID is required');
     }
     const page = query.page ?? 1;
-    const limit = query.limit ?? 10;
+    const limit = Math.min(
+      query.limit ?? 10,
+      CLINIC_USERS_PAGINATION_MAX_LIMIT,
+    );
     return this.clinicUsersService.findAll(clinicId, page, limit, {
       search: query.search,
       role_id: query.role_id,
