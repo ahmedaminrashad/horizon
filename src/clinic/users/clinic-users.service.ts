@@ -160,9 +160,15 @@ export class ClinicUsersService {
       .take(limit);
 
     if (options?.search?.trim()) {
-      const term = `%${options.search.trim()}%`;
+      // MySQL uses LIKE (case-insensitive with default collation); escape % and _ for literal match
+      const raw = options.search
+        .trim()
+        .replace(/\\/g, '\\\\')
+        .replace(/%/g, '\\%')
+        .replace(/_/g, '\\_');
+      const term = `%${raw}%`;
       qb.andWhere(
-        '(user.name ILIKE :term OR user.phone ILIKE :term OR user.email ILIKE :term)',
+        '(user.name LIKE :term OR user.phone LIKE :term OR user.email LIKE :term)',
         { term },
       );
     }
