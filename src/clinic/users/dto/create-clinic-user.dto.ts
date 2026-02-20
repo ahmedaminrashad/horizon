@@ -6,12 +6,27 @@ import {
   IsOptional,
   IsNumber,
   MinLength,
+  Matches,
+  MaxLength,
+  ValidateIf,
 } from 'class-validator';
 
+/** Name: letters, spaces, hyphen, apostrophe only (no emojis or special characters). */
+const NAME_PATTERN = /^[a-zA-Z\s'-]+$/;
+
 export class CreateClinicUserDto {
-  @ApiPropertyOptional({ description: 'User name', example: 'John Doe' })
+  @ApiPropertyOptional({
+    description: 'User name (letters, spaces, hyphen, apostrophe only)',
+    example: 'John Doe',
+    maxLength: 255,
+  })
   @IsString()
   @IsOptional()
+  @MaxLength(255)
+  @ValidateIf((o) => o.name != null && o.name !== '')
+  @Matches(NAME_PATTERN, {
+    message: 'name must contain only letters, spaces, hyphen and apostrophe',
+  })
   name?: string;
 
   @ApiProperty({ description: 'User phone number', example: '+1234567890' })
