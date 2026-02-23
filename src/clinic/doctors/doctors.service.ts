@@ -12,6 +12,7 @@ import { UsersService } from '../../users/users.service';
 import { ClinicsService } from '../../clinics/clinics.service';
 import { RolesService } from '../../roles/roles.service';
 import { Doctor } from './entities/doctor.entity';
+import { DoctorService as DoctorServiceEntity } from '../doctor-services/entities/doctor-service.entity';
 import { CreateDoctorDto } from './dto/create-doctor.dto';
 import { UpdateDoctorDto } from './dto/update-doctor.dto';
 import { RegisterDoctorDto } from './dto/register-doctor.dto';
@@ -23,6 +24,7 @@ import { DoctorsService as MainDoctorsService } from '../../doctors/doctors.serv
 import { BranchesService as MainBranchesService } from '../../branches/branches.service';
 import { DoctorServicesService } from '../doctor-services/doctor-services.service';
 import { DoctorBranchesService } from '../doctor-branches/doctor-branches.service';
+import { DoctorWorkingHour } from '../working-hours/entities/doctor-working-hour.entity';
 import { sanitizeUserInEntity } from '../../common/utils/user.utils';
 
 @Injectable()
@@ -226,6 +228,143 @@ export class DoctorsService {
     }
 
     return sanitizeUserInEntity(doctor);
+  }
+
+  /**
+   * Get doctor profile for logged-in doctor: branches, services with working-hours, number_of_patients.
+   */
+  async getProfile(
+    clinicId: number,
+    doctorId: number,
+  ): Promise<{
+    doctor: Doctor;
+    branches: Array<{
+      id: number;
+      doctor_id: number;
+      branch_id: number;
+      branch?: { id: number; name: string; address?: string; lat?: number; longit?: number };
+    }>;
+    services: Array<{
+      id: number;
+      doctor_id: number;
+      service_id: number;
+      duration: number | null;
+      price: number | null;
+      service_type: string | null;
+      service?: { id: number; name: string };
+      working_hours: Array<{
+        id: number;
+        day: string;
+        start_time: string;
+        end_time: string;
+        branch_id: number | null;
+        branch?: { id: number; name: string };
+        is_active: boolean;
+        waterfall: boolean;
+        patients_limit: number | null;
+      }>;
+    }>;
+    number_of_patients: number;
+  }> {
+    const repository = await this.getRepository();
+    const doctor = await repository.findOne({
+      where: { id: doctorId },
+      relations: [
+        'user',
+        'doctorBranches',
+        'doctorBranches.branch',
+        'doctorServices',
+        'doctorServices.service',
+      ],
+    });
+
+    if (!doctor) {
+      throw new NotFoundException(`Doctor with ID ${doctorId} not found`);
+    }
+
+    const whRepository =
+      await this.tenantRepositoryService.getRepository<DoctorWorkingHour>(
+        DoctorWorkingHour,
+      );
+    const allWorkingHours = whRepository
+      ? await whRepository.find({
+          where: { doctor_id: doctorId },
+          relations: ['branch', 'doctor_services'],
+          order: { day: 'ASC', start_time: 'ASC' },
+        })
+      : [];
+
+    const doctorServiceIdsToWorkingHours = new Map<
+      number,
+      DoctorWorkingHour[]
+    >();
+    for (const wh of allWorkingHours) {
+      const dsList = wh.doctor_services ?? [];
+      for (const ds of dsList) {
+        const numId =
+          typeof ds === 'object' && ds !== null && 'id' in ds
+            ? (ds as DoctorServiceEntity).id
+            : undefined;
+        if (numId == null) continue;
+        if (!doctorServiceIdsToWorkingHours.has(numId)) {
+          doctorServiceIdsToWorkingHours.set(numId, []);
+        }
+        doctorServiceIdsToWorkingHours.get(numId)!.push(wh);
+      }
+    }
+
+    const branches = (doctor.doctorBranches ?? []).map((db) => {
+      const branch = db.branch;
+      return {
+        id: db.id,
+        doctor_id: db.doctor_id,
+        branch_id: db.branch_id,
+        branch: branch
+          ? {
+              id: branch.id,
+              name: branch.name,
+              address: branch.address ?? undefined,
+              lat: branch.lat != null ? Number(branch.lat) : undefined,
+              longit: branch.longit != null ? Number(branch.longit) : undefined,
+            }
+          : undefined,
+      };
+    });
+
+    const services = (doctor.doctorServices ?? []).map((ds) => {
+      const workingHours = doctorServiceIdsToWorkingHours.get(ds.id) ?? [];
+      const service = ds.service;
+      return {
+        id: ds.id,
+        doctor_id: ds.doctor_id,
+        service_id: ds.service_id,
+        duration: ds.duration,
+        price: ds.price != null ? Number(ds.price) : null,
+        service_type: ds.service_type ?? null,
+        service: service ? { id: service.id, name: service.name } : undefined,
+        working_hours: workingHours.map((wh) => {
+          const whBranch = wh.branch;
+          return {
+            id: wh.id,
+            day: wh.day,
+            start_time: wh.start_time,
+            end_time: wh.end_time,
+            branch_id: wh.branch_id ?? null,
+            branch: whBranch ? { id: whBranch.id, name: whBranch.name } : undefined,
+            is_active: wh.is_active,
+            waterfall: wh.waterfall,
+            patients_limit: wh.patients_limit ?? null,
+          };
+        }),
+      };
+    });
+
+    return {
+      doctor: sanitizeUserInEntity(doctor),
+      branches,
+      services,
+      number_of_patients: doctor.number_of_patients ?? 0,
+    };
   }
   async update(
     clinicId: number,

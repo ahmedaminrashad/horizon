@@ -347,8 +347,12 @@ export class ReservationsService {
 
     const savedReservation = await repository.save(reservation);
 
-    // Increment doctor's number_of_patients
-    await this.incrementDoctorPatientCount(clinicId, createReservationDto.doctor_id);
+    // Increment doctor's number_of_patients only when this is the first reservation for this patient with this doctor
+    await this.incrementDoctorPatientCount(
+      clinicId,
+      createReservationDto.doctor_id,
+      patientId,
+    );
 
     // If working hour is waterfall, set busy to true
     if (!workingHour.waterfall) {
@@ -565,59 +569,71 @@ export class ReservationsService {
   }
 
   /**
-   * Increment doctor's number_of_patients in both clinic and main doctors tables
+   * Increment doctor's number_of_patients only when this is the first reservation for this patient with this doctor.
+   * Then sync clinic doctor to main doctors table.
    */
-  private async incrementDoctorPatientCount(clinicId: number, doctorId: number): Promise<void> {
+  private async incrementDoctorPatientCount(
+    clinicId: number,
+    doctorId: number,
+    patientId: number,
+  ): Promise<void> {
     try {
-      // Get clinic doctor repository
-      const doctorRepository = await this.tenantRepositoryService.getRepository<Doctor>(Doctor);
-      
-      if (doctorRepository) {
-        // Load doctor with user relation to get name for syncing
-        const doctor = await doctorRepository.findOne({ 
-          where: { id: doctorId },
-          relations: ['user'],
-        });
-        
-        if (doctor) {
-          doctor.number_of_patients = (doctor.number_of_patients || 0) + 1;
-          await doctorRepository.save(doctor);
+      const reservationRepository =
+        await this.tenantRepositoryService.getRepository<Reservation>(Reservation);
+      const doctorRepository =
+        await this.tenantRepositoryService.getRepository<Doctor>(Doctor);
 
-          const doctorName = doctor.user?.name || '';
-          const branchIds = await this.doctorBranchesService.getBranchIdsForDoctor(doctorId);
-          const firstBranchId = branchIds[0];
-          let mainBranchId: number | undefined;
-          if (firstBranchId) {
-            const mainBranch = await this.mainBranchesService.findByClinicBranchId(
-              clinicId,
-              firstBranchId,
-            );
-            mainBranchId = mainBranch?.id;
-          }
+      if (!reservationRepository || !doctorRepository) return;
 
-          await this.mainDoctorsService.syncDoctor(clinicId, doctorId, {
-            name: doctorName,
-            age: doctor.age ?? undefined,
-            avatar: doctor.avatar,
-            email: doctor.user?.email,
-            phone: doctor.user?.phone,
-            department: doctor.department,
-            license_number: doctor.license_number,
-            degree: doctor.degree,
-            languages: doctor.languages,
-            bio: doctor.bio,
-            appoint_type:
-              Array.isArray(doctor.appointment_types) &&
-              doctor.appointment_types.length > 0
-                ? doctor.appointment_types[0]
-                : undefined,
-            is_active: doctor.is_active,
-            branch_id: mainBranchId,
-            experience_years: doctor.experience_years,
-            number_of_patients: doctor.number_of_patients,
-            rate: doctor.rate,
-          });
+      // Only increment if this is the first reservation for this patient with this doctor
+      const count = await reservationRepository.count({
+        where: { doctor_id: doctorId, patient_id: patientId },
+      });
+      if (count !== 1) return;
+
+      const doctor = await doctorRepository.findOne({
+        where: { id: doctorId },
+        relations: ['user'],
+      });
+
+      if (doctor) {
+        doctor.number_of_patients = (doctor.number_of_patients || 0) + 1;
+        await doctorRepository.save(doctor);
+
+        const doctorName = doctor.user?.name || '';
+        const branchIds = await this.doctorBranchesService.getBranchIdsForDoctor(doctorId);
+        const firstBranchId = branchIds[0];
+        let mainBranchId: number | undefined;
+        if (firstBranchId) {
+          const mainBranch = await this.mainBranchesService.findByClinicBranchId(
+            clinicId,
+            firstBranchId,
+          );
+          mainBranchId = mainBranch?.id;
         }
+
+        await this.mainDoctorsService.syncDoctor(clinicId, doctorId, {
+          name: doctorName,
+          age: doctor.age ?? undefined,
+          avatar: doctor.avatar,
+          email: doctor.user?.email,
+          phone: doctor.user?.phone,
+          department: doctor.department,
+          license_number: doctor.license_number,
+          degree: doctor.degree,
+          languages: doctor.languages,
+          bio: doctor.bio,
+          appoint_type:
+            Array.isArray(doctor.appointment_types) &&
+            doctor.appointment_types.length > 0
+              ? doctor.appointment_types[0]
+              : undefined,
+          is_active: doctor.is_active,
+          branch_id: mainBranchId,
+          experience_years: doctor.experience_years,
+          number_of_patients: doctor.number_of_patients,
+          rate: doctor.rate,
+        });
       }
     } catch (error) {
       // Log error but don't fail the reservation creation
@@ -1148,10 +1164,11 @@ export class ReservationsService {
 
     const savedReservation = await reservationRepository.save(reservation);
 
-    // Increment doctor's number_of_patients
+    // Increment doctor's number_of_patients only when this is the first reservation for this patient with this doctor
     await this.incrementDoctorPatientCount(
       createMainUserReservationDto.clinic_id,
       createMainUserReservationDto.doctor_id,
+      clinicUser.id,
     );
 
     // If working hour is not waterfall, set busy to true

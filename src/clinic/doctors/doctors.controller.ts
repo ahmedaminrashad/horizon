@@ -468,6 +468,98 @@ export class DoctorsController {
     await this.doctorFilesService.remove(doctorId, fileId);
   }
 
+  @Get(':doctorId/profile')
+  @ApiOperation({
+    summary: 'Get doctor profile (for logged-in doctor)',
+    description:
+      'Returns branches, services with working-hours, and number_of_patients.',
+  })
+  @ApiParam({ name: 'clinicId', type: Number, description: 'Clinic ID' })
+  @ApiParam({ name: 'doctorId', type: Number, description: 'Doctor ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Doctor profile with branches, services (with working_hours), number_of_patients',
+    schema: {
+      type: 'object',
+      properties: {
+        doctor: {
+          type: 'object',
+          description: 'Doctor and user (password stripped)',
+        },
+        branches: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              doctor_id: { type: 'number' },
+              branch_id: { type: 'number' },
+              branch: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number' },
+                  name: { type: 'string' },
+                  address: { type: 'string', nullable: true },
+                  lat: { type: 'number', nullable: true },
+                  longit: { type: 'number', nullable: true },
+                },
+              },
+            },
+          },
+        },
+        services: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              doctor_id: { type: 'number' },
+              service_id: { type: 'number' },
+              duration: { type: 'number', nullable: true },
+              price: { type: 'number', nullable: true },
+              service_type: { type: 'string', nullable: true },
+              service: {
+                type: 'object',
+                properties: { id: { type: 'number' }, name: { type: 'string' } },
+              },
+              working_hours: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    day: { type: 'string' },
+                    start_time: { type: 'string' },
+                    end_time: { type: 'string' },
+                    branch_id: { type: 'number', nullable: true },
+                    branch: {
+                      type: 'object',
+                      properties: { id: { type: 'number' }, name: { type: 'string' } },
+                    },
+                    is_active: { type: 'boolean' },
+                    waterfall: { type: 'boolean' },
+                    patients_limit: { type: 'number', nullable: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+        number_of_patients: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Doctor not found' })
+  getProfile(
+    @ClinicId() clinicId: number,
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+  ) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.doctorsService.getProfile(clinicId, doctorId);
+  }
+
   @Get(':doctorId')
   @Public()
   @ApiOperation({ summary: 'Get a doctor by ID' })
