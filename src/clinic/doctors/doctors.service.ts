@@ -25,7 +25,22 @@ import { BranchesService as MainBranchesService } from '../../branches/branches.
 import { DoctorServicesService } from '../doctor-services/doctor-services.service';
 import { DoctorBranchesService } from '../doctor-branches/doctor-branches.service';
 import { DoctorWorkingHour } from '../working-hours/entities/doctor-working-hour.entity';
+import {
+  Reservation as ClinicReservation,
+  ReservationStatus as ClinicReservationStatus,
+} from '../reservations/entities/reservation.entity';
 import { sanitizeUserInEntity } from '../../common/utils/user.utils';
+import {
+  DoctorProfileResponseDto,
+  DoctorProfileBranchDto,
+  DoctorProfileBranchInfoDto,
+  DoctorProfileServiceDto,
+  DoctorProfileServiceInfoDto,
+  DoctorProfileWorkingHourDto,
+  DoctorProfileWorkingHourBranchDto,
+  DoctorProfileNextReservationDto,
+  DoctorProfileNextReservationBranchDto,
+} from './dto/profile';
 
 @Injectable()
 export class DoctorsService {
@@ -231,41 +246,12 @@ export class DoctorsService {
   }
 
   /**
-   * Get doctor profile for logged-in doctor: branches, services with working-hours, number_of_patients.
+   * Get doctor profile for logged-in doctor: branches, services with working-hours, number_of_patients, next_reservation.
    */
   async getProfile(
     clinicId: number,
     doctorId: number,
-  ): Promise<{
-    doctor: Doctor;
-    branches: Array<{
-      id: number;
-      doctor_id: number;
-      branch_id: number;
-      branch?: { id: number; name: string; address?: string; lat?: number; longit?: number };
-    }>;
-    services: Array<{
-      id: number;
-      doctor_id: number;
-      service_id: number;
-      duration: number | null;
-      price: number | null;
-      service_type: string | null;
-      service?: { id: number; name: string };
-      working_hours: Array<{
-        id: number;
-        day: string;
-        start_time: string;
-        end_time: string;
-        branch_id: number | null;
-        branch?: { id: number; name: string };
-        is_active: boolean;
-        waterfall: boolean;
-        patients_limit: number | null;
-      }>;
-    }>;
-    number_of_patients: number;
-  }> {
+  ): Promise<DoctorProfileResponseDto> {
     const repository = await this.getRepository();
     const doctor = await repository.findOne({
       where: { id: doctorId },
@@ -313,58 +299,140 @@ export class DoctorsService {
       }
     }
 
-    const branches = (doctor.doctorBranches ?? []).map((db) => {
+    const branches: DoctorProfileBranchDto[] = (doctor.doctorBranches ?? []).map((db) => {
       const branch = db.branch;
-      return {
-        id: db.id,
-        doctor_id: db.doctor_id,
-        branch_id: db.branch_id,
-        branch: branch
-          ? {
-              id: branch.id,
-              name: branch.name,
-              address: branch.address ?? undefined,
-              lat: branch.lat != null ? Number(branch.lat) : undefined,
-              longit: branch.longit != null ? Number(branch.longit) : undefined,
-            }
-          : undefined,
-      };
+      const dto = new DoctorProfileBranchDto();
+      dto.id = db.id;
+      dto.doctor_id = db.doctor_id;
+      dto.branch_id = db.branch_id;
+      if (branch) {
+        const info = new DoctorProfileBranchInfoDto();
+        info.id = branch.id;
+        info.name = branch.name;
+        info.address = branch.address ?? undefined;
+        info.lat = branch.lat != null ? Number(branch.lat) : undefined;
+        info.longit = branch.longit != null ? Number(branch.longit) : undefined;
+        dto.branch = info;
+      }
+      return dto;
     });
 
-    const services = (doctor.doctorServices ?? []).map((ds) => {
+    const services: DoctorProfileServiceDto[] = (doctor.doctorServices ?? []).map((ds) => {
       const workingHours = doctorServiceIdsToWorkingHours.get(ds.id) ?? [];
       const service = ds.service;
-      return {
-        id: ds.id,
-        doctor_id: ds.doctor_id,
-        service_id: ds.service_id,
-        duration: ds.duration,
-        price: ds.price != null ? Number(ds.price) : null,
-        service_type: ds.service_type ?? null,
-        service: service ? { id: service.id, name: service.name } : undefined,
-        working_hours: workingHours.map((wh) => {
-          const whBranch = wh.branch;
-          return {
-            id: wh.id,
-            day: wh.day,
-            start_time: wh.start_time,
-            end_time: wh.end_time,
-            branch_id: wh.branch_id ?? null,
-            branch: whBranch ? { id: whBranch.id, name: whBranch.name } : undefined,
-            is_active: wh.is_active,
-            waterfall: wh.waterfall,
-            patients_limit: wh.patients_limit ?? null,
-          };
-        }),
-      };
+      const dto = new DoctorProfileServiceDto();
+      dto.id = ds.id;
+      dto.doctor_id = ds.doctor_id;
+      dto.service_id = ds.service_id;
+      dto.duration = ds.duration;
+      dto.price = ds.price != null ? Number(ds.price) : null;
+      dto.service_type = ds.service_type ?? null;
+      if (service) {
+        dto.service = Object.assign(new DoctorProfileServiceInfoDto(), {
+          id: service.id,
+          name: service.name,
+        });
+      }
+      dto.working_hours = workingHours.map((wh) => {
+        const whDto = new DoctorProfileWorkingHourDto();
+        whDto.id = wh.id;
+        whDto.day = wh.day;
+        whDto.start_time = wh.start_time;
+        whDto.end_time = wh.end_time;
+        whDto.branch_id = wh.branch_id ?? null;
+        if (wh.branch) {
+          whDto.branch = Object.assign(
+            new DoctorProfileWorkingHourBranchDto(),
+            { id: wh.branch.id, name: wh.branch.name },
+          );
+        }
+        whDto.is_active = wh.is_active;
+        whDto.waterfall = wh.waterfall;
+        whDto.patients_limit = wh.patients_limit ?? null;
+        return whDto;
+      });
+      return dto;
     });
 
-    return {
-      doctor: sanitizeUserInEntity(doctor),
-      branches,
-      services,
-      number_of_patients: doctor.number_of_patients ?? 0,
-    };
+    const reservationRepository =
+      await this.tenantRepositoryService.getRepository<ClinicReservation>(
+        ClinicReservation,
+      );
+    let next_reservation: DoctorProfileNextReservationDto | null = null;
+    let total_reservations = 0;
+    let total_upcoming_reservations = 0;
+
+    if (reservationRepository) {
+      total_reservations = await reservationRepository.count({
+        where: { doctor_id: doctorId },
+      });
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      total_upcoming_reservations = await reservationRepository
+        .createQueryBuilder('r')
+        .where('r.doctor_id = :doctorId', { doctorId })
+        .andWhere('r.date >= :today', { today })
+        .andWhere('r.status != :cancelled', {
+          cancelled: ClinicReservationStatus.CANCELLED,
+        })
+        .getCount();
+
+      const notCancelled = await reservationRepository
+        .createQueryBuilder('r')
+        .where('r.doctor_id = :doctorId', { doctorId })
+        .andWhere('r.date >= :today', { today })
+        .andWhere('r.status != :cancelled', {
+          cancelled: ClinicReservationStatus.CANCELLED,
+        })
+        .orderBy('r.date', 'ASC')
+        .addOrderBy('r.createdAt', 'ASC')
+        .leftJoinAndSelect('r.patient', 'patient')
+        .leftJoinAndSelect('r.doctor_working_hour', 'wh')
+        .leftJoinAndSelect('wh.branch', 'whBranch')
+        .take(1)
+        .getOne();
+
+      if (notCancelled) {
+        const wh = notCancelled.doctor_working_hour;
+        const patient = notCancelled.patient as { name?: string } | undefined;
+        const dateStr =
+          notCancelled.date instanceof Date
+            ? notCancelled.date.toISOString().slice(0, 10)
+            : String(notCancelled.date).slice(0, 10);
+        const nextDto = new DoctorProfileNextReservationDto();
+        nextDto.id = notCancelled.id;
+        nextDto.date = dateStr;
+        nextDto.time = wh?.start_time ?? null;
+        nextDto.time_range =
+          wh != null
+            ? { from: wh.start_time, to: wh.end_time }
+            : { from: null, to: null };
+        nextDto.patient_id = notCancelled.patient_id;
+        nextDto.patient_name = patient?.name ?? null;
+        nextDto.status = notCancelled.status;
+        nextDto.fees = Number(notCancelled.fees);
+        nextDto.paid = notCancelled.paid;
+        nextDto.appoint_type = notCancelled.appoint_type ?? null;
+        if (wh?.branch != null) {
+          nextDto.branch = Object.assign(
+            new DoctorProfileNextReservationBranchDto(),
+            { id: wh.branch.id, name: wh.branch.name },
+          );
+        }
+        next_reservation = nextDto;
+      }
+    }
+
+    const response = new DoctorProfileResponseDto();
+    response.doctor = sanitizeUserInEntity(doctor);
+    response.branches = branches;
+    response.services = services;
+    response.number_of_patients = doctor.number_of_patients ?? 0;
+    response.total_reservations = total_reservations;
+    response.total_upcoming_reservations = total_upcoming_reservations;
+    response.next_reservation = next_reservation;
+    return response;
   }
   async update(
     clinicId: number,

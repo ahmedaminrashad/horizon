@@ -44,6 +44,7 @@ import { ClinicPermission } from '../permissions/enums/clinic-permission.enum';
 import { Department } from './entities/doctor.entity';
 import { ClinicId } from '../decorators/clinic-id.decorator';
 import { RegisterDoctorDto } from './dto/register-doctor.dto';
+import { DoctorProfileResponseDto } from './dto/profile';
 import { WorkingHoursService } from '../working-hours/working-hours.service';
 import { DoctorWorkingHour } from '../working-hours/entities/doctor-working-hour.entity';
 import { DayOfWeek } from '../working-hours/entities/working-hour.entity';
@@ -472,82 +473,14 @@ export class DoctorsController {
   @ApiOperation({
     summary: 'Get doctor profile (for logged-in doctor)',
     description:
-      'Returns branches, services with working-hours, and number_of_patients.',
+      'Returns branches, services with working-hours, number_of_patients, and next_reservation.',
   })
   @ApiParam({ name: 'clinicId', type: Number, description: 'Clinic ID' })
   @ApiParam({ name: 'doctorId', type: Number, description: 'Doctor ID' })
   @ApiResponse({
     status: 200,
-    description: 'Doctor profile with branches, services (with working_hours), number_of_patients',
-    schema: {
-      type: 'object',
-      properties: {
-        doctor: {
-          type: 'object',
-          description: 'Doctor and user (password stripped)',
-        },
-        branches: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'number' },
-              doctor_id: { type: 'number' },
-              branch_id: { type: 'number' },
-              branch: {
-                type: 'object',
-                properties: {
-                  id: { type: 'number' },
-                  name: { type: 'string' },
-                  address: { type: 'string', nullable: true },
-                  lat: { type: 'number', nullable: true },
-                  longit: { type: 'number', nullable: true },
-                },
-              },
-            },
-          },
-        },
-        services: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'number' },
-              doctor_id: { type: 'number' },
-              service_id: { type: 'number' },
-              duration: { type: 'number', nullable: true },
-              price: { type: 'number', nullable: true },
-              service_type: { type: 'string', nullable: true },
-              service: {
-                type: 'object',
-                properties: { id: { type: 'number' }, name: { type: 'string' } },
-              },
-              working_hours: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    id: { type: 'number' },
-                    day: { type: 'string' },
-                    start_time: { type: 'string' },
-                    end_time: { type: 'string' },
-                    branch_id: { type: 'number', nullable: true },
-                    branch: {
-                      type: 'object',
-                      properties: { id: { type: 'number' }, name: { type: 'string' } },
-                    },
-                    is_active: { type: 'boolean' },
-                    waterfall: { type: 'boolean' },
-                    patients_limit: { type: 'number', nullable: true },
-                  },
-                },
-              },
-            },
-          },
-        },
-        number_of_patients: { type: 'number' },
-      },
-    },
+    description: 'Doctor profile',
+    type: DoctorProfileResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Doctor not found' })
   getProfile(
