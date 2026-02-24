@@ -62,6 +62,11 @@ export async function seedClinicRolesAndPermissions(
       description: 'Allows deleting clinic users',
     },
     {
+      name: 'Can Reset Password',
+      slug: ClinicPermission.CAN_RESET_PASSWORD,
+      description: 'Allows resetting user password via reset token',
+    },
+    {
       name: 'Manage Clinic',
       slug: ClinicPermission.MANAGE_CLINIC,
       description: 'Allows managing clinic settings and configuration',
@@ -152,6 +157,7 @@ export async function seedClinicRolesAndPermissions(
         'read-user',
         'create-user',
         'update-user',
+        'can-reset-password',
         'read-reservation',
         'create-reservation',
         'update-reservation',

@@ -5,9 +5,14 @@ import { ClinicAuthService } from '../clinic/auth/clinic-auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { RegisterPatientDto } from './dto/register-patient.dto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { AdminResetPasswordDto } from './dto/admin-reset-password.dto';
 import { DoctorLoginDto } from '../clinic/auth/dto/doctor-login.dto';
 import { ClinicLoginDto } from '../clinic/auth/dto/clinic-login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
+import { Roles } from './decorators/roles.decorator';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -68,6 +73,62 @@ export class AuthController {
   @ApiResponse({ status: 404, description: 'Patient role not found' })
   registerPatient(@Body() registerPatientDto: RegisterPatientDto) {
     return this.authService.registerPatient(registerPatientDto);
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({
+    summary: 'Forgot password (main users)',
+    description:
+      'Request a password reset by phone. Returns a reset token (for development); in production send it by SMS/email.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'If account exists, reset instructions or token returned',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        reset_token: { type: 'string', description: 'Present in dev only' },
+      },
+    },
+  })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  @ApiOperation({
+    summary: 'Reset password (main users)',
+    description: 'Reset password using the token from forgot-password. No auth required.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Password reset successfully',
+    schema: { type: 'object', properties: { message: { type: 'string' } } },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
+  }
+
+  @Post('admin-reset-password')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Admin reset password (main users, no token)',
+    description: 'Reset a main user password by user_id. No reset token required. Requires admin role.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Password reset successfully',
+    schema: { type: 'object', properties: { message: { type: 'string' } } },
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  adminResetPassword(@Body() dto: AdminResetPasswordDto) {
+    return this.authService.adminResetPassword(dto.user_id, dto.new_password);
   }
 
   @Post('login')

@@ -8,6 +8,7 @@ import { UsersModule } from '../users/users.module';
 import { RolesModule } from '../roles/roles.module';
 import { DatabaseModule } from '../database/database.module';
 import { ClinicAuthModule } from '../clinic/auth/clinic-auth.module';
+import { GuardsModule } from './guards/guards.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
@@ -16,6 +17,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     RolesModule,
     DatabaseModule,
     ClinicAuthModule,
+    GuardsModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

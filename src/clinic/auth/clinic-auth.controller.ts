@@ -1,12 +1,28 @@
-import { Controller, Post, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  ParseIntPipe,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ClinicAuthService } from './clinic-auth.service';
 import { ClinicLoginDto } from './dto/clinic-login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { AdminResetPasswordDto } from './dto/admin-reset-password.dto';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { ClinicPermissionsGuard } from '../guards/clinic-permissions.guard';
+import { Permissions } from '../../auth/decorators/permissions.decorator';
+import { ClinicPermission } from '../permissions/enums/clinic-permission.enum';
+import { ClinicId } from '../decorators/clinic-id.decorator';
 
 @ApiTags('clinic/auth')
 @Controller('clinic/:clinicId/auth')
@@ -85,5 +101,90 @@ export class ClinicAuthController {
     @Body() clinicLoginDto: ClinicLoginDto,
   ) {
     return this.clinicAuthService.login(+clinicId, clinicLoginDto);
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({
+    summary: 'Forgot password',
+    description:
+      'Request a password reset for a clinic user by email. Returns a reset token (for development); in production send it by email.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'If account exists, reset instructions or token returned',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        reset_token: { type: 'string', description: 'Present in dev only' },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Clinic not found' })
+  forgotPassword(
+    @Param('clinicId', ParseIntPipe) clinicId: number,
+    @Body() dto: ForgotPasswordDto,
+  ) {
+    return this.clinicAuthService.forgotPassword(clinicId, dto);
+  }
+
+  @Post('reset-password')
+  @UseGuards(JwtAuthGuard, ClinicPermissionsGuard)
+  @Permissions(ClinicPermission.CAN_RESET_PASSWORD as string)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Reset password',
+    description:
+      'Reset user password using the token from forgot-password. Requires permission can-reset-password.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Password reset successfully',
+    schema: {
+      type: 'object',
+      properties: { message: { type: 'string' } },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  @ApiResponse({ status: 403, description: 'Forbidden - missing can-reset-password' })
+  @ApiResponse({ status: 404, description: 'Clinic or user not found' })
+  resetPassword(
+    @ClinicId() clinicId: number,
+    @Body() dto: ResetPasswordDto,
+  ) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.clinicAuthService.resetPassword(clinicId, dto);
+  }
+
+  @Post('admin-reset-password')
+  @UseGuards(JwtAuthGuard, ClinicPermissionsGuard)
+  @Permissions(ClinicPermission.CAN_RESET_PASSWORD as string)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Admin reset password (no token)',
+    description:
+      'Reset a clinic user password by user_id. No reset token required. Requires permission can-reset-password.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Password reset successfully',
+    schema: { type: 'object', properties: { message: { type: 'string' } } },
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden - missing can-reset-password' })
+  @ApiResponse({ status: 404, description: 'Clinic or user not found' })
+  adminResetPassword(
+    @ClinicId() clinicId: number,
+    @Body() dto: AdminResetPasswordDto,
+  ) {
+    if (!clinicId) {
+      throw new Error('Clinic ID is required');
+    }
+    return this.clinicAuthService.adminResetPassword(
+      clinicId,
+      dto.user_id,
+      dto.new_password,
+    );
   }
 }

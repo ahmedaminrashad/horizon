@@ -15,6 +15,8 @@ import { User as ClinicUser } from '../permissions/entities/user.entity';
 import { Reservation, ReservationStatus } from '../reservations/entities/reservation.entity';
 import { ClinicLoginDto } from './dto/clinic-login.dto';
 import { DoctorLoginDto } from './dto/doctor-login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { TranslationService } from '../../common/services/translation.service';
 
 @Injectable()
@@ -379,5 +381,134 @@ export class ClinicAuthService {
         cancellations_last_7_days: dashboard.cancellations_last_7_days,
       },
     };
+  }
+
+  /**
+   * Forgot password: find user by email in clinic DB, generate short-lived reset token.
+   * Returns generic message (do not leak whether email exists). Optionally return token for development.
+   */
+  async forgotPassword(clinicId: number, dto: ForgotPasswordDto) {
+    const clinic = await this.clinicsService.findOneWithoutRelations(clinicId);
+    if (!clinic?.database_name) {
+      throw new NotFoundException('Clinic not found');
+    }
+
+    const clinicDataSource =
+      await this.tenantDataSourceService.getTenantDataSource(
+        clinic.database_name,
+      );
+    if (!clinicDataSource) {
+      throw new NotFoundException('Clinic database not available');
+    }
+
+    const userRepo = clinicDataSource.getRepository(ClinicUser);
+    const user = await userRepo.findOne({
+      where: { email: dto.email.trim() },
+    });
+
+    const message =
+      'If an account exists with this email, you will receive instructions to reset your password.';
+
+    if (!user) {
+      return { message };
+    }
+
+    const resetPayload = {
+      purpose: 'password-reset',
+      sub: user.id,
+      clinic_id: clinicId,
+      database_name: clinic.database_name,
+    };
+    const resetToken = this.jwtService.sign(resetPayload, { expiresIn: '1h' });
+
+    // In production: send email with link containing resetToken. For now return token for development.
+    return {
+      message,
+      reset_token: resetToken,
+    };
+  }
+
+  /**
+   * Reset password: verify reset token, update user password in clinic DB.
+   * Caller must have permission CanResetPassword (e.g. admin or staff).
+   */
+  async resetPassword(clinicId: number, dto: ResetPasswordDto) {
+    let decoded: {
+      purpose?: string;
+      sub?: number;
+      clinic_id?: number;
+      database_name?: string;
+    };
+    try {
+      decoded = this.jwtService.verify(dto.token);
+    } catch {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    if (decoded.purpose !== 'password-reset' || decoded.sub == null) {
+      throw new BadRequestException('Invalid reset token');
+    }
+    if (decoded.clinic_id !== clinicId) {
+      throw new BadRequestException('Token does not match this clinic');
+    }
+
+    const clinic = await this.clinicsService.findOneWithoutRelations(clinicId);
+    if (!clinic?.database_name || clinic.database_name !== decoded.database_name) {
+      throw new NotFoundException('Clinic not found');
+    }
+
+    const clinicDataSource =
+      await this.tenantDataSourceService.getTenantDataSource(
+        clinic.database_name,
+      );
+    if (!clinicDataSource) {
+      throw new NotFoundException('Clinic database not available');
+    }
+
+    const userRepo = clinicDataSource.getRepository(ClinicUser);
+    const user = await userRepo.findOne({ where: { id: decoded.sub } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.new_password, 10);
+    user.password = hashedPassword;
+    await userRepo.save(user);
+
+    return { message: 'Password has been reset successfully.' };
+  }
+
+  /**
+   * Admin reset password: set a user's password without token. Caller must have CanResetPassword.
+   */
+  async adminResetPassword(
+    clinicId: number,
+    userId: number,
+    newPassword: string,
+  ) {
+    const clinic = await this.clinicsService.findOneWithoutRelations(clinicId);
+    if (!clinic?.database_name) {
+      throw new NotFoundException('Clinic not found');
+    }
+
+    const clinicDataSource =
+      await this.tenantDataSourceService.getTenantDataSource(
+        clinic.database_name,
+      );
+    if (!clinicDataSource) {
+      throw new NotFoundException('Clinic database not available');
+    }
+
+    const userRepo = clinicDataSource.getRepository(ClinicUser);
+    const user = await userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await userRepo.save(user);
+
+    return { message: 'Password has been reset successfully.' };
   }
 }

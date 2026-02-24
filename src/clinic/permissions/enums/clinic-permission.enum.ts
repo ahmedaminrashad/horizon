@@ -14,6 +14,7 @@ export enum ClinicPermission {
   READ_USER = 'read-user',
   UPDATE_USER = 'update-user',
   DELETE_USER = 'delete-user',
+  CAN_RESET_PASSWORD = 'can-reset-password',
 
   // Clinic management
   MANAGE_CLINIC = 'manage-clinic',
