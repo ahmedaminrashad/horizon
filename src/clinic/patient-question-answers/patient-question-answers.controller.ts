@@ -61,12 +61,14 @@ export class PatientQuestionAnswersController {
       throw new BadRequestException('clinic_id is required in body.');
     }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- tenant service resolves main user to clinic patient id
+    console.log('req.user', req.user);
     const patientId: number =
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- tenant service method
       await this.patientQuestionAnswersService.getOrCreateClinicUserIdFromMainUser(
         req.user.userId,
         clinicId,
       );
+    console.log('patientId', patientId);
     return this.patientQuestionAnswersService.create(
       clinicId,
       createDto,

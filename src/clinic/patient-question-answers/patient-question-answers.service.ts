@@ -166,6 +166,7 @@ export class PatientQuestionAnswersService {
         question_id: createDto.question_id,
       },
     });
+    console.log('existing', existing);
     if (existing) {
       if (createDto.is_answer_yes !== undefined) {
         existing.is_answer_yes = createDto.is_answer_yes;
@@ -234,6 +235,49 @@ export class PatientQuestionAnswersService {
     const totalPages = Math.ceil(total / limit);
 
     return { data, total, page, totalPages };
+  }
+
+  /**
+   * Get patient question answers for reservations: each (patient_id, doctor_id) pair.
+   * Returns a Map keyed by `${patient_id}-${doctor_id}` → array of answers.
+   */
+  async findByPatientDoctorPairs(
+    clinicId: number,
+    pairs: { patient_id: number; doctor_id: number }[],
+  ): Promise<Map<string, PatientQuestionAnswer[]>> {
+    const map = new Map<string, PatientQuestionAnswer[]>();
+    if (pairs.length === 0) return map;
+
+    const uniquePairs = Array.from(
+      new Map(pairs.map((p) => [`${p.patient_id}-${p.doctor_id}`, p])).values(),
+    );
+
+    const repository = await this.getAnswerRepository();
+    const qb = repository
+      .createQueryBuilder('answer')
+      .leftJoinAndSelect('answer.question', 'question')
+      .where('answer.clinic_id = :clinicId', { clinicId });
+
+    const orConditions = uniquePairs.map(
+      (p, i) =>
+        `(answer.patient_id = :patientId${i} AND answer.doctor_id = :doctorId${i})`,
+    );
+    qb.andWhere(`(${orConditions.join(' OR ')})`);
+
+    uniquePairs.forEach((p, i) => {
+      qb.setParameter(`patientId${i}`, p.patient_id);
+      qb.setParameter(`doctorId${i}`, p.doctor_id);
+    });
+
+    const answers = await qb.getMany();
+
+    for (const a of answers) {
+      const key = `${a.patient_id}-${a.doctor_id}`;
+      const list = map.get(key) ?? [];
+      list.push(a);
+      map.set(key, list);
+    }
+    return map;
   }
 
   async findOne(

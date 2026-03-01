@@ -9,7 +9,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaginationQueryDto } from './pagination-query.dto';
-import { ReservationStatus } from '../entities/reservation.entity';
+import { ReservationStatus, MedicalStatus } from '../entities/reservation.entity';
 import { AppointType } from '../../doctors/entities/doctor.entity';
 
 export class ReservationsQueryDto extends PaginationQueryDto {
@@ -81,4 +81,13 @@ export class ReservationsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(AppointType)
   appoint_type?: AppointType;
+
+  @ApiPropertyOptional({
+    description: 'Filter by medical status',
+    enum: MedicalStatus,
+    example: MedicalStatus.CONFIRMED,
+  })
+  @IsOptional()
+  @IsEnum(MedicalStatus)
+  medical_status?: MedicalStatus;
 }

@@ -12,12 +12,14 @@ import { DoctorsModule as MainDoctorsModule } from '../../doctors/doctors.module
 import { ReservationsModule as MainReservationsModule } from '../../reservations/reservations.module';
 import { DoctorBranchesModule } from '../doctor-branches/doctor-branches.module';
 import { BranchesModule as MainBranchesModule } from '../../branches/branches.module';
+import { PatientQuestionAnswersModule } from '../patient-question-answers/patient-question-answers.module';
 
 @Module({
   imports: [
     DatabaseModule,
     UsersModule,
     ClinicsModule,
+    PatientQuestionAnswersModule,
     MainDoctorsModule,
     MainReservationsModule,
     DoctorBranchesModule,

@@ -22,6 +22,7 @@ import { User as ClinicUser } from '../permissions/entities/user.entity';
 import { ClinicUser as ClinicUserLink } from '../../clinics/entities/clinic-user.entity';
 import { ClinicsService } from '../../clinics/clinics.service';
 import { UsersService } from '../../users/users.service';
+import { PatientQuestionAnswersService } from '../patient-question-answers/patient-question-answers.service';
 import { stripPasswordFromUser, sanitizeUserInEntity } from '../../common/utils/user.utils';
 import * as bcrypt from 'bcrypt';
 
@@ -35,6 +36,7 @@ export class ReservationsService {
     private doctorBranchesService: DoctorBranchesService,
     private clinicsService: ClinicsService,
     private usersService: UsersService,
+    private patientQuestionAnswersService: PatientQuestionAnswersService,
     @InjectRepository(MainReservation)
     private mainReservationRepository: Repository<MainReservation>,
     @InjectRepository(ClinicUserLink)
@@ -225,7 +227,7 @@ export class ReservationsService {
   }
 
   /**
-   * Map clinic reservation entity to response with time, names, time_range, schedule_type, appoint_type, patient last/next visit.
+   * Map clinic reservation entity to response with time, names, time_range, schedule_type, appoint_type, patient last/next visit, patient_answers.
    */
   private mapClinicReservationToResponse(
     r: Reservation,
@@ -233,6 +235,7 @@ export class ReservationsService {
       number,
       { last_visit: Date | null; next_visit: Date | null }
     >,
+    patientAnswers?: { id: number; question_id: number; is_answer_yes: boolean | null; comment: string | null; question?: { content_en?: string; content_ar?: string } }[],
   ) {
     const wh = r.doctor_working_hour;
     const visits = visitDates.get(r.patient_id) ?? {
@@ -259,9 +262,11 @@ export class ReservationsService {
       schedule_type:
         wh != null ? (wh.waterfall ? 'waterfall' : 'fixed') : null,
       appoint_type: r.appoint_type ?? null,
+      medical_status: r.medical_status ?? null,
       appointment_types: doctor?.appointment_types ?? null,
       patient_last_visit: visits.last_visit,
       patient_next_visit: visits.next_visit,
+      patient_answers: patientAnswers ?? [],
     } as unknown as Reservation;
   }
 
@@ -654,6 +659,7 @@ export class ReservationsService {
       status?: ReservationStatus;
       schedule_type?: 'waterfall' | 'fixed';
       appoint_type?: string;
+      medical_status?: string;
     },
   ) {
     const repository = await this.getRepository();
@@ -710,6 +716,11 @@ export class ReservationsService {
         appointType: filters.appoint_type,
       });
     }
+    if (filters?.medical_status) {
+      qb.andWhere('r.medical_status = :medicalStatus', {
+        medicalStatus: filters.medical_status,
+      });
+    }
 
     const [rawData, total] = await qb.getManyAndCount();
 
@@ -720,9 +731,34 @@ export class ReservationsService {
       repository,
       patientIds,
     );
-    const data = rawData.map((r) =>
-      this.mapClinicReservationToResponse(r, visitDates),
-    );
+
+    const pairs = rawData.map((r) => ({
+      patient_id: r.patient_id,
+      doctor_id: r.doctor_id,
+    }));
+    const patientAnswersMap =
+      await this.patientQuestionAnswersService.findByPatientDoctorPairs(
+        clinicId,
+        pairs,
+      );
+
+    const data = rawData.map((r) => {
+      const key = `${r.patient_id}-${r.doctor_id}`;
+      const answers = patientAnswersMap.get(key) ?? [];
+      const patientAnswers = answers.map((a) => ({
+        id: a.id,
+        question_id: a.question_id,
+        is_answer_yes: a.is_answer_yes,
+        comment: a.comment,
+        question: a.question
+          ? {
+              content_en: (a.question as { content_en?: string }).content_en,
+              content_ar: (a.question as { content_ar?: string }).content_ar,
+            }
+          : undefined,
+      }));
+      return this.mapClinicReservationToResponse(r, visitDates, patientAnswers);
+    });
 
     const totalPages = Math.ceil(total / limit);
 
@@ -921,7 +957,34 @@ export class ReservationsService {
     const visitDates = await this.getClinicPatientVisitDates(repository, [
       reservation.patient_id,
     ]);
-    return this.mapClinicReservationToResponse(reservation, visitDates);
+
+    const patientAnswersMap =
+      await this.patientQuestionAnswersService.findByPatientDoctorPairs(
+        clinicId,
+        [{ patient_id: reservation.patient_id, doctor_id: reservation.doctor_id }],
+      );
+    const answers =
+      patientAnswersMap.get(
+        `${reservation.patient_id}-${reservation.doctor_id}`,
+      ) ?? [];
+    const patientAnswers = answers.map((a) => ({
+      id: a.id,
+      question_id: a.question_id,
+      is_answer_yes: a.is_answer_yes,
+      comment: a.comment,
+      question: a.question
+        ? {
+            content_en: (a.question as { content_en?: string }).content_en,
+            content_ar: (a.question as { content_ar?: string }).content_ar,
+          }
+        : undefined,
+    }));
+
+    return this.mapClinicReservationToResponse(
+      reservation,
+      visitDates,
+      patientAnswers,
+    );
   }
 
   async update(clinicId: number, id: number, updateReservationDto: UpdateReservationDto): Promise<Reservation> {
@@ -1516,6 +1579,7 @@ export class ReservationsService {
         to_time: toTime,
         status: clinicReservation.status,
         appoint_type: clinicReservation.appoint_type ?? undefined,
+        medical_status: clinicReservation.medical_status ?? undefined,
       };
 
       if (existingMainReservation) {

@@ -205,7 +205,6 @@ export class ClinicUsersService {
       where: { id },
       relations: ['role'],
     });
-
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
@@ -222,6 +221,7 @@ export class ClinicUsersService {
       relations: ['role'],
     });
 
+    
     if (!existingUser) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }

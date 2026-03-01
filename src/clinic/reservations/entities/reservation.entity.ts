@@ -18,6 +18,12 @@ export enum ReservationStatus {
   CANCELLED = 'cancelled',
 }
 
+export enum MedicalStatus {
+  CONFIRMED = 'Confirmed',
+  SUSPECTED = 'Suspected',
+  MIS_DIAGNOSIS = 'MisDiagnosis',
+}
+
 @Entity('reservations')
 export class Reservation {
   @PrimaryGeneratedColumn()
@@ -55,6 +61,15 @@ export class Reservation {
     comment: 'Appointment type: in-clinic, online, or home',
   })
   appoint_type: AppointType;
+
+  @Column({
+    type: 'enum',
+    enum: MedicalStatus,
+    nullable: true,
+    name: 'medical_status',
+    comment: 'Medical status: Confirmed, Suspected, MisDiagnosis',
+  })
+  medical_status: MedicalStatus;
 
   @Column({ name: 'main_user_id', nullable: true })
   main_user_id: number;

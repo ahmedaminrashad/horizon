@@ -414,6 +414,7 @@ export class DoctorsService {
         nextDto.fees = Number(notCancelled.fees);
         nextDto.paid = notCancelled.paid;
         nextDto.appoint_type = notCancelled.appoint_type ?? null;
+        nextDto.medical_status = notCancelled.medical_status ?? null;
         if (wh?.branch != null) {
           nextDto.branch = Object.assign(
             new DoctorProfileNextReservationBranchDto(),

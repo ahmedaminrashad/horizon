@@ -220,6 +220,7 @@ export class ReservationsController {
       status: query.status,
       schedule_type: query.schedule_type,
       appoint_type: query.appoint_type,
+      medical_status: query.medical_status,
     });
   }
 

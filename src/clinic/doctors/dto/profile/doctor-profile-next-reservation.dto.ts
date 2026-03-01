@@ -42,6 +42,13 @@ export class DoctorProfileNextReservationDto {
   @ApiPropertyOptional({ nullable: true, example: 'in-clinic' })
   appoint_type: string | null;
 
+  @ApiPropertyOptional({
+    nullable: true,
+    example: 'Confirmed',
+    description: 'Medical status: Confirmed, Suspected, MisDiagnosis',
+  })
+  medical_status: string | null;
+
   @ApiPropertyOptional({ type: () => DoctorProfileNextReservationBranchDto })
   branch?: DoctorProfileNextReservationBranchDto;
 }

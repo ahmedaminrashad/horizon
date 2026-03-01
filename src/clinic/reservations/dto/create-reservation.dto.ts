@@ -1,6 +1,7 @@
 import { IsInt, IsDateString, IsEnum, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AppointType } from '../../doctors/entities/doctor.entity';
+import { MedicalStatus } from '../entities/reservation.entity';
 
 export class CreateReservationDto {
   @ApiProperty({ example: 1, description: 'Doctor ID' })
@@ -37,4 +38,13 @@ export class CreateReservationDto {
   @IsOptional()
   @IsEnum(AppointType)
   appoint_type?: AppointType;
+
+  @ApiPropertyOptional({
+    description: 'Medical status: Confirmed, Suspected, MisDiagnosis',
+    enum: MedicalStatus,
+    example: MedicalStatus.CONFIRMED,
+  })
+  @IsOptional()
+  @IsEnum(MedicalStatus)
+  medical_status?: MedicalStatus;
 }

@@ -50,6 +50,7 @@ import { AddClinicIdToDoctorWorkingHours1776000000030 } from './1776000000030-Ad
 import { DoctorWorkingHoursManyToManyDoctorServices1776000000031 } from './1776000000031-DoctorWorkingHoursManyToManyDoctorServices';
 import { RemoveAppointTypeFromDoctorWorkingHours1776000000032 } from './1776000000032-RemoveAppointTypeFromDoctorWorkingHours';
 import { AddWaterfallToServices1776000000033 } from './1776000000033-AddWaterfallToServices';
+import { AddMedicalStatusToReservations1776000000034 } from './1776000000034-AddMedicalStatusToReservations';
 
 /**
  * List of all clinic migrations in order
@@ -107,4 +108,5 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   DoctorWorkingHoursManyToManyDoctorServices1776000000031,
   RemoveAppointTypeFromDoctorWorkingHours1776000000032,
   AddWaterfallToServices1776000000033,
+  AddMedicalStatusToReservations1776000000034,
 ];
