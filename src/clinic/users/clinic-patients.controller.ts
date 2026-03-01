@@ -84,6 +84,7 @@ export class ClinicPatientsController {
       search: query.search,
       is_active: query.is_active,
       clinic_id: query.clinic_id,
+      doctor_id: query.doctor_id,
     });
   }
 

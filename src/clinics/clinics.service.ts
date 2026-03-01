@@ -21,6 +21,7 @@ import { Doctor } from '../doctors/entities/doctor.entity';
 import { DoctorsService } from '../doctors/doctors.service';
 import { Inject, forwardRef } from '@nestjs/common';
 import { WorkingHour } from '../clinic/working-hours/entities/working-hour.entity';
+import { Reservation as ClinicReservation } from '../clinic/reservations/entities/reservation.entity';
 import { IvrApiService } from '../voip/services/ivr-api.service';
 import { UsersService } from '../users/users.service';
 
@@ -253,7 +254,8 @@ export class ClinicsService {
   /**
    * Get main users (patients) linked to clinic via clinic_user table.
    * @param clinicId Clinic ID (or use options.clinic_id to filter by another clinic).
-   * @param options Optional: phone (legacy), search (name, phone, email, patient id), is_active, clinic_id.
+   * @param options Optional: phone (legacy), search (name, phone, email, patient id), is_active, clinic_id, doctor_id.
+   *   When doctor_id is set, returns only patients that have at least one reservation with that doctor.
    */
   async getClinicPatients(
     clinicId: number,
@@ -262,6 +264,7 @@ export class ClinicsService {
       search?: string;
       is_active?: boolean;
       clinic_id?: number;
+      doctor_id?: number;
     },
   ) {
     const effectiveClinicId = options?.clinic_id ?? clinicId;
@@ -272,6 +275,28 @@ export class ClinicsService {
       throw new NotFoundException(
         `Clinic with ID ${effectiveClinicId} not found`,
       );
+    }
+
+    let patientIdsWithReservation: number[] | null = null;
+    if (options?.doctor_id != null && clinic.database_name) {
+      const clinicDataSource =
+        await this.tenantDataSourceService.getTenantDataSource(
+          clinic.database_name,
+        );
+      if (clinicDataSource) {
+        const reservationRepo =
+          clinicDataSource.getRepository(ClinicReservation);
+        const rows = await reservationRepo
+          .createQueryBuilder('r')
+          .select('DISTINCT r.patient_id', 'patient_id')
+          .where('r.doctor_id = :doctorId', {
+            doctorId: options.doctor_id,
+          })
+          .getRawMany<{ patient_id: number }>();
+        patientIdsWithReservation = rows
+          .map((r) => r.patient_id)
+          .filter((id): id is number => id != null);
+      }
     }
 
     const qb = this.clinicUserRepository
@@ -291,6 +316,17 @@ export class ClinicsService {
       qb.andWhere('cu.is_active = :isActive', {
         isActive: options.is_active,
       });
+    }
+
+    if (patientIdsWithReservation !== null) {
+      if (patientIdsWithReservation.length === 0) {
+        qb.andWhere('1 = 0');
+      } else {
+        qb.andWhere('cu.clinic_user_id IS NOT NULL').andWhere(
+          'cu.clinic_user_id IN (:...patientIds)',
+          { patientIds: patientIdsWithReservation },
+        );
+      }
     }
 
     const search = options?.search?.trim();

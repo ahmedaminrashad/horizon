@@ -45,6 +45,16 @@ export class ClinicPatientsQueryDto {
   @IsInt()
   clinic_id?: number;
 
+  @ApiPropertyOptional({
+    description:
+      'Filter to patients that have at least one reservation with this doctor (clinic doctor ID)',
+    example: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  doctor_id?: number;
+
   @ApiPropertyOptional({ description: 'Page number for pagination (whitelisted)', example: 1 })
   @IsOptional()
   @Type(() => Number)

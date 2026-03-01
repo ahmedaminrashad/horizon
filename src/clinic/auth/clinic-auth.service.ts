@@ -12,12 +12,17 @@ import { TenantRepositoryService } from '../../database/tenant-repository.servic
 import { TenantDataSourceService } from '../../database/tenant-data-source.service';
 import { DoctorsService as MainDoctorsService } from '../../doctors/doctors.service';
 import { User as ClinicUser } from '../permissions/entities/user.entity';
+import { Doctor as ClinicDoctor } from '../doctors/entities/doctor.entity';
 import { Reservation, ReservationStatus } from '../reservations/entities/reservation.entity';
 import { ClinicLoginDto } from './dto/clinic-login.dto';
 import { DoctorLoginDto } from './dto/doctor-login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { TranslationService } from '../../common/services/translation.service';
+import {
+  DoctorProfileNextReservationDto,
+  DoctorProfileNextReservationBranchDto,
+} from '../doctors/dto/profile/doctor-profile-next-reservation.dto';
 
 @Injectable()
 export class ClinicAuthService {
@@ -102,9 +107,11 @@ export class ClinicAuthService {
 
   /**
    * Same as getClinicDashboardStats but using a given DataSource (e.g. for doctor login without tenant context).
+   * When doctorId is provided, all stats are scoped to that doctor.
    */
   private async getDashboardStatsFromDataSource(
     dataSource: DataSource,
+    doctorId?: number,
   ): Promise<{
     total_appointments_last_7_days: number;
     total_revenue_last_7_days: number;
@@ -119,45 +126,53 @@ export class ClinicAuthService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    const q1 = reservationRepo
+      .createQueryBuilder('r')
+      .where('r.date >= :from', { from: sevenDaysAgo })
+      .andWhere('r.date < :to', { to: tomorrow })
+      .andWhere('r.status != :cancelled', {
+        cancelled: ReservationStatus.CANCELLED,
+      });
+    if (doctorId != null) q1.andWhere('r.doctor_id = :doctorId', { doctorId });
+
+    const q2 = reservationRepo
+      .createQueryBuilder('r')
+      .select('COALESCE(SUM(r.fees), 0)', 'total')
+      .where('r.date >= :from', { from: sevenDaysAgo })
+      .andWhere('r.date < :to', { to: tomorrow })
+      .andWhere('r.status != :cancelled', {
+        cancelled: ReservationStatus.CANCELLED,
+      });
+    if (doctorId != null) q2.andWhere('r.doctor_id = :doctorId', { doctorId });
+
+    const q3 = reservationRepo
+      .createQueryBuilder('r')
+      .where('r.date >= :today', { today })
+      .andWhere('r.date < :tomorrow', { tomorrow })
+      .andWhere('r.status != :cancelled', {
+        cancelled: ReservationStatus.CANCELLED,
+      });
+    if (doctorId != null) q3.andWhere('r.doctor_id = :doctorId', { doctorId });
+
+    const q4 = reservationRepo
+      .createQueryBuilder('r')
+      .where('r.date >= :from', { from: sevenDaysAgo })
+      .andWhere('r.date < :to', { to: tomorrow })
+      .andWhere('r.status = :cancelled', {
+        cancelled: ReservationStatus.CANCELLED,
+      });
+    if (doctorId != null) q4.andWhere('r.doctor_id = :doctorId', { doctorId });
+
     const [
       totalAppointmentsLast7Days,
       totalRevenueResult,
       doctorWorkloadToday,
       cancellationsLast7Days,
     ] = await Promise.all([
-      reservationRepo
-        .createQueryBuilder('r')
-        .where('r.date >= :from', { from: sevenDaysAgo })
-        .andWhere('r.date < :to', { to: tomorrow })
-        .andWhere('r.status != :cancelled', {
-          cancelled: ReservationStatus.CANCELLED,
-        })
-        .getCount(),
-      reservationRepo
-        .createQueryBuilder('r')
-        .select('COALESCE(SUM(r.fees), 0)', 'total')
-        .where('r.date >= :from', { from: sevenDaysAgo })
-        .andWhere('r.date < :to', { to: tomorrow })
-        .andWhere('r.status != :cancelled', {
-          cancelled: ReservationStatus.CANCELLED,
-        })
-        .getRawOne<{ total: string }>(),
-      reservationRepo
-        .createQueryBuilder('r')
-        .where('r.date >= :today', { today })
-        .andWhere('r.date < :tomorrow', { tomorrow })
-        .andWhere('r.status != :cancelled', {
-          cancelled: ReservationStatus.CANCELLED,
-        })
-        .getCount(),
-      reservationRepo
-        .createQueryBuilder('r')
-        .where('r.date >= :from', { from: sevenDaysAgo })
-        .andWhere('r.date < :to', { to: tomorrow })
-        .andWhere('r.status = :cancelled', {
-          cancelled: ReservationStatus.CANCELLED,
-        })
-        .getCount(),
+      q1.getCount(),
+      q2.getRawOne<{ total: string }>(),
+      q3.getCount(),
+      q4.getCount(),
     ]);
 
     const totalRevenue = totalRevenueResult?.total
@@ -170,6 +185,65 @@ export class ClinicAuthService {
       doctor_workload_today: doctorWorkloadToday,
       cancellations_last_7_days: cancellationsLast7Days,
     };
+  }
+
+  /**
+   * Get next upcoming reservation for a doctor (date >= today, not cancelled).
+   */
+  private async getNextReservationForDoctor(
+    dataSource: DataSource,
+    doctorId: number,
+  ): Promise<DoctorProfileNextReservationDto | null> {
+    if (!doctorId) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().slice(0, 10);
+    const reservationRepo = dataSource.getRepository(Reservation);
+    const notCancelled = await reservationRepo
+      .createQueryBuilder('r')
+      .where('r.doctor_id = :doctorId', { doctorId })
+      .andWhere('r.date >= :today', { today: todayStr })
+      .andWhere('r.status != :cancelled', {
+        cancelled: ReservationStatus.CANCELLED,
+      })
+      .orderBy('r.date', 'ASC')
+      .addOrderBy('r.createdAt', 'ASC')
+      .leftJoinAndSelect('r.patient', 'patient')
+      .leftJoinAndSelect('r.doctor_working_hour', 'wh')
+      .leftJoinAndSelect('wh.branch', 'whBranch')
+      .take(1)
+      .getOne();
+
+    if (!notCancelled) return null;
+
+    const wh = notCancelled.doctor_working_hour;
+    const patient = notCancelled.patient as { name?: string } | undefined;
+    const dateStr =
+      notCancelled.date instanceof Date
+        ? notCancelled.date.toISOString().slice(0, 10)
+        : String(notCancelled.date).slice(0, 10);
+    const nextDto = new DoctorProfileNextReservationDto();
+    nextDto.id = notCancelled.id;
+    nextDto.date = dateStr;
+    nextDto.time = wh?.start_time ?? null;
+    nextDto.time_range =
+      wh != null
+        ? { from: wh.start_time, to: wh.end_time }
+        : { from: null, to: null };
+    nextDto.patient_id = notCancelled.patient_id;
+    nextDto.patient_name = patient?.name ?? null;
+    nextDto.status = notCancelled.status;
+    nextDto.fees = Number(notCancelled.fees);
+    nextDto.paid = notCancelled.paid;
+    nextDto.appoint_type = notCancelled.appoint_type ?? null;
+    nextDto.medical_status = notCancelled.medical_status ?? null;
+    if (wh?.branch != null) {
+      nextDto.branch = Object.assign(
+        new DoctorProfileNextReservationBranchDto(),
+        { id: wh.branch.id, name: wh.branch.name },
+      );
+    }
+    return nextDto;
   }
 
   /**
@@ -367,9 +441,22 @@ export class ClinicAuthService {
       role_slug: clinicDbUser.role?.slug,
     };
 
-    const dashboard = await this.getDashboardStatsFromDataSource(
-      clinicDataSource,
-    );
+    const clinicDoctorRepo = clinicDataSource.getRepository(ClinicDoctor);
+    const clinicDoctor = await clinicDoctorRepo.findOne({
+      where: { user_id: clinicDbUser.id },
+    });
+    const doctorIdForReservations = clinicDoctor?.id ?? mainDoctor.clinic_doctor_id;
+
+    const [dashboard, next_reservation] = await Promise.all([
+      this.getDashboardStatsFromDataSource(
+        clinicDataSource,
+        doctorIdForReservations,
+      ),
+      this.getNextReservationForDoctor(
+        clinicDataSource,
+        doctorIdForReservations,
+      ),
+    ]);
 
     return {
       ...result,
@@ -380,6 +467,7 @@ export class ClinicAuthService {
         doctor_workload_today: dashboard.doctor_workload_today,
         cancellations_last_7_days: dashboard.cancellations_last_7_days,
       },
+      next_reservation,
     };
   }
 
