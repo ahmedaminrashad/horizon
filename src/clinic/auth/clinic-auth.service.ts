@@ -468,6 +468,10 @@ export class ClinicAuthService {
         cancellations_last_7_days: dashboard.cancellations_last_7_days,
       },
       next_reservation,
+      doctor_avatar:
+        clinicDoctor?.avatar ??
+        (mainDoctor as { avatar?: string })?.avatar ??
+        null,
     };
   }
 
