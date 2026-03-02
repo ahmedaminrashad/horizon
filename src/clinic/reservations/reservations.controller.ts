@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  ParseIntPipe,
   UseGuards,
   Query,
   Request,
@@ -183,6 +184,57 @@ export class ReservationsController {
       createReservationDto,
       userId,
       isMainUser,
+    );
+  }
+
+  @Get('clinic/:clinicId/patients/:patientId/reservations')
+  @UseGuards(ClinicTenantGuard, JwtAuthGuard, ClinicPermissionsGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Permissions(ClinicPermission.READ_RESERVATION as string)
+  @ApiOperation({
+    summary: 'List all reservations for a patient (as doctor)',
+    description:
+      'Returns all reservations for the given patient. Only allowed if the logged-in doctor has at least one reservation with this patient. Otherwise returns 401 Unauthorized.',
+  })
+  @ApiParam({ name: 'clinicId', type: Number, description: 'Clinic ID', example: 1 })
+  @ApiParam({
+    name: 'patientId',
+    type: Number,
+    description: 'Patient ID (main user id)',
+    example: 1,
+  })
+  @ApiResponse({ status: 200, description: 'List of reservations for the patient' })
+  @ApiResponse({ status: 401, description: 'Unauthorized – not a doctor or no reservation with this patient' })
+  @ApiResponse({ status: 404, description: 'Patient not found in clinic' })
+  findAllByPatientAsDoctor(
+    @ClinicId() clinicId: number,
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Query() query: ReservationsQueryDto,
+    @Request() req: { user?: { userId: number; clinic_id?: number } },
+  ) {
+    if (!clinicId) {
+      throw new BadRequestException('Clinic ID is required');
+    }
+    const clinicUserId = req.user?.userId;
+    if (clinicUserId == null) {
+      throw new BadRequestException('Authentication required');
+    }
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    return this.reservationsService.findAllByPatientForDoctor(
+      clinicId,
+      patientId,
+      clinicUserId,
+      page,
+      limit,
+      {
+        from_date: query.from_date,
+        to_date: query.to_date,
+        status: query.status,
+        doctor_id: query.doctor_id,
+        appoint_type: query.appoint_type,
+        medical_status: query.medical_status,
+      },
     );
   }
 

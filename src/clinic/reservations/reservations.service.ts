@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Repository, In, Not, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -655,6 +656,7 @@ export class ReservationsService {
       from_date?: string;
       to_date?: string;
       doctor_id?: number;
+      patient_id?: number;
       service_id?: number;
       status?: ReservationStatus;
       schedule_type?: 'waterfall' | 'fixed';
@@ -696,6 +698,11 @@ export class ReservationsService {
     if (filters?.doctor_id != null) {
       qb.andWhere('r.doctor_id = :doctorId', {
         doctorId: filters.doctor_id,
+      });
+    }
+    if (filters?.patient_id != null) {
+      qb.andWhere('r.patient_id = :patientId', {
+        patientId: filters.patient_id,
       });
     }
     if (filters?.service_id != null) {
@@ -985,6 +992,134 @@ export class ReservationsService {
       visitDates,
       patientAnswers,
     );
+  }
+
+  /**
+   * List all reservations for a patient, as the logged-in doctor.
+   * Validates that the doctor has at least one reservation with this patient; otherwise throws UnauthorizedException.
+   * @param clinicId Clinic ID
+   * @param patientIdentifier Main user ID, clinic_user link id, or clinic_user_id (resolved to main user id)
+   * @param currentClinicUserId Logged-in user's clinic user ID (JWT sub)
+   * @param page Page number
+   * @param limit Page size
+   * @param filters Optional filters (from_date, to_date, status, etc.)
+   */
+  async findAllByPatientForDoctor(
+    clinicId: number,
+    patientIdentifier: number,
+    currentClinicUserId: number,
+    page: number = 1,
+    limit: number = 10,
+    filters?: {
+      from_date?: string;
+      to_date?: string;
+      status?: ReservationStatus;
+      doctor_id?: number;
+      appoint_type?: string;
+      medical_status?: string;
+    },
+  ) {
+    const patientIdMainUser =
+      await this.clinicsService.getMainUserIdFromPatientIdentifier(
+        clinicId,
+        patientIdentifier,
+      );
+    if (patientIdMainUser == null) {
+      throw new NotFoundException(
+        `Patient with ID ${patientIdentifier} is not linked to this clinic.`,
+      );
+    }
+
+    const doctorRepo =
+      await this.tenantRepositoryService.getRepository<Doctor>(Doctor);
+    const clinicDoctor = doctorRepo
+      ? await doctorRepo.findOne({
+          where: { user_id: currentClinicUserId, clinic_id: clinicId },
+        })
+      : null;
+    if (!clinicDoctor) {
+      throw new UnauthorizedException(
+        'Only a doctor can view patient reservations. You are not linked as a doctor in this clinic.',
+      );
+    }
+
+    const clinicUserId = await this.clinicsService.getClinicUserIdForMainUser(
+      patientIdMainUser,
+      clinicId,
+    );
+    if (clinicUserId == null) {
+      throw new NotFoundException(
+        `Patient with ID ${patientIdMainUser} is not linked to this clinic.`,
+      );
+    }
+
+    const repository = await this.getRepository();
+    const hasReservationWithDoctor = await repository
+      .createQueryBuilder('r')
+      .where('r.patient_id = :patientId', { patientId: clinicUserId })
+      .andWhere('r.doctor_id = :doctorId', { doctorId: clinicDoctor.id })
+      .getCount();
+    if (hasReservationWithDoctor === 0) {
+      throw new UnauthorizedException(
+        'You do not have any reservation with this patient. Access denied.',
+      );
+    }
+
+    const skip = (page - 1) * limit;
+    const qb = this.mainReservationRepository
+      .createQueryBuilder('r')
+      .leftJoinAndSelect('r.doctor', 'doctor')
+      .leftJoinAndSelect('r.mainUser', 'mainUser')
+      .where('r.main_user_id = :mainUserId', { mainUserId: patientIdMainUser })
+      .andWhere('r.clinic_id = :clinicId', { clinicId })
+      .orderBy('r.date', 'DESC')
+      .addOrderBy('r.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    if (filters?.from_date) {
+      qb.andWhere('r.date >= :fromDate', { fromDate: filters.from_date });
+    }
+    if (filters?.to_date) {
+      qb.andWhere('r.date <= :toDate', { toDate: filters.to_date });
+    }
+    if (filters?.status) {
+      qb.andWhere('r.status = :status', {
+        status: filters.status,
+      });
+    }
+    if (filters?.doctor_id != null) {
+      qb.andWhere('r.doctor_id = :doctorId', { doctorId: filters.doctor_id });
+    }
+    if (filters?.appoint_type) {
+      qb.andWhere('r.appoint_type = :appointType', {
+        appointType: filters.appoint_type,
+      });
+    }
+    if (filters?.medical_status) {
+      qb.andWhere('r.medical_status = :medicalStatus', {
+        medicalStatus: filters.medical_status,
+      });
+    }
+
+    const [rawData, total] = await qb.getManyAndCount();
+    const visitDates = await this.getMainUserVisitDates(patientIdMainUser);
+    const data = rawData.map((r) =>
+      this.mapMainReservationToResponse(r, visitDates),
+    );
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    };
   }
 
   async update(clinicId: number, id: number, updateReservationDto: UpdateReservationDto): Promise<Reservation> {

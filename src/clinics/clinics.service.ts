@@ -394,6 +394,21 @@ export class ClinicsService {
   }
 
   /**
+   * Resolve patient identifier to main user id.
+   * Accepts: main user_id, clinic_user link id (id), or clinic_user_id (tenant user id).
+   * Returns main user id or null if not found.
+   */
+  async getMainUserIdFromPatientIdentifier(
+    clinicId: number,
+    patientIdentifier: number,
+  ): Promise<number | null> {
+    const link = await this.clinicUserRepository.findOne({
+      where: { clinic_id: clinicId, clinic_user_id: patientIdentifier },
+    });
+    return link?.user_id ?? null;
+  }
+
+  /**
    * Get clinic_user_id for a main user linked to a clinic (from main DB clinic_user table).
    * Returns the user id in the clinic's tenant DB, or null if not linked or not yet set.
    */
