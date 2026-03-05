@@ -304,6 +304,7 @@ export class ClinicAuthService {
     return {
       ...result,
       access_token: this.jwtService.sign(payload),
+      clinic_id: clinic.id,
       dashboard: {
         total_appointments_last_7_days: dashboard.total_appointments_last_7_days,
         total_revenue_last_7_days: dashboard.total_revenue_last_7_days,
@@ -364,6 +365,7 @@ export class ClinicAuthService {
     return {
       ...result,
       access_token: this.jwtService.sign(payload),
+      clinic_id: clinicId,
       dashboard: {
         total_appointments_last_7_days: dashboard.total_appointments_last_7_days,
         total_revenue_last_7_days: dashboard.total_revenue_last_7_days,

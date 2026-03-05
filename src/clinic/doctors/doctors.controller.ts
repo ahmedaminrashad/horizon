@@ -49,6 +49,7 @@ import { WorkingHoursService } from '../working-hours/working-hours.service';
 import { DoctorWorkingHour } from '../working-hours/entities/doctor-working-hour.entity';
 import { DayOfWeek } from '../working-hours/entities/working-hour.entity';
 import { DoctorFilesService } from '../doctor-files/doctor-files.service';
+import { ClinicsService } from '../../clinics/clinics.service';
 
 @ApiTags('clinic/doctors')
 @Controller('clinic/:clinicId/doctors')
@@ -59,6 +60,7 @@ export class DoctorsController {
     private readonly doctorsService: DoctorsService,
     private readonly workingHoursService: WorkingHoursService,
     private readonly doctorFilesService: DoctorFilesService,
+    private readonly clinicsService: ClinicsService,
   ) {}
 
   @Post()
@@ -363,6 +365,38 @@ export class DoctorsController {
       paginationQuery.search,
       paginationQuery.specialty,
     );
+  }
+
+  @Get(':doctorId/patients')
+  @UseGuards(ClinicPermissionsGuard)
+  @Permissions(ClinicPermission.READ_USER as string)
+  @ApiOperation({
+    summary: 'List patients with a reservation with this doctor',
+    description:
+      'Returns all patients (main users linked to clinic) that have at least one reservation with the given doctor.',
+  })
+  @ApiParam({ name: 'clinicId', type: Number, description: 'Clinic ID' })
+  @ApiParam({ name: 'doctorId', type: Number, description: 'Doctor ID (clinic doctor)' })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search by name, phone, email',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of patients that have a reservation with this doctor',
+  })
+  getDoctorPatients(
+    @ClinicId() clinicId: number,
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Query('search') search?: string,
+  ) {
+    if (!clinicId) throw new BadRequestException('Clinic ID is required');
+    return this.clinicsService.getClinicPatients(clinicId, {
+      doctor_id: doctorId,
+      search: search?.trim(),
+    });
   }
 
   @Get(':doctorId/files')
