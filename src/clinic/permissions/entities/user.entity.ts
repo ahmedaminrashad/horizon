@@ -32,6 +32,9 @@ export class User {
   @Column({ nullable: true })
   role_id: number;
 
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  is_active: boolean;
+
   @ManyToOne(() => Role, (role) => role.users, { nullable: true })
   @JoinColumn({ name: 'role_id' })
   role: Role;

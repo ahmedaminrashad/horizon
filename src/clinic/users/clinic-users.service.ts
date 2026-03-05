@@ -134,6 +134,7 @@ export class ClinicUsersService {
       ...createClinicUserDto,
       password: hashedPassword,
       package_id: 0, // Clinic users don't have packages
+      is_active: createClinicUserDto.is_active ?? true,
     });
 
     const savedUser = await repository.save(user);

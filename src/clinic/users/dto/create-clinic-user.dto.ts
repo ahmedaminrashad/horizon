@@ -1,10 +1,12 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsString,
   IsNotEmpty,
   IsEmail,
   IsNumber,
+  IsBoolean,
+  IsOptional,
   MinLength,
   Matches,
   MaxLength,
@@ -103,4 +105,12 @@ export class CreateClinicUserDto {
   @IsNumber()
   @IsNotEmpty({ message: 'role_id is required' })
   role_id: number;
+
+  @ApiPropertyOptional({
+    description: 'Whether the user is active (default: true)',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
 }
