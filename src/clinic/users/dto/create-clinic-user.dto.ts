@@ -10,11 +10,11 @@ import {
   MaxLength,
 } from 'class-validator';
 
-/** Name: letters, spaces, hyphen, apostrophe only (no emojis or special characters). */
-export const NAME_PATTERN = /^[a-zA-Z\s'-]+$/;
+/** Name: letters, spaces, hyphen, apostrophe only; must contain at least one letter (rejects "------", "   "). */
+export const NAME_PATTERN = /^(?=.*[a-zA-Z])[a-zA-Z\s'-]+$/;
 
-/** Phone: must start with + (country code), then digits/spaces/hyphens/parentheses, 10–30 chars total. */
-export const PHONE_PATTERN = /^\+[\d\s\-()]+$/;
+/** Phone: must start with + (country code), then digits/spaces/hyphens/parentheses, at least one digit; 10–30 chars total. */
+export const PHONE_PATTERN = /^\+(?=.*\d)[\d\s\-()]{9,29}$/;
 
 /** Trim string for validation and persistence (exported for update DTO). */
 export const trimString = (value: unknown): string =>
@@ -42,7 +42,8 @@ export class CreateClinicUserDto {
     message: 'name must be at most 255 characters',
   })
   @Matches(NAME_PATTERN, {
-    message: 'name must contain only letters, spaces, hyphen and apostrophe',
+    message:
+      'name must contain only letters, spaces, hyphen and apostrophe, and at least one letter',
   })
   name: string;
 
@@ -64,7 +65,7 @@ export class CreateClinicUserDto {
   })
   @Matches(PHONE_PATTERN, {
     message:
-      'phone must start with + (country code) and contain only digits, spaces, hyphens, parentheses',
+      'phone must start with + (country code), contain at least one digit, and only digits, spaces, hyphens, parentheses',
   })
   phone: string;
 
