@@ -238,6 +238,41 @@ export class ReservationsController {
     );
   }
 
+  @Get('clinic/:clinicId/doctor/:doctorId/reservations')
+  @UseGuards(ClinicTenantGuard, JwtAuthGuard, ClinicPermissionsGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Permissions(ClinicPermission.READ_RESERVATION as string)
+  @ApiOperation({
+    summary: 'Get all reservations for a doctor',
+    description:
+      'List reservations for the given doctor. Same query params as GET clinic/:clinicId/reservations (search, from_date, to_date, status, etc.).',
+  })
+  @ApiParam({ name: 'clinicId', type: Number, description: 'Clinic ID', example: 1 })
+  @ApiParam({ name: 'doctorId', type: Number, description: 'Doctor ID (clinic doctor)', example: 1 })
+  @ApiResponse({ status: 200, description: 'List of reservations for the doctor' })
+  findAllByDoctor(
+    @ClinicId() clinicId: number,
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Query() query: ReservationsQueryDto,
+  ) {
+    if (!clinicId) {
+      throw new BadRequestException('Clinic ID is required');
+    }
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    return this.reservationsService.findAll(clinicId, page, limit, {
+      search: query.search,
+      from_date: query.from_date,
+      to_date: query.to_date,
+      doctor_id: doctorId,
+      service_id: query.service_id,
+      status: query.status,
+      schedule_type: query.schedule_type,
+      appoint_type: query.appoint_type,
+      medical_status: query.medical_status,
+    });
+  }
+
   @Get('clinic/:clinicId/reservations')
   @UseGuards(ClinicTenantGuard, JwtAuthGuard, ClinicPermissionsGuard)
   @ApiBearerAuth('JWT-auth')
