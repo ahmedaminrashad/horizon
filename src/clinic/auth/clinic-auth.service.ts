@@ -461,12 +461,14 @@ export class ClinicAuthService {
       ),
     ]);
 
+
     return {
       ...result,
       access_token: this.jwtService.sign(payload),
       clinic_id: clinic.id,
       clinic_name: clinic.name_en ?? clinic.name_ar ?? null,
       doctor_id: doctorIdForReservations ?? null,
+      specialty: clinicDoctor?.specialty ?? null,
       dashboard: {
         total_appointments_last_7_days: dashboard.total_appointments_last_7_days,
         total_revenue_last_7_days: dashboard.total_revenue_last_7_days,
