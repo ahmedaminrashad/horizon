@@ -119,6 +119,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           role_slug: clinicUser.role?.slug,
           database_name: tenantDatabase,
           clinic_id: payload.clinic_id || (clinicId ? +clinicId : undefined),
+          doctor_id: payload.doctor_id ?? undefined,
         };
       }
 

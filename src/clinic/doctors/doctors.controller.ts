@@ -392,15 +392,17 @@ export class DoctorsController {
   async getMyPatients(
     @ClinicId() clinicId: number,
     @Query('search') search: string | undefined,
-    @Request() req: { user?: { userId: number } },
+    @Request() req: { user?: { userId: number; doctor_id?: number } },
   ) {
     if (!clinicId) throw new BadRequestException('Clinic ID is required');
-    const clinicUserId = req.user?.userId;
-    if (clinicUserId == null) throw new ForbiddenException('Authentication required');
-    const doctorId = await this.doctorsService.findDoctorIdByClinicUserId(
-      clinicId,
-      clinicUserId,
-    );
+    let doctorId = req.user?.doctor_id;
+    if (doctorId == null && req.user?.userId != null) {
+      doctorId =
+        (await this.doctorsService.findDoctorIdByClinicUserId(
+          clinicId,
+          req.user.userId,
+        )) ?? undefined;
+    }
     if (doctorId == null) {
       throw new ForbiddenException(
         'You are not registered as a doctor in this clinic. Only doctors can list their patients.',

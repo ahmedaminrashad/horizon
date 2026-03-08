@@ -435,19 +435,20 @@ export class ClinicAuthService {
 
     await this.clinicsService.updateLastActive(clinic.id);
 
+    const clinicDoctorRepo = clinicDataSource.getRepository(ClinicDoctor);
+    const clinicDoctor = await clinicDoctorRepo.findOne({
+      where: { user_id: clinicDbUser.id },
+    });
+    const doctorIdForReservations = clinicDoctor?.id ?? mainDoctor.clinic_doctor_id;
+
     const payload = {
       sub: clinicDbUser.id,
       role_id: clinicDbUser.role_id,
       database_name: clinic.database_name,
       clinic_id: clinic.id,
       role_slug: clinicDbUser.role?.slug,
+      doctor_id: doctorIdForReservations ?? null,
     };
-
-    const clinicDoctorRepo = clinicDataSource.getRepository(ClinicDoctor);
-    const clinicDoctor = await clinicDoctorRepo.findOne({
-      where: { user_id: clinicDbUser.id },
-    });
-    const doctorIdForReservations = clinicDoctor?.id ?? mainDoctor.clinic_doctor_id;
 
     const [dashboard, next_reservation] = await Promise.all([
       this.getDashboardStatsFromDataSource(
