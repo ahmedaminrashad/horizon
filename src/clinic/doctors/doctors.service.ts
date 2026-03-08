@@ -246,6 +246,21 @@ export class DoctorsService {
   }
 
   /**
+   * Get clinic doctor id for a clinic user (JWT sub). Returns null if the user is not linked as a doctor.
+   */
+  async findDoctorIdByClinicUserId(
+    clinicId: number,
+    clinicUserId: number,
+  ): Promise<number | null> {
+    const repository = await this.getRepository();
+    const doctor = await repository.findOne({
+      where: { user_id: clinicUserId, clinic_id: clinicId },
+      select: ['id'],
+    });
+    return doctor?.id ?? null;
+  }
+
+  /**
    * Get doctor profile for logged-in doctor: branches, services with working-hours, number_of_patients, next_reservation.
    */
   async getProfile(

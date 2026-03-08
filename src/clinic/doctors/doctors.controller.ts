@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Query,
+  Request,
   UseInterceptors,
   UploadedFile,
   ParseFilePipe,
@@ -15,6 +16,7 @@ import {
   FileTypeValidator,
   ParseIntPipe,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { plainToInstance } from 'class-transformer';
@@ -367,13 +369,56 @@ export class DoctorsController {
     );
   }
 
+  @Get('me/patients')
+  @UseGuards(ClinicPermissionsGuard)
+  @Permissions(ClinicPermission.READ_RESERVATION as string)
+  @ApiOperation({
+    summary: 'List patients with a reservation with the logged-in doctor',
+    description:
+      'Uses doctor id from the auth token. Returns all patients that have at least one reservation with the current doctor.',
+  })
+  @ApiParam({ name: 'clinicId', type: Number, description: 'Clinic ID' })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search by name, phone, email',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of patients that have a reservation with this doctor',
+  })
+  @ApiResponse({ status: 403, description: 'User is not a doctor in this clinic' })
+  async getMyPatients(
+    @ClinicId() clinicId: number,
+    @Query('search') search: string | undefined,
+    @Request() req: { user?: { userId: number } },
+  ) {
+    if (!clinicId) throw new BadRequestException('Clinic ID is required');
+    const clinicUserId = req.user?.userId;
+    if (clinicUserId == null) throw new ForbiddenException('Authentication required');
+    const doctorId = await this.doctorsService.findDoctorIdByClinicUserId(
+      clinicId,
+      clinicUserId,
+    );
+    if (doctorId == null) {
+      throw new ForbiddenException(
+        'You are not registered as a doctor in this clinic. Only doctors can list their patients.',
+      );
+    }
+    return this.clinicsService.getClinicPatients(clinicId, {
+      doctor_id: doctorId,
+      search: search?.trim(),
+    });
+  }
+
   @Get(':doctorId/patients')
   @UseGuards(ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.READ_USER as string)
+  @Permissions(ClinicPermission.READ_RESERVATION as string)
   @ApiOperation({
     summary: 'List patients with a reservation with this doctor',
     description:
-      'Returns all patients (main users linked to clinic) that have at least one reservation with the given doctor.',
+      'Returns all patients (main users linked to clinic) that have at least one reservation with the given doctor. Use GET me/patients to use the doctor id from the auth token.',
   })
   @ApiParam({ name: 'clinicId', type: Number, description: 'Clinic ID' })
   @ApiParam({ name: 'doctorId', type: Number, description: 'Doctor ID (clinic doctor)' })
