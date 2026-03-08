@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
 export class AddIsActiveToUsers1776000000035 implements MigrationInterface {
-  public async up(queryRunner: QueryRunner): Promise<void> {
+  public async up(queryRunner: QueryRunner): Promise<void> { 
     const table = await queryRunner.getTable('users');
     const column = table?.findColumnByName('is_active');
 
