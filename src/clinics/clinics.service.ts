@@ -278,6 +278,7 @@ export class ClinicsService {
     }
 
     let patientIdsWithReservation: number[] | null = null;
+    let mainUserIdsWithReservation: number[] | null = null;
     if (options?.doctor_id != null && clinic.database_name) {
       const clinicDataSource =
         await this.tenantDataSourceService.getTenantDataSource(
@@ -288,14 +289,25 @@ export class ClinicsService {
           clinicDataSource.getRepository(ClinicReservation);
         const rows = await reservationRepo
           .createQueryBuilder('r')
-          .select('DISTINCT r.patient_id', 'patient_id')
+          .select('r.patient_id', 'patient_id')
+          .addSelect('r.main_user_id', 'main_user_id')
+          .distinct(true)
           .where('r.doctor_id = :doctorId', {
             doctorId: options.doctor_id,
           })
-          .getRawMany<{ patient_id: number }>();
-        patientIdsWithReservation = rows
+          .getRawMany<{ patient_id: number; main_user_id: number | null }>();
+        const patientIds = rows
           .map((r) => r.patient_id)
           .filter((id): id is number => id != null);
+        const mainUserIds = [
+          ...new Set(
+            rows
+              .map((r) => r.main_user_id)
+              .filter((id): id is number => id != null),
+          ),
+        ];
+        patientIdsWithReservation = patientIds;
+        mainUserIdsWithReservation = mainUserIds;
       }
     }
 
@@ -318,13 +330,26 @@ export class ClinicsService {
       });
     }
 
-    if (patientIdsWithReservation !== null) {
-      if (patientIdsWithReservation.length === 0) {
+    if (patientIdsWithReservation !== null || mainUserIdsWithReservation !== null) {
+      const clinicUserIds = patientIdsWithReservation ?? [];
+      const mainUserIds = mainUserIdsWithReservation ?? [];
+      const hasClinicUserIds = clinicUserIds.length > 0;
+      const hasMainUserIds = mainUserIds.length > 0;
+      if (!hasClinicUserIds && !hasMainUserIds) {
         qb.andWhere('1 = 0');
-      } else {
+      } else if (hasClinicUserIds && !hasMainUserIds) {
         qb.andWhere('cu.clinic_user_id IS NOT NULL').andWhere(
           'cu.clinic_user_id IN (:...patientIds)',
-          { patientIds: patientIdsWithReservation },
+          { patientIds: clinicUserIds },
+        );
+      } else if (!hasClinicUserIds && hasMainUserIds) {
+        qb.andWhere('cu.user_id IN (:...mainUserIds)', {
+          mainUserIds,
+        });
+      } else {
+        qb.andWhere(
+          '(cu.clinic_user_id IN (:...patientIds) OR cu.user_id IN (:...mainUserIds))',
+          { patientIds: clinicUserIds, mainUserIds },
         );
       }
     }
