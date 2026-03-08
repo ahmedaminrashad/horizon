@@ -260,6 +260,24 @@ export class ClinicUsersService {
       updateClinicUserDto.email = updateClinicUserDto.email.trim();
     }
 
+    if (updateClinicUserDto.role_id != null) {
+      const roleRepository =
+        await this.tenantRepositoryService.getRepository<Role>(Role);
+      if (!roleRepository) {
+        throw new BadRequestException(
+          'Invalid role_id: the specified role does not exist or is not supported',
+        );
+      }
+      const roleExists = await roleRepository.findOne({
+        where: { id: updateClinicUserDto.role_id },
+      });
+      if (!roleExists) {
+        throw new BadRequestException(
+          `Invalid role_id: role with id ${updateClinicUserDto.role_id} does not exist`,
+        );
+      }
+    }
+
     // Check if phone is being updated and already exists
     if (updateClinicUserDto.phone && updateClinicUserDto.phone !== existingUser.phone) {
       const existingUserByPhone = await repository.findOne({

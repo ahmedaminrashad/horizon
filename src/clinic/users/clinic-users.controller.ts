@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  ParseIntPipe,
   UseGuards,
   Query,
 } from '@nestjs/common';
@@ -14,6 +15,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiParam,
 } from '@nestjs/swagger';
 import { ClinicUsersService } from './clinic-users.service';
 import { CreateClinicUserDto } from './dto/create-clinic-user.dto';
@@ -115,15 +117,21 @@ export class ClinicUsersController {
   @UseGuards(ClinicPermissionsGuard)
   @Permissions(ClinicPermission.DELETE_USER as string)
   @ApiOperation({ summary: 'Delete a clinic user' })
+  @ApiParam({ name: 'clinicId', type: Number, description: 'Clinic ID' })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Clinic user ID (users.id in clinic tenant)',
+  })
   @ApiResponse({ status: 200, description: 'User deleted successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   remove(
     @ClinicId() clinicId: number,
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
   ) {
     if (!clinicId) {
       throw new Error('Clinic ID is required');
     }
-    return this.clinicUsersService.remove(clinicId, +id);
+    return this.clinicUsersService.remove(clinicId, id);
   }
 }

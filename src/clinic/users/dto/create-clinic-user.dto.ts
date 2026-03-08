@@ -22,6 +22,9 @@ export const PHONE_PATTERN = /^\+(?=.*\d)[\d\s\-()]{9,29}$/;
 export const trimString = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : (value as string);
 
+/** Email: only ASCII characters (no Arabic or other non-Latin). */
+export const EMAIL_ASCII_PATTERN = /^[\x20-\x7E]+$/;
+
 /** Password: 8–128 chars, at least one uppercase, one lowercase, one digit, one special character. */
 const PASSWORD_PATTERN =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_])[A-Za-z\d\W_]{8,128}$/;
@@ -72,12 +75,17 @@ export class CreateClinicUserDto {
   phone: string;
 
   @ApiProperty({
-    description: 'User email address',
+    description:
+      'User email address (Latin letters and numbers only; no Arabic or other non-ASCII characters)',
     example: 'user@example.com',
   })
   @Transform(({ value }) => trimString(value))
   @IsEmail({}, { message: 'email must be a valid email address' })
   @IsNotEmpty({ message: 'email is required' })
+  @Matches(EMAIL_ASCII_PATTERN, {
+    message:
+      'email must contain only Latin letters, numbers, and standard symbols (no Arabic or other non-ASCII characters)',
+  })
   email: string;
 
   @ApiProperty({
