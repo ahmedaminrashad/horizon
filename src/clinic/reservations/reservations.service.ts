@@ -317,10 +317,7 @@ export class ReservationsService {
     }
 
     // Resolve main_user_id for sync and response: when main app user, use their id; otherwise resolve from clinic_user link.
-    const mainUserId =
-      isMainUser
-        ? authenticatedUserId
-        : await this.clinicsService.getMainUserIdFromPatientIdentifier(
+    const mainUserId = await this.clinicsService.getMainUserIdFromPatientIdentifier(
             clinicId,
             patientId,
           );

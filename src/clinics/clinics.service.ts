@@ -22,6 +22,7 @@ import { DoctorsService } from '../doctors/doctors.service';
 import { Inject, forwardRef } from '@nestjs/common';
 import { WorkingHour } from '../clinic/working-hours/entities/working-hour.entity';
 import { Reservation as ClinicReservation } from '../clinic/reservations/entities/reservation.entity';
+import { User as ClinicTenantUser } from '../clinic/permissions/entities/user.entity';
 import { IvrApiService } from '../voip/services/ivr-api.service';
 import { UsersService } from '../users/users.service';
 
@@ -420,8 +421,7 @@ export class ClinicsService {
 
   /**
    * Resolve patient identifier to main user id.
-   * Accepts: main user_id, clinic_user link id (id), or clinic_user_id (tenant user id).
-   * Returns main user id or null if not found.
+   * When no link exists: find clinic tenant user by id, find or create main user by phone/email, link them, then return user_id.
    */
   async getMainUserIdFromPatientIdentifier(
     clinicId: number,
@@ -430,7 +430,55 @@ export class ClinicsService {
     const link = await this.clinicUserRepository.findOne({
       where: { clinic_id: clinicId, clinic_user_id: patientIdentifier },
     });
-    return link?.user_id ?? null;
+    if (link) return link.user_id;
+
+    const clinic = await this.clinicsRepository.findOne({
+      where: { id: clinicId },
+    });
+    if (!clinic?.database_name) return null;
+
+    const clinicDataSource =
+      await this.tenantDataSourceService.getTenantDataSource(
+        clinic.database_name,
+      );
+    if (!clinicDataSource) return null;
+
+    const tenantUserRepo = clinicDataSource.getRepository(ClinicTenantUser);
+    const tenantUser = await tenantUserRepo.findOne({
+      where: { id: patientIdentifier },
+    });
+    if (!tenantUser?.phone) return null;
+
+    let mainUser =
+      (await this.usersService.findByPhone(tenantUser.phone)) ??
+      (tenantUser.email
+        ? await this.usersService.findByEmail(tenantUser.email)
+        : null);
+
+    if (!mainUser) {
+      const randomPassword = await bcrypt.hash(
+        Math.random().toString(36).slice(-8),
+        10,
+      );
+      try {
+        mainUser = await this.usersService.create({
+          name: tenantUser.name ?? undefined,
+          phone: tenantUser.phone,
+          email: tenantUser.email ?? undefined,
+          password: randomPassword,
+          package_id: 0,
+        });
+      } catch {
+        return null;
+      }
+    }
+
+    await this.setClinicUserIdForMainUser(
+      mainUser.id,
+      clinicId,
+      patientIdentifier,
+    );
+    return mainUser.id;
   }
 
   /**
