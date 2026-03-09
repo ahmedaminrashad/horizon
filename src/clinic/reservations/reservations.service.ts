@@ -316,6 +316,15 @@ export class ReservationsService {
       patientId = authenticatedUserId;
     }
 
+    // Resolve main_user_id for sync and response: when main app user, use their id; otherwise resolve from clinic_user link.
+    const mainUserId =
+      isMainUser
+        ? authenticatedUserId
+        : await this.clinicsService.getMainUserIdFromPatientIdentifier(
+            clinicId,
+            patientId,
+          );
+
     const repository = await this.getRepository();
 
     // Parse the date from the request
@@ -349,6 +358,7 @@ export class ReservationsService {
       status: ReservationStatus.PENDING, // Always default to PENDING
       paid: false, // Default to false
       fees, // From doctor service linked to working hour
+      main_user_id: mainUserId ?? undefined,
     });
 
     const savedReservation = await repository.save(reservation);
