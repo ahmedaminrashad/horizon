@@ -4,7 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Clinic } from './entities/clinic.entity';
 import { ClinicUser } from './entities/clinic-user.entity';
 import { CreateClinicDto } from './dto/create-clinic.dto';
@@ -378,6 +378,79 @@ export class ClinicsService {
     }
 
     const clinicUsers = await qb.getMany();
+
+    const reservationStats: Map<
+      number,
+      {
+        last_reservation: Record<string, unknown> | null;
+        total_reservation: number;
+      }
+    > = new Map();
+    if (
+      options?.doctor_id != null &&
+      clinic.database_name &&
+      clinicUsers.length > 0
+    ) {
+      const clinicUserIds = clinicUsers
+        .map((cu) => cu.clinic_user_id)
+        .filter((id): id is number => id != null);
+      if (clinicUserIds.length > 0) {
+        const clinicDataSource =
+          await this.tenantDataSourceService.getTenantDataSource(
+            clinic.database_name,
+          );
+        if (clinicDataSource) {
+          const reservationRepo =
+            clinicDataSource.getRepository(ClinicReservation);
+          const reservations = await reservationRepo.find({
+            where: {
+              doctor_id: options.doctor_id,
+              patient_id: In(clinicUserIds),
+            },
+            relations: ['doctor_working_hour'],
+            order: { date: 'DESC', id: 'DESC' },
+          });
+          const countByPatient = new Map<number, number>();
+          const lastByPatient = new Map<number, (typeof reservations)[0]>();
+          for (const r of reservations) {
+            countByPatient.set(
+              r.patient_id,
+              (countByPatient.get(r.patient_id) ?? 0) + 1,
+            );
+            if (!lastByPatient.has(r.patient_id)) {
+              lastByPatient.set(r.patient_id, r);
+            }
+          }
+          for (const patientId of clinicUserIds) {
+            const last = lastByPatient.get(patientId);
+            const total = countByPatient.get(patientId) ?? 0;
+            const wh = last?.doctor_working_hour as
+              | { start_time?: string; end_time?: string }
+              | undefined;
+            reservationStats.set(patientId, {
+              last_reservation: last
+                ? {
+                    id: last.id,
+                    date: last.date,
+                    status: last.status,
+                    fees: last.fees,
+                    paid: last.paid,
+                    appoint_type: last.appoint_type ?? null,
+                    medical_status: last.medical_status ?? null,
+                    time: wh?.start_time ?? null,
+                    time_range:
+                      wh != null
+                        ? { from: wh.start_time, to: wh.end_time }
+                        : null,
+                  }
+                : null,
+              total_reservation: total,
+            });
+          }
+        }
+      }
+    }
+
     return clinicUsers.map((cu) => {
       const { user, ...rest } = cu;
       const userSafe =
@@ -386,7 +459,16 @@ export class ClinicsService {
               Object.entries(user).filter(([key]) => key !== 'password'),
             )
           : undefined;
-      return { ...rest, user: userSafe };
+      const stats =
+        cu.clinic_user_id != null
+          ? reservationStats.get(cu.clinic_user_id)
+          : undefined;
+      return {
+        ...rest,
+        user: userSafe,
+        last_reservation: stats?.last_reservation ?? null,
+        total_reservation: stats?.total_reservation ?? 0,
+      };
     });
   }
 
