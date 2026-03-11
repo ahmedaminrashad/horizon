@@ -4,7 +4,17 @@ import {
   BadRequestException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Repository, In, Not, DataSource } from 'typeorm';
+import {
+  Repository,
+  In,
+  Not,
+  DataSource,
+  MoreThanOrEqual,
+  LessThanOrEqual,
+  Between,
+  Like,
+  FindOptionsWhere,
+} from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TenantRepositoryService } from '../../database/tenant-repository.service';
 import { TenantDataSourceService } from '../../database/tenant-data-source.service';
@@ -674,69 +684,91 @@ export class ReservationsService {
     const repository = await this.getRepository();
     const skip = (page - 1) * limit;
 
-    const qb = repository
-      .createQueryBuilder('r')
-      .leftJoinAndSelect('r.doctor', 'doctor')
-      .leftJoinAndSelect('doctor.user', 'doctorUser')
-      .leftJoinAndSelect('r.patient', 'patient')
-      .leftJoinAndSelect('r.doctor_working_hour', 'wh')
-      .orderBy('r.date', 'DESC')
-      .addOrderBy('r.createdAt', 'DESC')
-      .skip(skip)
-      .take(limit);
+    let doctorWorkingHourIds: number[] | null = null;
+    if (filters?.service_id != null) {
+      const whRepository =
+        await this.tenantRepositoryService.getRepository<DoctorWorkingHour>(
+          DoctorWorkingHour,
+        );
+      if (whRepository) {
+        const whs = await whRepository
+          .createQueryBuilder('wh')
+          .innerJoin('wh.doctor_services', 'ds', 'ds.id = :serviceId', {
+            serviceId: filters.service_id,
+          })
+          .select('wh.id', 'id')
+          .getRawMany<{ id: number }>();
+        doctorWorkingHourIds = whs.map((w) => w.id);
+        if (doctorWorkingHourIds.length === 0) {
+          doctorWorkingHourIds = [-1];
+        }
+      }
+    }
 
-    if (filters?.search?.trim()) {
-      const term = `%${filters.search.trim()}%`;
-      qb.andWhere(
-        '(patient.name ILIKE :searchTerm OR patient.phone ILIKE :searchTerm)',
-        { searchTerm: term },
-      );
-    }
-    if (filters?.from_date) {
-      qb.andWhere('r.date >= :fromDate', {
-        fromDate: filters.from_date,
-      });
-    }
-    if (filters?.to_date) {
-      qb.andWhere('r.date <= :toDate', {
-        toDate: filters.to_date,
-      });
+    const where: FindOptionsWhere<Reservation> = {};
+    if (filters?.from_date && filters?.to_date) {
+      where.date = Between(
+        filters.from_date,
+        filters.to_date,
+      ) as unknown as Date;
+    } else if (filters?.from_date) {
+      where.date = MoreThanOrEqual(filters.from_date) as unknown as Date;
+    } else if (filters?.to_date) {
+      where.date = LessThanOrEqual(filters.to_date) as unknown as Date;
     }
     if (filters?.doctor_id != null) {
-      qb.andWhere('r.doctor_id = :doctorId', {
-        doctorId: filters.doctor_id,
-      });
+      where.doctor_id = filters.doctor_id;
     }
     if (filters?.patient_id != null) {
-      qb.andWhere('r.patient_id = :patientId', {
-        patientId: filters.patient_id,
-      });
+      where.patient_id = filters.patient_id;
     }
-    if (filters?.service_id != null) {
-      qb.innerJoin('wh.doctor_services', 'ds', 'ds.id = :serviceId', {
-        serviceId: filters.service_id,
-      });
+    if (doctorWorkingHourIds != null) {
+      where.doctor_working_hour_id = In(doctorWorkingHourIds);
     }
     if (filters?.status) {
-      qb.andWhere('r.status = :status', { status: filters.status });
-    }
-    if (filters?.schedule_type === 'waterfall') {
-      qb.andWhere('wh.waterfall = :waterfallTrue', { waterfallTrue: true });
-    } else if (filters?.schedule_type === 'fixed') {
-      qb.andWhere('wh.waterfall = :waterfallFalse', { waterfallFalse: false });
+      where.status = filters.status;
     }
     if (filters?.appoint_type) {
-      qb.andWhere('r.appoint_type = :appointType', {
-        appointType: filters.appoint_type,
-      });
+      where.appoint_type = filters.appoint_type as Reservation['appoint_type'];
     }
     if (filters?.medical_status) {
-      qb.andWhere('r.medical_status = :medicalStatus', {
-        medicalStatus: filters.medical_status,
-      });
+      where.medical_status =
+        filters.medical_status as Reservation['medical_status'];
+    }
+    if (filters?.schedule_type === 'waterfall') {
+      where.doctor_working_hour = { waterfall: true };
+    } else if (filters?.schedule_type === 'fixed') {
+      where.doctor_working_hour = { waterfall: false };
+    }
+    const searchTerm = filters?.search?.trim();
+    const findOptions: {
+      relations: string[];
+      where: FindOptionsWhere<Reservation> | FindOptionsWhere<Reservation>[];
+      order: { date: 'DESC'; createdAt: 'DESC' };
+      skip: number;
+      take: number;
+    } = {
+      relations: [
+        'doctor',
+        'doctor.user',
+        'patient',
+        'doctor_working_hour',
+        'doctor_working_hour.branch',
+      ],
+      where,
+      order: { date: 'DESC', createdAt: 'DESC' },
+      skip,
+      take: limit,
+    };
+    if (searchTerm) {
+      const term = `%${searchTerm}%`;
+      findOptions.where = [
+        { ...where, patient: { name: Like(term) } },
+        { ...where, patient: { phone: Like(term) } },
+      ];
     }
 
-    const [rawData, total] = await qb.getManyAndCount();
+    const [rawData, total] = await repository.findAndCount(findOptions);
 
     const patientIds = [
       ...new Set(rawData.map((r) => r.patient_id).filter((id) => id != null)),
@@ -812,21 +844,11 @@ export class ReservationsService {
       ...filters,
       doctor_id: doctorId,
     });
-    const clinic = await this.clinicsService.findOne(clinicId);
-    const clinic_name =
-      clinic?.name_en ?? clinic?.name_ar ?? null;
-    const branch = clinic?.branches?.[0]
-      ? {
-          id: clinic.branches[0].id,
-          name_en: (clinic.branches[0] as { name_en?: string }).name_en ?? null,
-          name_ar: (clinic.branches[0] as { name_ar?: string }).name_ar ?? null,
-          address: (clinic.branches[0] as { address?: string }).address ?? null,
-        }
-      : null;
+    const clinic = await this.clinicsService.findOneWithOutRelations(clinicId);
+
     return {
       ...result,
-      clinic_name,
-      branch,
+      clinic: clinic,
     };
   }
 

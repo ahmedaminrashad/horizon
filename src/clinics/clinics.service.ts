@@ -175,6 +175,17 @@ export class ClinicsService {
     };
   }
 
+
+  async findOneWithOutRelations(id: number): Promise<Clinic> {
+    const clinic = await this.clinicsRepository.findOne({
+      where: { id },
+    });
+    if (!clinic) {
+      throw new NotFoundException(`Clinic with ID ${id} not found`);
+    }
+    return clinic;
+  }
+
   async findOne(id: number): Promise<Clinic & { doctors?: any[] }> {
     const clinic = await this.clinicsRepository.findOne({
       where: { id },
