@@ -325,11 +325,10 @@ export class ClinicsService {
       });
     }
 
-    if (options?.is_active !== undefined) {
-      qb.andWhere('cu.is_active = :isActive', {
-        isActive: options.is_active,
-      });
-    }
+    // Default to active only so removed/inactive patients do not appear in list
+    const isActive =
+      options?.is_active !== undefined ? options.is_active : true;
+    qb.andWhere('cu.is_active = :isActive', { isActive });
 
     if (patientIdsWithReservation !== null || mainUserIdsWithReservation !== null) {
       const clinicUserIds = patientIdsWithReservation ?? [];
@@ -678,6 +677,31 @@ export class ClinicsService {
     }
 
     return this.getClinicPatientById(clinicId, patientId);
+  }
+
+  /**
+   * Remove (unlink) a patient from the clinic. Deletes the clinic_user row.
+   * After this, the patient will not appear in GET clinic/:id/patients.
+   */
+  async removeClinicPatient(
+    clinicId: number,
+    patientId: number,
+  ): Promise<void> {
+    const clinic = await this.clinicsRepository.findOne({
+      where: { id: clinicId },
+    });
+    if (!clinic) {
+      throw new NotFoundException(`Clinic with ID ${clinicId} not found`);
+    }
+    const clinicUser = await this.clinicUserRepository.findOne({
+      where: { clinic_id: clinicId, user_id: patientId },
+    });
+    if (!clinicUser) {
+      throw new NotFoundException(
+        `Patient with ID ${patientId} not found in clinic ${clinicId}`,
+      );
+    }
+    await this.clinicUserRepository.remove(clinicUser);
   }
 
   async updateLastActive(id: number): Promise<void> {

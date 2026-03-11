@@ -790,6 +790,47 @@ export class ReservationsService {
   }
 
   /**
+   * List reservations for a doctor and include clinic name and branch in the response.
+   */
+  async findAllByDoctor(
+    clinicId: number,
+    doctorId: number,
+    page: number = 1,
+    limit: number = 10,
+    filters?: {
+      search?: string;
+      from_date?: string;
+      to_date?: string;
+      service_id?: number;
+      status?: ReservationStatus;
+      schedule_type?: 'waterfall' | 'fixed';
+      appoint_type?: string;
+      medical_status?: string;
+    },
+  ) {
+    const result = await this.findAll(clinicId, page, limit, {
+      ...filters,
+      doctor_id: doctorId,
+    });
+    const clinic = await this.clinicsService.findOne(clinicId);
+    const clinic_name =
+      clinic?.name_en ?? clinic?.name_ar ?? null;
+    const branch = clinic?.branches?.[0]
+      ? {
+          id: clinic.branches[0].id,
+          name_en: (clinic.branches[0] as { name_en?: string }).name_en ?? null,
+          name_ar: (clinic.branches[0] as { name_ar?: string }).name_ar ?? null,
+          address: (clinic.branches[0] as { address?: string }).address ?? null,
+        }
+      : null;
+    return {
+      ...result,
+      clinic_name,
+      branch,
+    };
+  }
+
+  /**
    * Get all reservations for a main user from main reservations table
    */
   async findAllForMainUser(

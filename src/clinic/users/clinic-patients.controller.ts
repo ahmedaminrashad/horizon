@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   ParseIntPipe,
@@ -223,5 +224,31 @@ export class ClinicPatientsController {
       throw new Error('Clinic ID is required');
     }
     return this.clinicsService.updateClinicPatient(clinicId, patientId, dto);
+  }
+
+  @Delete(':patientId')
+  @UseGuards(ClinicPermissionsGuard)
+  @Permissions(ClinicPermission.DELETE_USER as string)
+  @ApiOperation({
+    summary: 'Remove patient from clinic',
+    description:
+      'Unlinks the patient from the clinic. They will no longer appear in GET clinic/:clinicId/patients.',
+  })
+  @ApiParam({ name: 'clinicId', type: Number, example: 1 })
+  @ApiParam({
+    name: 'patientId',
+    type: Number,
+    description: 'Main user ID of the patient',
+  })
+  @ApiResponse({ status: 200, description: 'Patient removed from clinic' })
+  @ApiResponse({ status: 404, description: 'Clinic or patient not found' })
+  async removePatient(
+    @ClinicId() clinicId: number,
+    @Param('patientId', ParseIntPipe) patientId: number,
+  ): Promise<void> {
+    if (!clinicId) {
+      throw new BadRequestException('Clinic ID is required');
+    }
+    await this.clinicsService.removeClinicPatient(clinicId, patientId);
   }
 }
