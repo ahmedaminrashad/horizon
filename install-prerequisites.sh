@@ -123,26 +123,44 @@ else
 fi
 
 # Install Nginx (optional, for reverse proxy)
+# Non-interactive: set INSTALL_NGINX=yes|no (or y/n, 1/0). Unset = prompt.
 print_info "Checking Nginx installation..."
 if command -v nginx &> /dev/null; then
     print_success "Nginx is already installed"
 else
-    read -p "Do you want to install Nginx for reverse proxy? (y/n) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+    should_install_nginx=false
+    if [[ -v INSTALL_NGINX ]]; then
+        case "${INSTALL_NGINX,,}" in
+            y|yes|1|true) should_install_nginx=true ;;
+        esac
+    else
+        read -p "Do you want to install Nginx for reverse proxy? (y/n) " -n 1 -r
+        echo
+        [[ $REPLY =~ ^[Yy]$ ]] && should_install_nginx=true
+    fi
+    if $should_install_nginx; then
         sudo apt-get install -y nginx
         print_success "Nginx installed successfully"
     fi
 fi
 
 # Install phpMyAdmin (optional)
+# Non-interactive: set INSTALL_PHPMYADMIN=yes|no. Unset = prompt.
 print_info "Checking phpMyAdmin installation..."
 if [ -d "/usr/share/phpmyadmin" ] || [ -d "/var/www/phpmyadmin" ]; then
     print_success "phpMyAdmin is already installed"
 else
-    read -p "Do you want to install phpMyAdmin? (y/n) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+    should_install_pma=false
+    if [[ -v INSTALL_PHPMYADMIN ]]; then
+        case "${INSTALL_PHPMYADMIN,,}" in
+            y|yes|1|true) should_install_pma=true ;;
+        esac
+    else
+        read -p "Do you want to install phpMyAdmin? (y/n) " -n 1 -r
+        echo
+        [[ $REPLY =~ ^[Yy]$ ]] && should_install_pma=true
+    fi
+    if $should_install_pma; then
         print_info "Installing phpMyAdmin..."
         
         # Install PHP and required extensions
