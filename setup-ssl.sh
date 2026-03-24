@@ -43,6 +43,69 @@ DASHBOARD_DOMAIN="dashboard.indicator-app.com"
 OPERATE_DOMAIN="operate.indicator-app.com"
 EMAIL="${SSL_EMAIL:-}"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# HTTP-only Operate vhost (required before Let's Encrypt files exist under /etc/letsencrypt/live/)
+write_operate_http_only_site() {
+    local dest="$1"
+    cat > "$dest" << 'HORIZON_OPERATE_HTTP'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name operate.indicator-app.com www.operate.indicator-app.com;
+
+    root /var/www/horizon-dashboard/dist;
+    index index.html index.htm;
+
+    access_log /var/log/nginx/operate.indicator-app.com-access.log;
+    error_log /var/log/nginx/operate.indicator-app.com-error.log;
+
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml text/javascript application/json application/javascript application/xml+rss application/rss+xml font/truetype font/opentype application/vnd.ms-fontobject image/svg+xml;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+
+        location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            access_log off;
+        }
+    }
+
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    location ~ ~$ {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}
+HORIZON_OPERATE_HTTP
+}
+
+fix_operate_vhost_if_letsencrypt_missing() {
+    local OC
+    local le_chain="/etc/letsencrypt/live/$OPERATE_DOMAIN/fullchain.pem"
+    for OC in "/etc/nginx/sites-available/operate.indicator-app.com" "/etc/nginx/sites-available/operate"; do
+        [ -f "$OC" ] || continue
+        if grep -q "ssl_certificate" "$OC" && [ ! -f "$le_chain" ]; then
+            print_info "Operate vhost references SSL but certificate missing: $le_chain"
+            print_info "Writing HTTP-only config to $OC (backup with timestamp)..."
+            cp "$OC" "${OC}.backup.$(date +%Y%m%d_%H%M%S)"
+            write_operate_http_only_site "$OC"
+            print_success "HTTP-only Operate config written; run certbot to obtain certificates"
+        fi
+    done
+}
+
 # Check if Nginx is installed
 if ! command -v nginx &> /dev/null; then
     print_error "Nginx is not installed"
@@ -52,13 +115,18 @@ fi
 
 print_success "Nginx is installed"
 
+fix_operate_vhost_if_letsencrypt_missing
+if nginx -t 2>/dev/null; then
+    systemctl reload nginx 2>/dev/null || true
+fi
+
 # Check if domains are configured in Nginx
 print_info "Checking Nginx configurations..."
 
 BACKEND_CONFIG="/etc/nginx/sites-available/horizon-backend"
 PHPMYADMIN_CONFIG="/etc/nginx/sites-available/phpmyadmin"
 DASHBOARD_CONFIG="/etc/nginx/sites-available/dashboard"
-OPERATE_CONFIG="/etc/nginx/sites-available/operate"
+OPERATE_CONFIG="/etc/nginx/sites-available/operate.indicator-app.com"
 
 if [ ! -f "$BACKEND_CONFIG" ]; then
     print_error "Backend Nginx configuration not found: $BACKEND_CONFIG"
@@ -116,7 +184,7 @@ fi
 
 # Setup SSL for backend domain
 print_info "Setting up SSL certificate for $BACKEND_DOMAIN..."
-if certbot --nginx -d $BACKEND_DOMAIN --non-interactive --agree-tos --email $EMAIL --redirect; then
+if certbot --nginx -d backend.indicator-app.com --non-interactive --agree-tos --email $EMAIL --redirect; then
     print_success "SSL certificate obtained for $BACKEND_DOMAIN"
 else
     print_error "Failed to obtain SSL certificate for $BACKEND_DOMAIN"
@@ -258,133 +326,23 @@ fi
 # Setup SSL for operate domain
 print_info "Setting up SSL certificate for $OPERATE_DOMAIN..."
 
-# Check if operate config exists and has SSL settings but certificates don't exist
-if [ -f "$OPERATE_CONFIG" ] && grep -q "ssl_certificate" "$OPERATE_CONFIG" && [ ! -f "/etc/letsencrypt/live/$OPERATE_DOMAIN/fullchain.pem" ]; then
-    print_info "Config exists with SSL settings but certificates not found. Creating HTTP-only version..."
-    # Backup existing config
-    cp $OPERATE_CONFIG ${OPERATE_CONFIG}.backup
-    print_info "Backed up existing config to ${OPERATE_CONFIG}.backup"
-    
-    # Create HTTP-only version
-    cat > $OPERATE_CONFIG << 'EOFTEMP'
-server {
-    listen 80;
-    listen [::]:80;
-    server_name operate.indicator-app.com www.operate.indicator-app.com;
-
-    root /var/www/horizon-dashboard/dist;
-    index index.html index.htm;
-
-    access_log /var/log/nginx/operate.indicator-app.com-access.log;
-    error_log /var/log/nginx/operate.indicator-app.com-error.log;
-
-    gzip on;
-    gzip_vary on;
-    gzip_proxied any;
-    gzip_comp_level 6;
-    gzip_types text/plain text/css text/xml text/javascript application/json application/javascript application/xml+rss application/rss+xml font/truetype font/opentype application/vnd.ms-fontobject image/svg+xml;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-        
-        location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
-            expires 1y;
-            add_header Cache-Control "public, immutable";
-            access_log off;
-        }
-    }
-
-    location ~ /\. {
-        deny all;
-        access_log off;
-        log_not_found off;
-    }
-
-    location ~ ~$ {
-        deny all;
-        access_log off;
-        log_not_found off;
-    }
-}
-EOFTEMP
-    
-    # Test and reload
-    if nginx -t; then
-        systemctl reload nginx
-        print_success "HTTP-only configuration created. Certbot will add SSL automatically."
-    else
-        print_error "Failed to create valid HTTP-only configuration"
-        # Restore backup
-        mv ${OPERATE_CONFIG}.backup $OPERATE_CONFIG
-        exit 1
-    fi
-fi
+fix_operate_vhost_if_letsencrypt_missing
 
 # Check if operate config exists, if not create it
 if [ ! -f "$OPERATE_CONFIG" ]; then
     print_info "Creating Operate Nginx configuration..."
     
     # Check if config file exists in current directory
-    if [ -f "nginx-operate.conf" ]; then
+    if [ -f "$SCRIPT_DIR/nginx-operate.conf" ]; then
         print_info "Using nginx-operate.conf from project directory..."
         
         # Check if config has SSL settings but certificates don't exist
-        if grep -q "ssl_certificate" "nginx-operate.conf" && [ ! -f "/etc/letsencrypt/live/$OPERATE_DOMAIN/fullchain.pem" ]; then
+        if grep -q "ssl_certificate" "$SCRIPT_DIR/nginx-operate.conf" && [ ! -f "/etc/letsencrypt/live/$OPERATE_DOMAIN/fullchain.pem" ]; then
             print_info "Config has SSL settings but certificates don't exist yet. Creating HTTP-only version for Certbot..."
-            
-            # Create HTTP-only version by extracting just the HTTP server block or creating a basic one
-            # Remove HTTPS server block and SSL redirect, keep only HTTP server
-            cat > $OPERATE_CONFIG << 'EOFTEMP'
-server {
-    listen 80;
-    listen [::]:80;
-    server_name operate.indicator-app.com www.operate.indicator-app.com;
-
-    # Root directory - serves files from /var/www/horizon-dashboard/dist
-    root /var/www/horizon-dashboard/dist;
-    index index.html index.htm;
-
-    # Logging
-    access_log /var/log/nginx/operate.indicator-app.com-access.log;
-    error_log /var/log/nginx/operate.indicator-app.com-error.log;
-
-    # Gzip Compression
-    gzip on;
-    gzip_vary on;
-    gzip_proxied any;
-    gzip_comp_level 6;
-    gzip_types text/plain text/css text/xml text/javascript application/json application/javascript application/xml+rss application/rss+xml font/truetype font/opentype application/vnd.ms-fontobject image/svg+xml;
-
-    # Main location block - SPA routing support
-    location / {
-        try_files $uri $uri/ /index.html;
-        
-        # Cache static assets
-        location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
-            expires 1y;
-            add_header Cache-Control "public, immutable";
-            access_log off;
-        }
-    }
-
-    # Deny access to hidden files
-    location ~ /\. {
-        deny all;
-        access_log off;
-        log_not_found off;
-    }
-
-    # Deny access to backup files
-    location ~ ~$ {
-        deny all;
-        access_log off;
-        log_not_found off;
-    }
-}
-EOFTEMP
+            write_operate_http_only_site "$OPERATE_CONFIG"
             print_info "Created HTTP-only configuration. Certbot will add SSL settings automatically."
         else
-            cp nginx-operate.conf $OPERATE_CONFIG
+            cp "$SCRIPT_DIR/nginx-operate.conf" $OPERATE_CONFIG
         fi
     else
         # Create basic config - you may need to customize this based on your operate setup
@@ -437,47 +395,7 @@ EOF
         # If config has SSL but certificates don't exist, create HTTP-only version
         if grep -q "ssl_certificate" $OPERATE_CONFIG && [ ! -f "/etc/letsencrypt/live/$OPERATE_DOMAIN/fullchain.pem" ]; then
             print_info "SSL certificates not found. Creating HTTP-only configuration..."
-            cat > $OPERATE_CONFIG << 'EOFTEMP'
-server {
-    listen 80;
-    listen [::]:80;
-    server_name operate.indicator-app.com www.operate.indicator-app.com;
-
-    root /var/www/horizon-dashboard/dist;
-    index index.html index.htm;
-
-    access_log /var/log/nginx/operate.indicator-app.com-access.log;
-    error_log /var/log/nginx/operate.indicator-app.com-error.log;
-
-    gzip on;
-    gzip_vary on;
-    gzip_proxied any;
-    gzip_comp_level 6;
-    gzip_types text/plain text/css text/xml text/javascript application/json application/javascript application/xml+rss application/rss+xml font/truetype font/opentype application/vnd.ms-fontobject image/svg+xml;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-        
-        location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
-            expires 1y;
-            add_header Cache-Control "public, immutable";
-            access_log off;
-        }
-    }
-
-    location ~ /\. {
-        deny all;
-        access_log off;
-        log_not_found off;
-    }
-
-    location ~ ~$ {
-        deny all;
-        access_log off;
-        log_not_found off;
-    }
-}
-EOFTEMP
+            write_operate_http_only_site "$OPERATE_CONFIG"
             if nginx -t; then
                 systemctl reload nginx
                 print_success "HTTP-only configuration created. Certbot will add SSL automatically."

@@ -2,8 +2,11 @@
 
 # Quick fix script to replace SSL config with HTTP-only version
 # This fixes the error: cannot load certificate when certificates don't exist
+# (e.g. fullchain.pem missing under /etc/letsencrypt/live/operate.indicator-app.com/)
 
 set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "=========================================="
 echo "Fixing Operate Nginx Configuration"
@@ -49,9 +52,9 @@ cp $OPERATE_CONFIG ${OPERATE_CONFIG}.backup.$(date +%Y%m%d_%H%M%S)
 print_success "Backup created"
 
 # Check if we have the HTTP-only template
-if [ -f "nginx-operate-http.conf" ]; then
+if [ -f "$SCRIPT_DIR/nginx-operate-http.conf" ]; then
     print_info "Using nginx-operate-http.conf template..."
-    cp nginx-operate-http.conf $OPERATE_CONFIG
+    cp "$SCRIPT_DIR/nginx-operate-http.conf" $OPERATE_CONFIG
 else
     print_info "Creating HTTP-only configuration..."
     cat > $OPERATE_CONFIG << 'EOF'
