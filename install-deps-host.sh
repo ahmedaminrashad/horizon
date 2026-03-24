@@ -10,6 +10,7 @@
 #   INSTALL_NGINX=yes|no          (default: no)
 #   INSTALL_PHPMYADMIN=yes|no   (default: no)
 #   ALLOW_NON_UBUNTU=1          skip Ubuntu OS check
+#   ALLOW_ROOT=1                allow running install-prerequisites as root (e.g. sudo ALLOW_ROOT=1 ./install-deps-host.sh)
 
 set -euo pipefail
 

@@ -2,6 +2,8 @@
 
 # Horizon Backend - Prerequisites Installation Script
 # This script installs all required dependencies for running the NestJS application
+#
+# Run as a normal user with sudo (recommended). To run as root: ALLOW_ROOT=1 ./install-prerequisites.sh
 
 set -e  # Exit on any error
 
@@ -29,10 +31,14 @@ print_info() {
     echo -e "${YELLOW}ℹ $1${NC}"
 }
 
-# Check if running as root
-if [ "$EUID" -eq 0 ]; then 
-    print_error "Please do not run this script as root"
-    exit 1
+# Prefer a non-root user for npm/PM2; root is allowed when explicitly opted in.
+if [ "$EUID" -eq 0 ]; then
+    if [ "${ALLOW_ROOT:-}" != "1" ]; then
+        print_error "Do not run this script as root unless you intend to."
+        print_info "Use a normal user with sudo (recommended), or run: ALLOW_ROOT=1 $0"
+        exit 1
+    fi
+    print_info "Running as root (ALLOW_ROOT=1). For production, prefer a dedicated deploy user."
 fi
 
 # Update system packages
