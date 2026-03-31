@@ -81,6 +81,16 @@ export class DoctorServicesController {
               duration: { type: 'number', nullable: true },
               price: { type: 'number', nullable: true },
               service_type: { type: 'string', enum: ['consultation', 'follow_up', 'online_consultation', 'home_visit', 'other'], nullable: true },
+              walk_in: {
+                type: 'boolean',
+                description:
+                  'True if doctor has at least one working hour with waterfall=true',
+              },
+              slot: {
+                type: 'boolean',
+                description:
+                  'True if doctor has at least one working hour with waterfall=false',
+              },
               service: { type: 'object', description: 'Service relation' },
               doctor: { type: 'object', description: 'Doctor relation' },
             },

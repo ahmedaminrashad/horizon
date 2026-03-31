@@ -11,6 +11,12 @@ import { UpdateDoctorServiceDto } from './dto/update-doctor-service.dto';
 import { DoctorServiceItemDto } from './dto/doctor-service-item.dto';
 import { Doctor } from '../doctors/entities/doctor.entity';
 import { Service } from '../services/entities/service.entity';
+import { DoctorWorkingHour } from '../working-hours/entities/doctor-working-hour.entity';
+
+type DoctorServiceWithBookingFlags = DoctorService & {
+  walk_in: boolean;
+  slot: boolean;
+};
 
 @Injectable()
 export class DoctorServicesService {
@@ -67,7 +73,7 @@ export class DoctorServicesService {
     page: number = 1,
     limit: number = 10,
   ): Promise<{
-    data: DoctorService[];
+    data: DoctorServiceWithBookingFlags[];
     total: number;
     page: number;
     totalPages: number;
@@ -87,8 +93,25 @@ export class DoctorServicesService {
     }
 
     const [data, total] = await qb.getManyAndCount();
+    const doctorIds = Array.from(new Set(data.map((item) => item.doctor_id)));
+    const bookingFlagsByDoctorId = await this.getBookingFlagsByDoctorId(
+      clinicId,
+      doctorIds,
+    );
+    const dataWithFlags: DoctorServiceWithBookingFlags[] = data.map((item) => {
+      const flags = bookingFlagsByDoctorId.get(item.doctor_id) ?? {
+        walk_in: false,
+        slot: false,
+      };
+      return {
+        ...item,
+        walk_in: flags.walk_in,
+        slot: flags.slot,
+      };
+    });
+
     const totalPages = Math.ceil(total / limit) || 1;
-    return { data, total, page, totalPages };
+    return { data: dataWithFlags, total, page, totalPages };
   }
 
   async findOne(clinicId: number, id: number): Promise<DoctorService> {
@@ -156,5 +179,36 @@ export class DoctorServicesService {
         `Doctor with id ${doctorId} not found in this clinic`,
       );
     }
+  }
+
+  private async getBookingFlagsByDoctorId(
+    clinicId: number,
+    doctorIds: number[],
+  ): Promise<Map<number, { walk_in: boolean; slot: boolean }>> {
+    const result = new Map<number, { walk_in: boolean; slot: boolean }>();
+    if (!doctorIds.length) return result;
+
+    const workingHourRepo =
+      await this.tenantRepositoryService.getRepository<DoctorWorkingHour>(
+        DoctorWorkingHour,
+      );
+    if (!workingHourRepo) return result;
+
+    const workingHours = await workingHourRepo
+      .createQueryBuilder('wh')
+      .select(['wh.doctor_id AS doctor_id', 'wh.waterfall AS waterfall'])
+      .where('wh.clinic_id = :clinicId', { clinicId })
+      .andWhere('wh.doctor_id IN (:...doctorIds)', { doctorIds })
+      .getRawMany<{ doctor_id: string | number; waterfall: boolean }>();
+
+    for (const row of workingHours) {
+      const id = Number(row.doctor_id);
+      const current = result.get(id) ?? { walk_in: false, slot: false };
+      if (row.waterfall === true) current.walk_in = true;
+      if (row.waterfall === false) current.slot = true;
+      result.set(id, current);
+    }
+
+    return result;
   }
 }
