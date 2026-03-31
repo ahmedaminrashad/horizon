@@ -52,6 +52,7 @@ import { DoctorWorkingHour } from '../working-hours/entities/doctor-working-hour
 import { DayOfWeek } from '../working-hours/entities/working-hour.entity';
 import { DoctorFilesService } from '../doctor-files/doctor-files.service';
 import { ClinicsService } from '../../clinics/clinics.service';
+import { ValidationError } from 'class-validator';
 
 @ApiTags('clinic/doctors')
 @Controller('clinic/:clinicId/doctors')
@@ -64,6 +65,24 @@ export class DoctorsController {
     private readonly doctorFilesService: DoctorFilesService,
     private readonly clinicsService: ClinicsService,
   ) {}
+
+  private getValidationMessages(errors: ValidationError[]): string[] {
+    const messages: string[] = [];
+
+    const traverse = (validationErrors: ValidationError[]) => {
+      for (const error of validationErrors) {
+        if (error.constraints) {
+          messages.push(...Object.values(error.constraints));
+        }
+        if (error.children?.length) {
+          traverse(error.children);
+        }
+      }
+    };
+
+    traverse(errors);
+    return messages;
+  }
 
   @Post()
   @UseGuards(ClinicPermissionsGuard)
@@ -168,6 +187,7 @@ export class DoctorsController {
     if (errors.length > 0) {
       throw new BadRequestException({
         message: 'Validation failed',
+        errors: this.getValidationMessages(errors),
       });
     }
     return this.doctorsService.registerDoctor(clinicId, registerDoctorDto);
@@ -232,6 +252,7 @@ export class DoctorsController {
     if (errors.length > 0) {
       throw new BadRequestException({
         message: 'Validation failed',
+        errors: this.getValidationMessages(errors),
       });
     }
     return this.doctorsService.create(clinicId, createDoctorDto);
