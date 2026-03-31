@@ -137,6 +137,7 @@ export class DoctorsService {
     clinicDoctorId: number,
     doctorData: {
       name: string;
+      user_id?: number;
       age?: number;
       avatar?: string;
       email?: string;
@@ -163,6 +164,7 @@ export class DoctorsService {
       // Update existing doctor
       Object.assign(existingDoctor, {
         name: doctorData.name,
+        user_id: doctorData.user_id ?? existingDoctor.user_id,
         age: doctorData.age,
         avatar: doctorData.avatar,
         email: doctorData.email,
@@ -184,6 +186,7 @@ export class DoctorsService {
       // Create new doctor
       const doctor = this.doctorsRepository.create({
         name: doctorData.name,
+        user_id: doctorData.user_id,
         age: doctorData.age,
         clinic_id: clinicId,
         clinic_doctor_id: clinicDoctorId,

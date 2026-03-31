@@ -659,6 +659,7 @@ export class DoctorsService {
     }
     await this.mainDoctorsService.syncDoctor(clinicId, savedDoctor.id, {
       name: clinicUserWithRole.name || '',
+      user_id: savedClinicUser.id,
       age: savedDoctor.age ?? undefined,
       avatar: savedDoctor.avatar,
       email: clinicUserWithRole.email ?? undefined,
@@ -748,6 +749,7 @@ export class DoctorsService {
       // Sync to main doctors table
       await this.mainDoctorsService.syncDoctor(clinicId, clinicDoctor.id, {
         name: doctorName,
+        user_id: clinicDoctor.user_id,
         age: clinicDoctor.age ?? undefined,
         avatar: clinicDoctor.avatar,
         email: doctorEmail,

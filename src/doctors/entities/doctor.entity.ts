@@ -84,6 +84,9 @@ export class Doctor {
   @Column({ nullable: true })
   specialty: string;
 
+  @Column({ name: 'user_id', nullable: true })
+  user_id: number | null;
+
   @Column({ name: 'license_number', nullable: true })
   license_number: string;
 

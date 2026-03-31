@@ -637,6 +637,7 @@ export class ReservationsService {
 
         await this.mainDoctorsService.syncDoctor(clinicId, doctorId, {
           name: doctorName,
+          user_id: doctor.user_id,
           age: doctor.age ?? undefined,
           avatar: doctor.avatar,
           email: doctor.user?.email,
@@ -1667,6 +1668,7 @@ export class ReservationsService {
             clinicReservation.doctor_id,
             {
               name: clinicDoctor.user?.name || 'Unknown',
+              user_id: clinicDoctor.user_id,
               age: clinicDoctor.age ?? undefined,
               avatar: clinicDoctor.avatar,
               email: clinicDoctor.user?.email,
