@@ -210,6 +210,16 @@ export class AuthController {
         role_id: { type: 'number', nullable: true },
         role: { type: 'object', nullable: true },
         access_token: { type: 'string' },
+        clinic_id: { type: 'number' },
+        clinic_name: { type: 'string', nullable: true },
+        doctor_id: { type: 'number', nullable: true },
+        specialty: { type: 'string', nullable: true },
+        bio: { type: 'string', example: '' },
+        rate: { type: 'string', example: '' },
+        experience_years: { type: 'string', example: '' },
+        number_of_patients: { type: 'string', example: '' },
+        doctor_avatar: { type: 'string', nullable: true },
+        next_reservation: { type: 'object', nullable: true },
         dashboard: {
           type: 'object',
           properties: {

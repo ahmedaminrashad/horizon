@@ -468,6 +468,9 @@ export class ClinicAuthService {
     ]);
 
 
+    const strOrEmpty = (v: string | number | null | undefined): string =>
+      v === null || v === undefined ? '' : String(v);
+
     return {
       ...result,
       access_token: this.jwtService.sign(payload),
@@ -475,6 +478,10 @@ export class ClinicAuthService {
       clinic_name: clinic.name_en ?? clinic.name_ar ?? null,
       doctor_id: doctorIdForReservations ?? null,
       specialty: clinicDoctor?.specialty ?? null,
+      bio: strOrEmpty(clinicDoctor?.bio),
+      rate: strOrEmpty(clinicDoctor?.rate),
+      experience_years: strOrEmpty(clinicDoctor?.experience_years),
+      number_of_patients: strOrEmpty(clinicDoctor?.number_of_patients),
       dashboard: {
         total_appointments_last_7_days: dashboard.total_appointments_last_7_days,
         total_revenue_last_7_days: dashboard.total_revenue_last_7_days,
