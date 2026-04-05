@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { ClinicsService } from '../../clinics/clinics.service';
@@ -19,6 +20,8 @@ import { DoctorLoginDto } from './dto/doctor-login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { TranslationService } from '../../common/services/translation.service';
+import { MailService } from '../../mail/mail.service';
+import { PasswordResetTokenService } from '../../password-reset/password-reset-token.service';
 import {
   DoctorProfileNextReservationDto,
   DoctorProfileNextReservationBranchDto,
@@ -33,6 +36,9 @@ export class ClinicAuthService {
     private tenantDataSourceService: TenantDataSourceService,
     private mainDoctorsService: MainDoctorsService,
     private translationService: TranslationService,
+    private mailService: MailService,
+    private configService: ConfigService,
+    private passwordResetTokenService: PasswordResetTokenService,
   ) {}
 
   /**
@@ -485,7 +491,7 @@ export class ClinicAuthService {
 
   /**
    * Forgot password: find user by email in clinic DB, generate short-lived reset token.
-   * Returns generic message (do not leak whether email exists). Optionally return token for development.
+   * Returns generic message only (no reset_token in JSON).
    */
   async forgotPassword(clinicId: number, dto: ForgotPasswordDto) {
     const clinic = await this.clinicsService.findOneWithoutRelations(clinicId);
@@ -513,31 +519,118 @@ export class ClinicAuthService {
       return { message };
     }
 
-    const resetPayload = {
-      purpose: 'password-reset',
-      sub: user.id,
-      clinic_id: clinicId,
-      database_name: clinic.database_name,
-    };
-    const resetToken = this.jwtService.sign(resetPayload, { expiresIn: '1h' });
+    const resetToken = await this.passwordResetTokenService.issueClinicResetJwt(
+      clinicDataSource,
+      user.id,
+      {
+        clinic_id: clinicId,
+        database_name: clinic.database_name,
+      },
+    );
 
-    // In production: send email with link containing resetToken. For now return token for development.
-    return {
-      message,
-      reset_token: resetToken,
-    };
+    const clinicPath = this.configService.get<string>(
+      'CLINIC_PASSWORD_RESET_PATH',
+      '/clinic/reset-password',
+    );
+    await this.mailService.sendPasswordResetEmail(user.email, resetToken, {
+      clinicId,
+      path: clinicPath,
+      subject: 'Clinic account password reset',
+    });
+
+    return { message };
   }
 
   /**
-   * Reset password: verify reset token, update user password in clinic DB.
-   * Caller must have permission CanResetPassword (e.g. admin or staff).
+   * Doctor forgot password: resolve `clinic_id` + `clinic_doctor_id` from main `doctors` by email,
+   * load clinic tenant doctor by id, then clinic `users` via `doctor.user_id`. No clinic id in URL.
    */
-  async resetPassword(clinicId: number, dto: ResetPasswordDto) {
+  async doctorForgotPassword(dto: {
+    email: string;
+  }): Promise<{ message: string }> {
+    const message =
+      'If a doctor account exists with this email, you will receive instructions to reset your password.';
+
+    const mainDoctor = await this.mainDoctorsService.findMainDoctorByEmailForPasswordReset(
+      dto.email,
+    );
+    if (
+      !mainDoctor?.clinic_id ||
+      mainDoctor.clinic_doctor_id == null
+    ) {
+      return { message };
+    }
+
+    const clinicId = mainDoctor.clinic_id;
+    const clinic = await this.clinicsService.findOneWithoutRelations(clinicId);
+    if (!clinic?.database_name) {
+      return { message };
+    }
+
+    const clinicDataSource =
+      await this.tenantDataSourceService.getTenantDataSource(
+        clinic.database_name,
+      );
+    if (!clinicDataSource) {
+      return { message };
+    }
+
+    const doctorRepo = clinicDataSource.getRepository(ClinicDoctor);
+    const clinicDoctor = await doctorRepo.findOne({
+      where: {
+        id: mainDoctor.clinic_doctor_id,
+        clinic_id: clinicId,
+      },
+    });
+    if (!clinicDoctor?.user_id) {
+      return { message };
+    }
+
+    const userRepo = clinicDataSource.getRepository(ClinicUser);
+    const user = await userRepo.findOne({
+      where: { id: clinicDoctor.user_id },
+    });
+    if (!user) {
+      return { message };
+    }
+
+    const resetToken = await this.passwordResetTokenService.issueClinicResetJwt(
+      clinicDataSource,
+      user.id,
+      {
+        clinic_id: clinicId,
+        database_name: clinic.database_name,
+      },
+    );
+
+    const doctorPath = this.configService.get<string>(
+      'CLINIC_DOCTOR_PASSWORD_RESET_PATH',
+      '/clinic/doctor/reset-password',
+    );
+    await this.mailService.sendPasswordResetEmail(user.email, resetToken, {
+      clinicId,
+      path: doctorPath,
+      subject: 'Doctor password reset',
+    });
+
+    return { message };
+  }
+
+  /**
+   * Reset password: verify short-lived reset JWT, update clinic `users` password for `sub`.
+   * When `clinicIdFromRoute` is set (e.g. /clinic/:clinicId/auth/reset-password), it must match the token.
+   * When omitted (e.g. POST /clinic/doctor/reset-password), clinic id is taken only from the token.
+   */
+  async resetPassword(
+    dto: ResetPasswordDto,
+    clinicIdFromRoute?: number,
+  ) {
     let decoded: {
       purpose?: string;
       sub?: number;
       clinic_id?: number;
       database_name?: string;
+      jti?: string;
     };
     try {
       decoded = this.jwtService.verify(dto.token);
@@ -545,13 +638,17 @@ export class ClinicAuthService {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
-    if (decoded.purpose !== 'password-reset' || decoded.sub == null) {
+    if (decoded.clinic_id == null) {
       throw new BadRequestException('Invalid reset token');
     }
-    if (decoded.clinic_id !== clinicId) {
+    if (
+      clinicIdFromRoute != null &&
+      decoded.clinic_id !== clinicIdFromRoute
+    ) {
       throw new BadRequestException('Token does not match this clinic');
     }
 
+    const clinicId = decoded.clinic_id;
     const clinic = await this.clinicsService.findOneWithoutRelations(clinicId);
     if (!clinic?.database_name || clinic.database_name !== decoded.database_name) {
       throw new NotFoundException('Clinic not found');
@@ -564,6 +661,11 @@ export class ClinicAuthService {
     if (!clinicDataSource) {
       throw new NotFoundException('Clinic database not available');
     }
+
+    await this.passwordResetTokenService.consumeClinicToken(
+      clinicDataSource,
+      decoded,
+    );
 
     const userRepo = clinicDataSource.getRepository(ClinicUser);
     const user = await userRepo.findOne({ where: { id: decoded.sub } });

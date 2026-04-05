@@ -132,6 +132,23 @@ export class DoctorsService {
     });
   }
 
+  /**
+   * Main `doctors` row by email (for password reset without clinic id in URL).
+   * If multiple rows share the email, returns the most recently updated.
+   */
+  async findMainDoctorByEmailForPasswordReset(
+    email: string,
+  ): Promise<Doctor | null> {
+    const trimmed = (email ?? '').trim();
+    if (!trimmed) return null;
+    const rows = await this.doctorsRepository.find({
+      where: { email: trimmed },
+      order: { updatedAt: 'DESC' },
+      take: 1,
+    });
+    return rows[0] ?? null;
+  }
+
   async syncDoctor(
     clinicId: number,
     clinicDoctorId: number,

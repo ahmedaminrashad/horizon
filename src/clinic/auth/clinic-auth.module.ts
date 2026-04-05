@@ -8,6 +8,9 @@ import { UsersModule } from '../../users/users.module';
 import { ClinicsModule } from '../../clinics/clinics.module';
 import { DoctorsModule } from '../../doctors/doctors.module';
 import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
+import { MailModule } from '../../mail/mail.module';
+import { PasswordResetModule } from '../../password-reset/password-reset.module';
+import { ClinicDoctorAuthController } from './clinic-doctor-auth.controller';
 
 @Module({
   imports: [
@@ -15,6 +18,8 @@ import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
     UsersModule,
     ClinicsModule,
     DoctorsModule,
+    MailModule,
+    PasswordResetModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -24,7 +29,7 @@ import { ClinicTenantGuard } from '../guards/clinic-tenant.guard';
       inject: [ConfigService],
     }),
   ],
-  controllers: [ClinicAuthController],
+  controllers: [ClinicAuthController, ClinicDoctorAuthController],
   providers: [ClinicAuthService, ClinicTenantGuard],
   exports: [ClinicAuthService],
 })

@@ -16,6 +16,8 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { User } from '../users/entities/user.entity';
 import { TranslationService } from '../common/services/translation.service';
+import { MailService } from '../mail/mail.service';
+import { PasswordResetTokenService } from '../password-reset/password-reset-token.service';
 
 @Injectable()
 export class AuthService {
@@ -25,6 +27,8 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private translationService: TranslationService,
+    private mailService: MailService,
+    private passwordResetTokenService: PasswordResetTokenService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -106,7 +110,8 @@ export class AuthService {
 
   /**
    * Forgot password (main users): find user by phone, generate short-lived reset token.
-   * Returns generic message; optionally return token for development.
+   * When MAIL_MAILER=mailgun and the user has an email, sends reset link via Mailgun.
+   * Response is always the generic message only (no reset_token in JSON).
    */
   async forgotPassword(dto: ForgotPasswordDto) {
     const user = await this.usersService.findByPhone(dto.phone.trim());
@@ -117,36 +122,35 @@ export class AuthService {
       return { message };
     }
 
-    const resetPayload = { purpose: 'password-reset-main', sub: user.id };
-    const resetToken = this.jwtService.sign(resetPayload, { expiresIn: '1h' });
+    const resetToken = await this.passwordResetTokenService.issueMainResetJwt(
+      user.id,
+    );
 
-    return {
-      message,
-      reset_token: resetToken,
-    };
+    await this.mailService.sendPasswordResetEmail(user.email, resetToken);
+
+    return { message };
   }
 
   /**
    * Reset password (main users): verify reset token, update user password.
    */
   async resetPassword(dto: ResetPasswordDto) {
-    let decoded: { purpose?: string; sub?: number };
+    let decoded: { purpose?: string; sub?: number; jti?: string };
     try {
       decoded = this.jwtService.verify(dto.token);
     } catch {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
-    if (decoded.purpose !== 'password-reset-main' || decoded.sub == null) {
-      throw new BadRequestException('Invalid reset token');
-    }
+    await this.passwordResetTokenService.consumeMainToken(decoded);
 
-    const user = await this.usersService.findOne(decoded.sub);
+    const userId = decoded.sub as number;
+    const user = await this.usersService.findOne(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    await this.usersService.update(decoded.sub, { password: dto.new_password });
+    await this.usersService.update(userId, { password: dto.new_password });
 
     return { message: 'Password has been reset successfully.' };
   }

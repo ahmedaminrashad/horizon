@@ -79,16 +79,15 @@ export class AuthController {
   @ApiOperation({
     summary: 'Forgot password (main users)',
     description:
-      'Request a password reset by phone. Returns a reset token (for development); in production send it by SMS/email.',
+      'Request a password reset by phone. When MAIL_MAILER=mailgun and the account has an email, sends reset instructions via Mailgun. Response body contains only a generic message.',
   })
   @ApiResponse({
     status: 200,
-    description: 'If account exists, reset instructions or token returned',
+    description: 'Generic success message',
     schema: {
       type: 'object',
       properties: {
         message: { type: 'string' },
-        reset_token: { type: 'string', description: 'Present in dev only' },
       },
     },
   })

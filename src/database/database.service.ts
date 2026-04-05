@@ -20,6 +20,7 @@ import { PatientQuestionAnswer } from '../clinic/patient-question-answers/entiti
 import { DoctorService } from '../clinic/doctor-services/entities/doctor-service.entity';
 import { DoctorBranch } from '../clinic/doctor-branches/entities/doctor-branch.entity';
 import { DoctorFile } from '../clinic/doctor-files/entities/doctor-file.entity';
+import { PasswordResetToken } from '../password-reset/entities/password-reset-token.entity';
 
 @Injectable()
 export class DatabaseService {
@@ -104,6 +105,7 @@ export class DatabaseService {
       DoctorService,
       DoctorBranch,
       DoctorFile,
+      PasswordResetToken,
     ];
 
     const sanitizedDbName = this.sanitizeDatabaseName(databaseName);

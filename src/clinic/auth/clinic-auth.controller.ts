@@ -107,16 +107,15 @@ export class ClinicAuthController {
   @ApiOperation({
     summary: 'Forgot password',
     description:
-      'Request a password reset for a clinic user by email. Returns a reset token (for development); in production send it by email.',
+      'Request a password reset for a clinic user by email. Sends email via Mailgun when configured. Response is only a generic message.',
   })
   @ApiResponse({
     status: 200,
-    description: 'If account exists, reset instructions or token returned',
+    description: 'Generic message',
     schema: {
       type: 'object',
       properties: {
         message: { type: 'string' },
-        reset_token: { type: 'string', description: 'Present in dev only' },
       },
     },
   })
@@ -129,13 +128,10 @@ export class ClinicAuthController {
   }
 
   @Post('reset-password')
-  @UseGuards(JwtAuthGuard, ClinicPermissionsGuard)
-  @Permissions(ClinicPermission.CAN_RESET_PASSWORD as string)
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({
-    summary: 'Reset password',
+    summary: 'Reset password (self-service, token)',
     description:
-      'Reset user password using the token from forgot-password. Requires permission can-reset-password.',
+      'Reset clinic user password using the JWT from forgot-password. Public: no login required; the reset token authorizes the change.',
   })
   @ApiResponse({
     status: 200,
@@ -146,16 +142,12 @@ export class ClinicAuthController {
     },
   })
   @ApiResponse({ status: 400, description: 'Invalid or expired token' })
-  @ApiResponse({ status: 403, description: 'Forbidden - missing can-reset-password' })
   @ApiResponse({ status: 404, description: 'Clinic or user not found' })
   resetPassword(
-    @ClinicId() clinicId: number,
+    @Param('clinicId', ParseIntPipe) clinicId: number,
     @Body() dto: ResetPasswordDto,
   ) {
-    if (!clinicId) {
-      throw new Error('Clinic ID is required');
-    }
-    return this.clinicAuthService.resetPassword(clinicId, dto);
+    return this.clinicAuthService.resetPassword(dto, clinicId);
   }
 
   @Post('admin-reset-password')

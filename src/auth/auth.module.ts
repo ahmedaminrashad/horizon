@@ -10,6 +10,8 @@ import { DatabaseModule } from '../database/database.module';
 import { ClinicAuthModule } from '../clinic/auth/clinic-auth.module';
 import { GuardsModule } from './guards/guards.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { MailModule } from '../mail/mail.module';
+import { PasswordResetModule } from '../password-reset/password-reset.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     DatabaseModule,
     ClinicAuthModule,
     GuardsModule,
+    MailModule,
+    PasswordResetModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
