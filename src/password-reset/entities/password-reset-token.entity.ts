@@ -22,4 +22,8 @@ export class PasswordResetToken {
 
   @Column({ name: 'used_at', type: 'datetime', nullable: true })
   used_at: Date | null;
+
+  /** Bcrypt hash of the 6-digit code sent by email (JWT reset flow removed). */
+  @Column({ name: 'code_hash', type: 'varchar', length: 255, nullable: true })
+  code_hash: string | null;
 }

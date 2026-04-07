@@ -526,20 +526,16 @@ export class ClinicAuthService {
       return { message };
     }
 
-    const resetToken = await this.passwordResetTokenService.issueClinicResetJwt(
+    const resetCode = await this.passwordResetTokenService.issueClinicResetCode(
       clinicDataSource,
       user.id,
-      {
-        clinic_id: clinicId,
-        database_name: clinic.database_name,
-      },
     );
 
     const clinicPath = this.configService.get<string>(
       'CLINIC_PASSWORD_RESET_PATH',
       '/clinic/reset-password',
     );
-    await this.mailService.sendPasswordResetEmail(user.email, resetToken, {
+    await this.mailService.sendPasswordResetEmail(user.email, resetCode, {
       clinicId,
       path: clinicPath,
       subject: 'Clinic account password reset',
@@ -601,20 +597,16 @@ export class ClinicAuthService {
       return { message };
     }
 
-    const resetToken = await this.passwordResetTokenService.issueClinicResetJwt(
+    const resetCode = await this.passwordResetTokenService.issueClinicResetCode(
       clinicDataSource,
       user.id,
-      {
-        clinic_id: clinicId,
-        database_name: clinic.database_name,
-      },
     );
 
     const doctorPath = this.configService.get<string>(
       'CLINIC_DOCTOR_PASSWORD_RESET_PATH',
       '/clinic/doctor/reset-password',
     );
-    await this.mailService.sendPasswordResetEmail(user.email, resetToken, {
+    await this.mailService.sendPasswordResetEmail(user.email, resetCode, {
       clinicId,
       path: doctorPath,
       subject: 'Doctor password reset',
@@ -624,40 +616,40 @@ export class ClinicAuthService {
   }
 
   /**
-   * Reset password: verify short-lived reset JWT, update clinic `users` password for `sub`.
-   * When `clinicIdFromRoute` is set (e.g. /clinic/:clinicId/auth/reset-password), it must match the token.
-   * When omitted (e.g. POST /clinic/doctor/reset-password), clinic id is taken only from the token.
+   * Reset password: verify 6-digit code from email, update clinic `users` password.
+   * With `clinicIdFromRoute` (e.g. /clinic/:clinicId/auth/reset-password), user is resolved by email in that tenant.
+   * Without it (POST /clinic/doctor/reset-password), clinic is resolved from main `doctors` by the same email as forgot-password.
    */
   async resetPassword(
     dto: ResetPasswordDto,
     clinicIdFromRoute?: number,
   ) {
-    let decoded: {
-      purpose?: string;
-      sub?: number;
-      clinic_id?: number;
-      database_name?: string;
-      jti?: string;
-    };
-    try {
-      decoded = this.jwtService.verify(dto.token);
-    } catch {
-      throw new BadRequestException('Invalid or expired reset token');
+    const email = dto.email.trim();
+
+    let clinicId: number;
+    let user: ClinicUser | null = null;
+
+    const mainDoctorForDoctorFlow =
+      clinicIdFromRoute == null
+        ? await this.mainDoctorsService.findMainDoctorByEmailForPasswordReset(
+            email,
+          )
+        : null;
+
+    if (clinicIdFromRoute != null) {
+      clinicId = clinicIdFromRoute;
+    } else {
+      if (
+        !mainDoctorForDoctorFlow?.clinic_id ||
+        mainDoctorForDoctorFlow.clinic_doctor_id == null
+      ) {
+        throw new BadRequestException('Invalid or expired reset code');
+      }
+      clinicId = mainDoctorForDoctorFlow.clinic_id;
     }
 
-    if (decoded.clinic_id == null) {
-      throw new BadRequestException('Invalid reset token');
-    }
-    if (
-      clinicIdFromRoute != null &&
-      decoded.clinic_id !== clinicIdFromRoute
-    ) {
-      throw new BadRequestException('Token does not match this clinic');
-    }
-
-    const clinicId = decoded.clinic_id;
     const clinic = await this.clinicsService.findOneWithoutRelations(clinicId);
-    if (!clinic?.database_name || clinic.database_name !== decoded.database_name) {
+    if (!clinic?.database_name) {
       throw new NotFoundException('Clinic not found');
     }
 
@@ -669,16 +661,34 @@ export class ClinicAuthService {
       throw new NotFoundException('Clinic database not available');
     }
 
-    await this.passwordResetTokenService.consumeClinicToken(
-      clinicDataSource,
-      decoded,
-    );
-
     const userRepo = clinicDataSource.getRepository(ClinicUser);
-    const user = await userRepo.findOne({ where: { id: decoded.sub } });
-    if (!user) {
-      throw new NotFoundException('User not found');
+
+    if (clinicIdFromRoute != null) {
+      user = await userRepo.findOne({
+        where: { email },
+      });
+    } else if (mainDoctorForDoctorFlow) {
+      const doctorRepo = clinicDataSource.getRepository(ClinicDoctor);
+      const clinicDoctor = await doctorRepo.findOne({
+        where: { id: mainDoctorForDoctorFlow.clinic_doctor_id },
+      });
+      if (!clinicDoctor?.user_id) {
+        throw new BadRequestException('Invalid or expired reset code');
+      }
+      user = await userRepo.findOne({
+        where: { id: clinicDoctor.user_id },
+      });
     }
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired reset code');
+    }
+
+    await this.passwordResetTokenService.validateAndConsumeClinicCode(
+      clinicDataSource,
+      user.id,
+      dto.code,
+    );
 
     const hashedPassword = await bcrypt.hash(dto.new_password, 10);
     user.password = hashedPassword;

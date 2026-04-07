@@ -59,14 +59,14 @@ export class MailService {
   }
 
   /**
-   * Sends password reset instructions via Mailgun when configured.
+   * Sends password reset instructions via Mailgun when configured (6-digit code).
    * @param options.path — overrides PASSWORD_RESET_PATH (e.g. clinic/doctor reset page)
    * @param options.clinicId — appended as clinicId query param for multi-tenant UIs
    * @returns true if Mailgun accepted the message, false if skipped or failed
    */
   async sendPasswordResetEmail(
     to: string | null | undefined,
-    resetToken: string,
+    resetCode: string,
     options?: {
       clinicId?: number;
       path?: string;
@@ -109,7 +109,7 @@ export class MailService {
       this.configService.get<string>('PASSWORD_RESET_PATH', '/reset-password');
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
     const query = new URLSearchParams();
-    query.set('token', resetToken);
+    query.set('code', resetCode);
     if (options?.clinicId != null) {
       query.set('clinicId', String(options.clinicId));
     }
@@ -120,12 +120,12 @@ export class MailService {
     const subject = options?.subject ?? 'Password reset';
 
     const text = link
-      ? `You requested a password reset. Open this link to continue (valid for 1 hour):\n\n${link}\n\nIf you did not request this, you can ignore this email.`
-      : `You requested a password reset. Use this token in the app within 1 hour:\n\n${resetToken}\n\nSet FRONTEND_URL in the server environment to send a clickable link instead.`;
+      ? `You requested a password reset. Your code is: ${resetCode} (valid for 1 hour).\n\nYou can open this link to continue:\n\n${link}\n\nIf you did not request this, you can ignore this email.`
+      : `You requested a password reset. Enter this 6-digit code in the app within 1 hour:\n\n${resetCode}\n\nSet FRONTEND_URL in the server environment to send a clickable link with the code pre-filled.`;
 
     const html = link
-      ? `<p>You requested a password reset.</p><p><a href="${link}">Reset your password</a></p><p>This link expires in 1 hour.</p><p>If you did not request this, ignore this email.</p>`
-      : `<p>You requested a password reset.</p><p>Copy this token into the app (expires in 1 hour):</p><pre>${resetToken}</pre>`;
+      ? `<p>You requested a password reset.</p><p>Your code is: <strong>${resetCode}</strong> (expires in 1 hour).</p><p><a href="${link}">Open reset page</a></p><p>If you did not request this, ignore this email.</p>`
+      : `<p>You requested a password reset.</p><p>Enter this 6-digit code in the app (expires in 1 hour):</p><p style="font-size:1.5em;letter-spacing:0.2em;"><strong>${resetCode}</strong></p>`;
 
     try {
       await client.messages.create(domain, {

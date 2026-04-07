@@ -107,7 +107,7 @@ export class ClinicAuthController {
   @ApiOperation({
     summary: 'Forgot password',
     description:
-      'Request a password reset for a clinic user by email. Sends email via Mailgun when configured. Response is only a generic message.',
+      'Request a password reset for a clinic user by email. Sends a 6-digit code via Mailgun when configured. Response is only a generic message.',
   })
   @ApiResponse({
     status: 200,
@@ -129,9 +129,9 @@ export class ClinicAuthController {
 
   @Post('reset-password')
   @ApiOperation({
-    summary: 'Reset password (self-service, token)',
+    summary: 'Reset password (self-service, 6-digit code)',
     description:
-      'Reset clinic user password using the JWT from forgot-password. Public: no login required; the reset token authorizes the change.',
+      'Reset clinic user password using the same email as forgot-password and the 6-digit code from email. Public; no login required.',
   })
   @ApiResponse({
     status: 200,
@@ -141,7 +141,7 @@ export class ClinicAuthController {
       properties: { message: { type: 'string' } },
     },
   })
-  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired code' })
   @ApiResponse({ status: 404, description: 'Clinic or user not found' })
   resetPassword(
     @Param('clinicId', ParseIntPipe) clinicId: number,

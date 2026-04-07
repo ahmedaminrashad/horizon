@@ -21,7 +21,7 @@ export class ClinicDoctorAuthController {
   @ApiOperation({
     summary: 'Doctor forgot password (no clinic id in URL)',
     description:
-      'Looks up the main `doctors` row by email to obtain `clinic_id` and `clinic_doctor_id`, then the clinic tenant `doctors.user_id` → `users` for the reset email. Sends via Mailgun when configured. Response is only a generic message.',
+      'Looks up the main `doctors` row by email to obtain `clinic_id` and `clinic_doctor_id`, then the clinic tenant `doctors.user_id` → `users` for the reset email. Sends a 6-digit code via Mailgun when configured. Response is only a generic message.',
   })
   @ApiResponse({
     status: 200,
@@ -38,16 +38,16 @@ export class ClinicDoctorAuthController {
 
   @Post('reset-password')
   @ApiOperation({
-    summary: 'Doctor reset password (token only)',
+    summary: 'Doctor reset password (email + 6-digit code)',
     description:
-      'Completes reset using the JWT from forgot-password. Clinic id comes from the token payload, not the URL.',
+      'Same email as forgot-password plus the code from email. Clinic is resolved from main doctors; no clinic id in the URL.',
   })
   @ApiResponse({
     status: 200,
     description: 'Password reset successfully',
     schema: { type: 'object', properties: { message: { type: 'string' } } },
   })
-  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired code' })
   @ApiResponse({ status: 404, description: 'Clinic or user not found' })
   doctorResetPassword(@Body() dto: ResetPasswordDto) {
     return this.clinicAuthService.resetPassword(dto);

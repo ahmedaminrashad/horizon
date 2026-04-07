@@ -53,6 +53,7 @@ import { AddWaterfallToServices1776000000033 } from './1776000000033-AddWaterfal
 import { AddMedicalStatusToReservations1776000000034 } from './1776000000034-AddMedicalStatusToReservations';
 import { AddIsActiveToUsers1776000000035 } from './1776000000035-AddIsActiveToUsers';
 import { CreatePasswordResetTokensTable1776000000036 } from './1776000000036-CreatePasswordResetTokensTable';
+import { AddCodeHashToPasswordResetTokens1776000000037 } from './1776000000037-AddCodeHashToPasswordResetTokens';
 
 /**
  * List of all clinic migrations in order
@@ -113,4 +114,5 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   AddMedicalStatusToReservations1776000000034,
   AddIsActiveToUsers1776000000035,
   CreatePasswordResetTokensTable1776000000036,
+  AddCodeHashToPasswordResetTokens1776000000037,
 ];

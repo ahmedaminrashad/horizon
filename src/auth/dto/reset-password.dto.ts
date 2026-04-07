@@ -13,12 +13,21 @@ const PASSWORD_PATTERN =
 
 export class ResetPasswordDto {
   @ApiProperty({
-    description: 'Reset token received from forgot-password',
-    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    description: 'Phone number used with forgot-password (same account)',
+    example: '+966501234567',
   })
   @IsString()
-  @IsNotEmpty({ message: 'token is required' })
-  token: string;
+  @IsNotEmpty({ message: 'phone is required' })
+  phone: string;
+
+  @ApiProperty({
+    description: '6-digit code from the reset email',
+    example: '482913',
+  })
+  @IsString()
+  @IsNotEmpty({ message: 'code is required' })
+  @Matches(/^\d{6}$/, { message: 'code must be exactly 6 digits' })
+  code: string;
 
   @ApiProperty({
     description:

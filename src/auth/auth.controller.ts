@@ -79,7 +79,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Forgot password (main users)',
     description:
-      'Request a password reset by phone. When MAIL_MAILER=mailgun and the account has an email, sends reset instructions via Mailgun. Response body contains only a generic message.',
+      'Request a password reset by phone. When MAIL_MAILER=mailgun and the account has an email, sends a 6-digit code via Mailgun. Response body contains only a generic message.',
   })
   @ApiResponse({
     status: 200,
@@ -98,14 +98,15 @@ export class AuthController {
   @Post('reset-password')
   @ApiOperation({
     summary: 'Reset password (main users)',
-    description: 'Reset password using the token from forgot-password. No auth required.',
+    description:
+      'Reset password using the same phone as forgot-password plus the 6-digit code from email. No auth required.',
   })
   @ApiResponse({
     status: 200,
     description: 'Password reset successfully',
     schema: { type: 'object', properties: { message: { type: 'string' } } },
   })
-  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired code' })
   @ApiResponse({ status: 404, description: 'User not found' })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);

@@ -5,6 +5,7 @@ import {
   MinLength,
   MaxLength,
   Matches,
+  IsEmail,
 } from 'class-validator';
 
 /** Password: 8–128 chars, at least one uppercase, one lowercase, one digit, one special character. */
@@ -13,12 +14,21 @@ const PASSWORD_PATTERN =
 
 export class ResetPasswordDto {
   @ApiProperty({
-    description: 'Reset token received from forgot-password (or via email)',
-    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    description: 'Email used with forgot-password (same account)',
+    example: 'doctor@clinic.com',
+  })
+  @IsEmail()
+  @IsNotEmpty({ message: 'email is required' })
+  email: string;
+
+  @ApiProperty({
+    description: '6-digit code from the reset email',
+    example: '482913',
   })
   @IsString()
-  @IsNotEmpty({ message: 'token is required' })
-  token: string;
+  @IsNotEmpty({ message: 'code is required' })
+  @Matches(/^\d{6}$/, { message: 'code must be exactly 6 digits' })
+  code: string;
 
   @ApiProperty({
     description:

@@ -109,9 +109,9 @@ export class AuthService {
   }
 
   /**
-   * Forgot password (main users): find user by phone, generate short-lived reset token.
-   * When MAIL_MAILER=mailgun and the user has an email, sends reset link via Mailgun.
-   * Response is always the generic message only (no reset_token in JSON).
+   * Forgot password (main users): find user by phone, issue a one-time 6-digit code (stored hashed).
+   * When MAIL_MAILER=mailgun and the user has an email, sends the code via Mailgun.
+   * Response is always the generic message only (no code in JSON).
    */
   async forgotPassword(dto: ForgotPasswordDto) {
     const user = await this.usersService.findByPhone(dto.phone.trim());
@@ -122,35 +122,30 @@ export class AuthService {
       return { message };
     }
 
-    const resetToken = await this.passwordResetTokenService.issueMainResetJwt(
+    const resetCode = await this.passwordResetTokenService.issueMainResetCode(
       user.id,
     );
 
-    await this.mailService.sendPasswordResetEmail(user.email, resetToken);
+    await this.mailService.sendPasswordResetEmail(user.email, resetCode);
 
     return { message };
   }
 
   /**
-   * Reset password (main users): verify reset token, update user password.
+   * Reset password (main users): verify 6-digit code from email, update password.
    */
   async resetPassword(dto: ResetPasswordDto) {
-    let decoded: { purpose?: string; sub?: number; jti?: string };
-    try {
-      decoded = this.jwtService.verify(dto.token);
-    } catch {
-      throw new BadRequestException('Invalid or expired reset token');
-    }
-
-    await this.passwordResetTokenService.consumeMainToken(decoded);
-
-    const userId = decoded.sub as number;
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findByPhone(dto.phone.trim());
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new BadRequestException('Invalid or expired reset code');
     }
 
-    await this.usersService.update(userId, { password: dto.new_password });
+    await this.passwordResetTokenService.validateAndConsumeMainCode(
+      user.id,
+      dto.code,
+    );
+
+    await this.usersService.update(user.id, { password: dto.new_password });
 
     return { message: 'Password has been reset successfully.' };
   }

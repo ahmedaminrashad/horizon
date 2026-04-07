@@ -1,18 +1,21 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
-import { randomUUID } from 'crypto';
+import * as bcrypt from 'bcrypt';
+import { DataSource, IsNull, Repository } from 'typeorm';
+import { randomInt, randomUUID } from 'crypto';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+
+function generateSixDigitCode(): string {
+  return String(randomInt(0, 1_000_000)).padStart(6, '0');
+}
 
 @Injectable()
 export class PasswordResetTokenService {
   constructor(
     @InjectRepository(PasswordResetToken)
     private readonly mainRepo: Repository<PasswordResetToken>,
-    private readonly jwtService: JwtService,
   ) {}
 
   private async invalidatePendingForUser(
@@ -29,110 +32,124 @@ export class PasswordResetTokenService {
       .execute();
   }
 
-  async issueMainResetJwt(userId: number): Promise<string> {
+  /**
+   * Creates a one-time 6-digit code (stored hashed). Invalidates prior pending codes for this user.
+   */
+  async issueMainResetCode(userId: number): Promise<string> {
     await this.invalidatePendingForUser(this.mainRepo, userId);
-    const jti = randomUUID();
+    const code = generateSixDigitCode();
+    const code_hash = await bcrypt.hash(code, 10);
     const expiresAt = new Date(Date.now() + ONE_HOUR_MS);
     await this.mainRepo.insert({
-      jti,
+      jti: randomUUID(),
       user_id: userId,
       expires_at: expiresAt,
       used_at: null,
+      code_hash,
     });
-    return this.jwtService.sign(
-      { purpose: 'password-reset-main', sub: userId, jti },
-      { expiresIn: '1h' },
-    );
+    return code;
   }
 
-  async consumeMainToken(decoded: {
-    purpose?: string;
-    sub?: number;
-    jti?: string;
-  }): Promise<void> {
-    if (decoded.purpose !== 'password-reset-main' || decoded.sub == null) {
-      throw new BadRequestException('Invalid reset token');
-    }
-    if (!decoded.jti || typeof decoded.jti !== 'string') {
-      throw new BadRequestException(
-        'Invalid or expired reset token',
-      );
+  async validateAndConsumeMainCode(
+    userId: number,
+    rawCode: string,
+  ): Promise<void> {
+    const code = rawCode.trim();
+    if (!/^\d{6}$/.test(code)) {
+      throw new BadRequestException('Invalid or expired reset code');
     }
     const now = new Date();
+    const row = await this.mainRepo.findOne({
+      where: {
+        user_id: userId,
+        used_at: IsNull(),
+      },
+      order: { id: 'DESC' },
+    });
+    if (
+      !row ||
+      !row.code_hash ||
+      row.expires_at <= now ||
+      row.used_at != null
+    ) {
+      throw new BadRequestException('Invalid or expired reset code');
+    }
+    const ok = await bcrypt.compare(code, row.code_hash);
+    if (!ok) {
+      throw new BadRequestException('Invalid or expired reset code');
+    }
     const result = await this.mainRepo
       .createQueryBuilder()
       .update(PasswordResetToken)
       .set({ used_at: new Date() })
-      .where('jti = :jti', { jti: decoded.jti })
-      .andWhere('user_id = :sub', { sub: decoded.sub })
+      .where('id = :id', { id: row.id })
       .andWhere('used_at IS NULL')
       .andWhere('expires_at > :now', { now })
       .execute();
     if (!result.affected) {
-      throw new BadRequestException(
-        'Invalid, expired, or already used reset token',
-      );
+      throw new BadRequestException('Invalid or expired reset code');
     }
   }
 
-  async issueClinicResetJwt(
+  async issueClinicResetCode(
     dataSource: DataSource,
     userId: number,
-    claims: { clinic_id: number; database_name: string },
   ): Promise<string> {
     const repo = dataSource.getRepository(PasswordResetToken);
     await this.invalidatePendingForUser(repo, userId);
-    const jti = randomUUID();
+    const code = generateSixDigitCode();
+    const code_hash = await bcrypt.hash(code, 10);
     const expiresAt = new Date(Date.now() + ONE_HOUR_MS);
     await repo.insert({
-      jti,
+      jti: randomUUID(),
       user_id: userId,
       expires_at: expiresAt,
       used_at: null,
+      code_hash,
     });
-    return this.jwtService.sign(
-      {
-        purpose: 'password-reset',
-        sub: userId,
-        jti,
-        clinic_id: claims.clinic_id,
-        database_name: claims.database_name,
-      },
-      { expiresIn: '1h' },
-    );
+    return code;
   }
 
-  async consumeClinicToken(
+  async validateAndConsumeClinicCode(
     dataSource: DataSource,
-    decoded: {
-      purpose?: string;
-      sub?: number;
-      jti?: string;
-    },
+    userId: number,
+    rawCode: string,
   ): Promise<void> {
-    if (decoded.purpose !== 'password-reset' || decoded.sub == null) {
-      throw new BadRequestException('Invalid reset token');
-    }
-    if (!decoded.jti || typeof decoded.jti !== 'string') {
-      throw new BadRequestException(
-        'Invalid or expired reset token',
-      );
+    const code = rawCode.trim();
+    if (!/^\d{6}$/.test(code)) {
+      throw new BadRequestException('Invalid or expired reset code');
     }
     const repo = dataSource.getRepository(PasswordResetToken);
     const now = new Date();
+    const row = await repo.findOne({
+      where: {
+        user_id: userId,
+        used_at: IsNull(),
+      },
+      order: { id: 'DESC' },
+    });
+    if (
+      !row ||
+      !row.code_hash ||
+      row.expires_at <= now ||
+      row.used_at != null
+    ) {
+      throw new BadRequestException('Invalid or expired reset code');
+    }
+    const ok = await bcrypt.compare(code, row.code_hash);
+    if (!ok) {
+      throw new BadRequestException('Invalid or expired reset code');
+    }
     const result = await repo
       .createQueryBuilder()
       .update(PasswordResetToken)
       .set({ used_at: new Date() })
-      .where('jti = :jti', { jti: decoded.jti })
-      .andWhere('user_id = :sub', { sub: decoded.sub })
+      .where('id = :id', { id: row.id })
       .andWhere('used_at IS NULL')
       .andWhere('expires_at > :now', { now })
       .execute();
     if (!result.affected) {
-      throw new BadRequestException(
-        'Invalid, expired, or already used reset token',
-      );
+      throw new BadRequestException('Invalid or expired reset code');
     }
   }
 }
