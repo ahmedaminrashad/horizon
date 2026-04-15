@@ -1,15 +1,12 @@
-import {
-  Injectable,
-  NotFoundException,
-  Inject,
-  forwardRef,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
 import { Doctor } from './entities/doctor.entity';
+import type { DoctorBranchPivotDto } from './doctor-tenant-branches.service';
+import { DoctorTenantBranchesService } from './doctor-tenant-branches.service';
 import { ServicesService } from '../services/services.service';
 import { Service } from '../services/entities/service.entity';
-import { ClinicsService } from '../clinics/clinics.service';
+import { Clinic } from '../clinics/entities/clinic.entity';
 import { TenantDataSourceService } from '../database/tenant-data-source.service';
 import { DayOfWeek } from '../clinic/working-hours/entities/working-hour.entity';
 import { DoctorWorkingHour } from '../clinic/working-hours/entities/doctor-working-hour.entity';
@@ -21,6 +18,8 @@ import {
 } from '../clinic/reservations/entities/reservation.entity';
 import { DoctorService } from '../clinic/doctor-services/entities/doctor-service.entity';
 import { formatSingleTime12h } from '../clinics/utils/clinic-schedule.util';
+
+export type { DoctorBranchPivotDto } from './doctor-tenant-branches.service';
 
 export interface NextAvailableSlot {
   date: string;
@@ -37,9 +36,10 @@ export class DoctorsService {
     private doctorsRepository: Repository<Doctor>,
     @InjectRepository(MainDoctorWorkingHour)
     private doctorWorkingHourRepository: Repository<MainDoctorWorkingHour>,
+    @InjectRepository(Clinic)
+    private clinicsRepository: Repository<Clinic>,
+    private doctorTenantBranchesService: DoctorTenantBranchesService,
     private servicesService: ServicesService,
-    @Inject(forwardRef(() => ClinicsService))
-    private clinicsService: ClinicsService,
     private tenantDataSourceService: TenantDataSourceService,
   ) {}
 
@@ -73,10 +73,15 @@ export class DoctorsService {
       }),
     );
 
+    const dataWithBranches =
+      await this.doctorTenantBranchesService.attachDoctorBranchesFromTenant(
+        dataWithWorkingHours,
+      );
+
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: dataWithWorkingHours,
+      data: dataWithBranches,
       meta: {
         total,
         page,
@@ -88,7 +93,14 @@ export class DoctorsService {
     };
   }
 
-  async findOne(id: number): Promise<Doctor & { working_hours?: MainDoctorWorkingHour[] }> {
+  async findOne(
+    id: number,
+  ): Promise<
+    Doctor & {
+      working_hours?: MainDoctorWorkingHour[];
+      branches: DoctorBranchPivotDto[];
+    }
+  > {
     const doctor = await this.doctorsRepository.findOne({
       where: { id },
       relations: ['branch'],
@@ -105,10 +117,15 @@ export class DoctorsService {
       relations: ['branch'],
     });
 
-    return {
+    const base = {
       ...doctor,
       working_hours: workingHours,
     };
+    const [withBranches] =
+      await this.doctorTenantBranchesService.attachDoctorBranchesFromTenant([
+        base,
+      ]);
+    return withBranches;
   }
 
   async findByClinicDoctorId(
@@ -253,7 +270,10 @@ export class DoctorsService {
       // Get clinic database name
       let dbName = databaseName;
       if (!dbName) {
-        const clinic = await this.clinicsService.findOne(doctor.clinic_id);
+        const clinic = await this.clinicsRepository.findOne({
+          where: { id: doctor.clinic_id },
+          select: ['id', 'database_name'],
+        });
         if (!clinic?.database_name) {
           return null;
         }

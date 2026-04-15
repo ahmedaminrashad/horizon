@@ -16,6 +16,7 @@ import {
 import { Type } from 'class-transformer';
 import { Department, AppointType } from '../entities/doctor.entity';
 import { DoctorServiceItemDto } from '../../doctor-services/dto/doctor-service-item.dto';
+import { DoctorBranchLinkDto } from '../../doctor-branches/dto/doctor-branch-link.dto';
 
 export class RegisterDoctorDto {
   @ApiPropertyOptional({ description: 'Doctor name', example: 'Dr. John Doe' })
@@ -154,6 +155,27 @@ export class RegisterDoctorDto {
   @IsArray()
   @IsNumber({}, { each: true })
   doctor_branches?: number[];
+
+  @ApiPropertyOptional({
+    description:
+      'Branch links with optional week/time window per branch. Do not send together with doctor_branches.',
+    type: DoctorBranchLinkDto,
+    isArray: true,
+    example: [
+      {
+        branch_id: 1,
+        week_start_day: 'SUNDAY',
+        week_end_day: 'THURSDAY',
+        from_time: '09:00:00',
+        to_time: '17:00:00',
+      },
+    ],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DoctorBranchLinkDto)
+  doctor_branch_links?: DoctorBranchLinkDto[];
 
   @ApiPropertyOptional({
     description: 'Years of experience',

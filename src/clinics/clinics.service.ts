@@ -18,14 +18,23 @@ import { Country } from '../countries/entities/country.entity';
 import { City } from '../cities/entities/city.entity';
 import { Package } from '../packages/entities/package.entity';
 import { Doctor } from '../doctors/entities/doctor.entity';
-import { DoctorsService } from '../doctors/doctors.service';
-import { Inject, forwardRef } from '@nestjs/common';
+import { Branch } from '../branches/entities/branch.entity';
+import {
+  DoctorTenantBranchesService,
+  DoctorBranchPivotDto,
+} from '../doctors/doctor-tenant-branches.service';
 import { Reservation as ClinicReservation } from '../clinic/reservations/entities/reservation.entity';
 import { User as ClinicTenantUser } from '../clinic/permissions/entities/user.entity';
 import { IvrApiService } from '../voip/services/ivr-api.service';
 import { UsersService } from '../users/users.service';
+export type ClinicProfileDoctor = Doctor & {
+  branches: DoctorBranchPivotDto[];
+};
+
 export type ClinicProfileResponse = Clinic & {
-  doctors?: Doctor[];
+  doctors?: ClinicProfileDoctor[];
+  /** Main branches each with doctors where `doctors.branch_id` matches this branch `id`. */
+  branches?: Array<Branch & { doctors: ClinicProfileDoctor[] }>;
 };
 
 @Injectable()
@@ -46,8 +55,7 @@ export class ClinicsService {
     private databaseService: DatabaseService,
     private clinicMigrationService: ClinicMigrationService,
     private tenantDataSourceService: TenantDataSourceService,
-    @Inject(forwardRef(() => DoctorsService))
-    private doctorsService: DoctorsService,
+    private doctorTenantBranchesService: DoctorTenantBranchesService,
     private ivrApiService: IvrApiService,
     private usersService: UsersService,
   ) {}
@@ -151,10 +159,14 @@ export class ClinicsService {
           where: { clinic_id: clinic.id },
           order: { createdAt: 'DESC' },
         });
+        const doctorsWithBranches =
+          await this.doctorTenantBranchesService.attachDoctorBranchesFromTenant(
+            doctors,
+          );
 
         return {
           ...clinic,
-          doctors,
+          doctors: doctorsWithBranches,
         };
       }),
     );
@@ -188,6 +200,18 @@ export class ClinicsService {
     return clinic;
   }
 
+  /** Entity load for updates/removes — no virtual `doctors` / nested branch doctors. */
+  private async loadClinicEntityWithRelations(id: number): Promise<Clinic> {
+    const clinic = await this.clinicsRepository.findOne({
+      where: { id },
+      relations: ['country', 'city', 'branches', 'package'],
+    });
+    if (!clinic) {
+      throw new NotFoundException(`Clinic with ID ${id} not found`);
+    }
+    return clinic;
+  }
+
   async findOne(id: number): Promise<ClinicProfileResponse> {
     const clinic = await this.clinicsRepository.findOne({
       where: { id },
@@ -198,15 +222,26 @@ export class ClinicsService {
       throw new NotFoundException(`Clinic with ID ${id} not found`);
     }
 
-    // Fetch doctors for the clinic
     const doctors = await this.doctorsRepository.find({
       where: { clinic_id: clinic.id },
       order: { createdAt: 'DESC' },
     });
+    const doctorsWithBranches =
+      await this.doctorTenantBranchesService.attachDoctorBranchesFromTenant(
+        doctors,
+      );
+
+    const branches: Array<Branch & { doctors: ClinicProfileDoctor[] }> = (
+      clinic.branches ?? []
+    ).map((b) => ({
+      ...b,
+      doctors: doctorsWithBranches.filter((d) => d.branch_id === b.id),
+    }));
 
     return {
       ...clinic,
-      doctors,
+      branches,
+      doctors: doctorsWithBranches,
     };
   }
 
@@ -687,7 +722,7 @@ export class ClinicsService {
   }
 
   async update(id: number, updateClinicDto: UpdateClinicDto): Promise<Clinic> {
-    const clinic = await this.findOne(id);
+    const clinic = await this.loadClinicEntityWithRelations(id);
 
     // Check if email is being updated and if it conflicts
     if (updateClinicDto.email && updateClinicDto.email !== clinic.email) {
@@ -764,7 +799,7 @@ export class ClinicsService {
     id: number,
     audioFiles: Record<string, Express.Multer.File>,
   ): Promise<{ message: string; uploadedFiles: string[] }> {
-    const clinic = await this.findOne(id);
+    const clinic = await this.findOneWithOutRelations(id);
 
     if (!clinic.extension_number) {
       throw new NotFoundException(
@@ -804,7 +839,7 @@ export class ClinicsService {
   }
 
   async remove(id: number): Promise<void> {
-    const clinic = await this.findOne(id);
+    const clinic = await this.loadClinicEntityWithRelations(id);
     await this.clinicsRepository.remove(clinic);
   }
 

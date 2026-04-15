@@ -214,7 +214,7 @@ export class ClinicsController {
   @ApiOperation({
     summary: 'Get a clinic by ID',
     description:
-      'Includes mobile UI fields: date, time, amount (next available booking preview across active doctors), and schedule (structured working hours).',
+      'Includes `branches` each with a `doctors` array (main DB doctors where `branch_id` matches that branch), top-level `doctors` for the clinic, plus mobile UI fields when present: date, time, amount, schedule.',
   })
   @ApiResponse({
     status: 200,
@@ -222,6 +222,27 @@ export class ClinicsController {
     schema: {
       type: 'object',
       properties: {
+        branches: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', example: 1 },
+              name_ar: { type: 'string' },
+              doctors: {
+                type: 'array',
+                description:
+                  'Doctors assigned to this branch (`doctors.branch_id` = branch.id)',
+                items: { type: 'object' },
+              },
+            },
+          },
+        },
+        doctors: {
+          type: 'array',
+          description: 'All doctors for this clinic (same as before)',
+          items: { type: 'object' },
+        },
         date: {
           type: 'string',
           format: 'date',

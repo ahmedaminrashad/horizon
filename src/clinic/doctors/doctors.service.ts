@@ -24,6 +24,7 @@ import { DoctorsService as MainDoctorsService } from '../../doctors/doctors.serv
 import { BranchesService as MainBranchesService } from '../../branches/branches.service';
 import { DoctorServicesService } from '../doctor-services/doctor-services.service';
 import { DoctorBranchesService } from '../doctor-branches/doctor-branches.service';
+import { DoctorBranchLinkDto } from '../doctor-branches/dto/doctor-branch-link.dto';
 import { DoctorWorkingHour } from '../working-hours/entities/doctor-working-hour.entity';
 import {
   Reservation as ClinicReservation,
@@ -62,6 +63,19 @@ export class DoctorsService {
   /**
    * Calculate age in years from date of birth (YYYY-MM-DD string or Date).
    */
+  private assertExclusiveDoctorBranchPayload(
+    branchIds?: number[],
+    branchLinks?: DoctorBranchLinkDto[],
+  ): void {
+    const hasIds = branchIds != null && branchIds.length > 0;
+    const hasLinks = branchLinks != null && branchLinks.length > 0;
+    if (hasIds && hasLinks) {
+      throw new BadRequestException(
+        'Use either doctor_branches or doctor_branch_links, not both.',
+      );
+    }
+  }
+
   private ageFromDateOfBirth(dob: string | Date | null | undefined): number | null {
     if (dob == null) return null;
     const birth = typeof dob === 'string' ? new Date(dob) : dob;
@@ -91,7 +105,12 @@ export class DoctorsService {
     createDoctorDto: CreateDoctorDto,
   ): Promise<Doctor> {
     const repository = await this.getRepository();
-    const { doctor_branches: doctorBranches, ...doctorData } = createDoctorDto;
+    const {
+      doctor_branches: doctorBranches,
+      doctor_branch_links: doctorBranchLinks,
+      ...doctorData
+    } = createDoctorDto;
+    this.assertExclusiveDoctorBranchPayload(doctorBranches, doctorBranchLinks);
     (doctorData as CreateDoctorDto).clinic_id = clinicId;
     const dto = doctorData as CreateDoctorDto;
     if (dto.date_of_birth != null) {
@@ -106,7 +125,12 @@ export class DoctorsService {
     const doctor = repository.create(dto);
     const savedDoctor = await repository.save(doctor);
 
-    if (doctorBranches?.length) {
+    if (doctorBranchLinks?.length) {
+      await this.doctorBranchesService.createManyFromLinks(
+        savedDoctor.id,
+        doctorBranchLinks,
+      );
+    } else if (doctorBranches?.length) {
       await this.doctorBranchesService.createMany(savedDoctor.id, doctorBranches);
     }
 
@@ -320,6 +344,10 @@ export class DoctorsService {
       dto.id = db.id;
       dto.doctor_id = db.doctor_id;
       dto.branch_id = db.branch_id;
+      dto.week_start_day = db.week_start_day ?? null;
+      dto.week_end_day = db.week_end_day ?? null;
+      dto.from_time = db.from_time ?? null;
+      dto.to_time = db.to_time ?? null;
       if (branch) {
         const info = new DoctorProfileBranchInfoDto();
         info.id = branch.id;
@@ -458,7 +486,16 @@ export class DoctorsService {
     const repository = await this.getRepository();
     const doctor = await this.findOne(clinicId, id);
 
-    const { doctor_branches: doctorBranches, ...rest } = updateDoctorDto;
+    const {
+      doctor_branches: doctorBranches,
+      doctor_branch_links: doctorBranchLinks,
+      ...rest
+    } = updateDoctorDto;
+    if (doctorBranches !== undefined && doctorBranchLinks !== undefined) {
+      throw new BadRequestException(
+        'Use either doctor_branches or doctor_branch_links, not both.',
+      );
+    }
     Object.assign(doctor, rest);
     if (rest.date_of_birth != null) {
       const computed = this.ageFromDateOfBirth(rest.date_of_birth);
@@ -466,7 +503,12 @@ export class DoctorsService {
     }
     const savedDoctor = await repository.save(doctor);
 
-    if (doctorBranches !== undefined) {
+    if (doctorBranchLinks !== undefined) {
+      await this.doctorBranchesService.setBranchLinksForDoctor(
+        savedDoctor.id,
+        doctorBranchLinks,
+      );
+    } else if (doctorBranches !== undefined) {
       await this.doctorBranchesService.setBranchesForDoctor(
         savedDoctor.id,
         doctorBranches ?? [],
@@ -543,10 +585,13 @@ export class DoctorsService {
       appointment_types,
       doctor_services: doctorServices,
       doctor_branches: doctorBranches,
+      doctor_branch_links: doctorBranchLinks,
       experience_years,
       number_of_patients,
       ...userData
     } = registerDoctorDto;
+
+    this.assertExclusiveDoctorBranchPayload(doctorBranches, doctorBranchLinks);
 
     const resolvedAge =
       date_of_birth != null
@@ -616,7 +661,12 @@ export class DoctorsService {
 
     const savedDoctor = await doctorRepository.save(doctor);
 
-    if (doctorBranches?.length) {
+    if (doctorBranchLinks?.length) {
+      await this.doctorBranchesService.createManyFromLinks(
+        savedDoctor.id,
+        doctorBranchLinks,
+      );
+    } else if (doctorBranches?.length) {
       await this.doctorBranchesService.createMany(savedDoctor.id, doctorBranches);
     }
 
@@ -650,10 +700,12 @@ export class DoctorsService {
 
     // Resolve first clinic branch to main branch id for sync
     let mainBranchId: number | undefined;
-    if (doctorBranches?.[0]) {
+    const firstClinicBranchId =
+      doctorBranchLinks?.[0]?.branch_id ?? doctorBranches?.[0];
+    if (firstClinicBranchId != null) {
       const mainBranch = await this.mainBranchesService.findByClinicBranchId(
         clinicId,
-        doctorBranches[0],
+        firstClinicBranchId,
       );
       mainBranchId = mainBranch?.id ?? undefined;
     }

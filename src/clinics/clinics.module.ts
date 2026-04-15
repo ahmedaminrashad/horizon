@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ClinicsService } from './clinics.service';
 import { ClinicsController } from './clinics.controller';
@@ -38,7 +38,7 @@ import { DoctorWorkingHoursController } from './doctor-working-hours.controller'
     ]),
     DatabaseModule,
     UsersModule,
-    forwardRef(() => DoctorsModule),
+    DoctorsModule,
     VoipModule,
   ],
   controllers: [

@@ -7,6 +7,7 @@ import { TenantRepositoryService } from '../../database/tenant-repository.servic
 import { DoctorBranch } from './entities/doctor-branch.entity';
 import { Doctor } from '../doctors/entities/doctor.entity';
 import { Branch } from '../branches/entities/branch.entity';
+import { DoctorBranchLinkDto } from './dto/doctor-branch-link.dto';
 
 @Injectable()
 export class DoctorBranchesService {
@@ -44,6 +45,39 @@ export class DoctorBranchesService {
     return repository.save(entities);
   }
 
+  /**
+   * Create doctor-branch links with optional per-branch week/time window.
+   */
+  async createManyFromLinks(
+    doctorId: number,
+    links: DoctorBranchLinkDto[],
+  ): Promise<DoctorBranch[]> {
+    if (!links?.length) return [];
+    const branchIds = links.map((l) => l.branch_id);
+    const unique = new Set(branchIds);
+    if (unique.size !== branchIds.length) {
+      throw new BadRequestException(
+        'doctor_branch_links must not contain duplicate branch_id values',
+      );
+    }
+    const repository = await this.getRepository();
+    await this.ensureDoctorExists(doctorId);
+    for (const link of links) {
+      await this.ensureBranchExists(link.branch_id);
+    }
+    const entities = links.map((link) =>
+      repository.create({
+        doctor_id: doctorId,
+        branch_id: link.branch_id,
+        week_start_day: link.week_start_day ?? null,
+        week_end_day: link.week_end_day ?? null,
+        from_time: link.from_time ?? null,
+        to_time: link.to_time ?? null,
+      }),
+    );
+    return repository.save(entities);
+  }
+
   async findByDoctorId(doctorId: number): Promise<DoctorBranch[]> {
     const repository = await this.getRepository();
     return repository.find({
@@ -68,6 +102,18 @@ export class DoctorBranchesService {
     const repository = await this.getRepository();
     await repository.delete({ doctor_id: doctorId });
     return this.createMany(doctorId, branchIds);
+  }
+
+  /**
+   * Replace all branch links for a doctor, including optional schedule fields per link.
+   */
+  async setBranchLinksForDoctor(
+    doctorId: number,
+    links: DoctorBranchLinkDto[],
+  ): Promise<DoctorBranch[]> {
+    const repository = await this.getRepository();
+    await repository.delete({ doctor_id: doctorId });
+    return this.createManyFromLinks(doctorId, links);
   }
 
   private async ensureDoctorExists(doctorId: number): Promise<void> {
