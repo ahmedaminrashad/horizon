@@ -13,6 +13,7 @@ import { City } from '../../cities/entities/city.entity';
 import { Branch } from '../../branches/entities/branch.entity';
 import { Package } from '../../packages/entities/package.entity';
 import { SlotType } from '../enums/slot-type.enum';
+import { DayOfWeek } from '../../clinic/working-hours/entities/working-hour.entity';
 
 @Entity('clinics')
 export class Clinic {
@@ -99,6 +100,40 @@ export class Clinic {
     default: SlotType.SLOTS,
   })
   slot_type: SlotType;
+
+  @Column({
+    name: 'week_start_day',
+    type: 'enum',
+    enum: DayOfWeek,
+    nullable: true,
+    comment: 'Default week range start for clinic-level schedule display',
+  })
+  week_start_day: DayOfWeek | null;
+
+  @Column({
+    name: 'week_end_day',
+    type: 'enum',
+    enum: DayOfWeek,
+    nullable: true,
+    comment: 'Default week range end for clinic-level schedule display',
+  })
+  week_end_day: DayOfWeek | null;
+
+  @Column({
+    name: 'from_time',
+    type: 'time',
+    nullable: true,
+    comment: 'Default daily window start (e.g. 09:00:00)',
+  })
+  from_time: string | null;
+
+  @Column({
+    name: 'to_time',
+    type: 'time',
+    nullable: true,
+    comment: 'Default daily window end (e.g. 17:00:00)',
+  })
+  to_time: string | null;
 
   @Column({ name: 'last_active', type: 'datetime', nullable: true })
   last_active: Date | null;

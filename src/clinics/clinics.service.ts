@@ -20,23 +20,12 @@ import { Package } from '../packages/entities/package.entity';
 import { Doctor } from '../doctors/entities/doctor.entity';
 import { DoctorsService } from '../doctors/doctors.service';
 import { Inject, forwardRef } from '@nestjs/common';
-import {
-  WorkingHour,
-  DayOfWeek,
-} from '../clinic/working-hours/entities/working-hour.entity';
-import { buildClinicScheduleRows } from './utils/clinic-schedule.util';
 import { Reservation as ClinicReservation } from '../clinic/reservations/entities/reservation.entity';
 import { User as ClinicTenantUser } from '../clinic/permissions/entities/user.entity';
 import { IvrApiService } from '../voip/services/ivr-api.service';
 import { UsersService } from '../users/users.service';
-import type { ClinicScheduleRow } from './utils/clinic-schedule.util';
-
 export type ClinicProfileResponse = Clinic & {
   doctors?: Doctor[];
-  date: string | null;
-  time: string | null;
-  amount: string | null;
-  schedule: ClinicScheduleRow[];
 };
 
 @Injectable()
@@ -215,81 +204,9 @@ export class ClinicsService {
       order: { createdAt: 'DESC' },
     });
 
-    // Fetch working hours for branches from clinic database
-    let branchesWithWorkingHours = clinic.branches || [];
-    if (clinic.database_name && clinic.branches && clinic.branches.length > 0) {
-      const clinicDataSource =
-        await this.tenantDataSourceService.getTenantDataSource(
-          clinic.database_name,
-        );
-
-      if (clinicDataSource) {
-        const workingHoursRepository =
-          clinicDataSource.getRepository(WorkingHour);
-
-        branchesWithWorkingHours = await Promise.all(
-          clinic.branches.map(async (branch) => {
-            // Use clinic_branch_id to match with branch_id in clinic database
-            // Main database branches have clinic_branch_id that references clinic database branch id
-            const branchId =
-              'clinic_branch_id' in branch && branch.clinic_branch_id
-                ? branch.clinic_branch_id
-                : branch.id;
-            const workingHours = await workingHoursRepository.find({
-              where: { branch_id: branchId, is_active: true },
-              order: { day: 'ASC', range_order: 'ASC' },
-            });
-
-            return {
-              ...branch,
-              working_hours: workingHours,
-            };
-          }),
-        );
-      }
-    }
-
-    const flatWorking: Array<{
-      day: DayOfWeek;
-      start_time: string;
-      end_time: string;
-    }> = [];
-    for (const b of branchesWithWorkingHours) {
-      const whList = (
-        b as { working_hours?: WorkingHour[] }
-      ).working_hours;
-      if (!whList?.length) continue;
-      for (const h of whList) {
-        flatWorking.push({
-          day: h.day,
-          start_time: h.start_time,
-          end_time: h.end_time,
-        });
-      }
-    }
-
-    const minPriceStr = clinic.database_name
-      ? await this.doctorsService.getTenantMinConsultationPriceString(
-          clinic.database_name,
-        )
-      : null;
-
-    const schedule = buildClinicScheduleRows(flatWorking, minPriceStr);
-
-    const bookingPreview = await this.doctorsService.findClinicBookingPreview(
-      doctors,
-      clinic.database_name ?? null,
-      minPriceStr,
-    );
-
     return {
       ...clinic,
       doctors,
-      branches: branchesWithWorkingHours,
-      date: bookingPreview.date,
-      time: bookingPreview.time,
-      amount: bookingPreview.amount,
-      schedule,
     };
   }
 
@@ -391,7 +308,7 @@ export class ClinicsService {
       options?.is_active !== undefined ? options.is_active : true;
     qb.andWhere('cu.is_active = :isActive', { isActive });
 
-    if (patientIdsWithReservation !== null || mainUserIdsWithReservation !== null) {
+    if (patientIdsWithReservation != null && mainUserIdsWithReservation != null) {
       const clinicUserIds = patientIdsWithReservation ?? [];
       const mainUserIds = mainUserIdsWithReservation ?? [];
       const hasClinicUserIds = clinicUserIds.length > 0;
@@ -967,6 +884,10 @@ export class ClinicsService {
       bio: registerClinicDto.bio,
       package_id: registerClinicDto.package_id ?? undefined,
       slot_type: registerClinicDto.slot_type,
+      week_start_day: registerClinicDto.week_start_day ?? undefined,
+      week_end_day: registerClinicDto.week_end_day ?? undefined,
+      from_time: registerClinicDto.from_time ?? undefined,
+      to_time: registerClinicDto.to_time ?? undefined,
       extension_number: extensionNumber,
     });
 

@@ -10,8 +10,10 @@ import {
   IsEnum,
   Min,
   Max,
+  Matches,
 } from 'class-validator';
 import { SlotType } from '../enums/slot-type.enum';
+import { DayOfWeek } from '../../clinic/working-hours/entities/working-hour.entity';
 
 export class CreateClinicDto {
   @ApiProperty({ description: 'Clinic name in Arabic', example: 'مركز المدينة الطبي' })
@@ -153,4 +155,44 @@ export class CreateClinicDto {
   @IsOptional()
   @IsEnum(SlotType)
   slot_type?: SlotType;
+
+  @ApiPropertyOptional({
+    description: 'Default week range start day (clinic-level schedule hint)',
+    enum: DayOfWeek,
+    example: DayOfWeek.SUNDAY,
+  })
+  @IsOptional()
+  @IsEnum(DayOfWeek)
+  week_start_day?: DayOfWeek;
+
+  @ApiPropertyOptional({
+    description: 'Default week range end day',
+    enum: DayOfWeek,
+    example: DayOfWeek.THURSDAY,
+  })
+  @IsOptional()
+  @IsEnum(DayOfWeek)
+  week_end_day?: DayOfWeek;
+
+  @ApiPropertyOptional({
+    description: 'Default daily window start (24h), e.g. 09:00:00',
+    example: '09:00:00',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, {
+    message: 'from_time must be HH:mm or HH:mm:ss',
+  })
+  from_time?: string;
+
+  @ApiPropertyOptional({
+    description: 'Default daily window end (24h), e.g. 17:00:00',
+    example: '17:00:00',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, {
+    message: 'to_time must be HH:mm or HH:mm:ss',
+  })
+  to_time?: string;
 }
