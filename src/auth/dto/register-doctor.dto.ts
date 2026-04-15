@@ -31,7 +31,7 @@ export class RegisterDoctorDto {
 
   @ApiProperty({
     description: 'Doctor password',
-    example: 'password123',
+    example: 'Password123!',
     minLength: 6,
   })
   @IsString()

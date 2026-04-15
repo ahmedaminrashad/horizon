@@ -29,10 +29,10 @@ export class AppController {
     },
   })
   async getTestPassword(): Promise<{ password: string; plainText: string }> {
-    const hashedPassword = await bcrypt.hash('password123', 10);
+    const hashedPassword = await bcrypt.hash('Password123!', 10);
     return {
       password: hashedPassword,
-      plainText: 'password123',
+      plainText: 'Password123!',
     };
   }
 }

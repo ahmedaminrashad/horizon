@@ -19,6 +19,8 @@ import {
   Reservation,
   ReservationStatus,
 } from '../clinic/reservations/entities/reservation.entity';
+import { DoctorService } from '../clinic/doctor-services/entities/doctor-service.entity';
+import { formatSingleTime12h } from '../clinics/utils/clinic-schedule.util';
 
 export interface NextAvailableSlot {
   date: string;
@@ -555,5 +557,122 @@ export class DoctorsService {
     }
 
     return null; // No available slot found
+  }
+
+  private formatPriceString(value: unknown): string | null {
+    if (value == null) return null;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return String(value);
+    if (Math.abs(n - Math.round(n)) < 1e-9) return String(Math.round(n));
+    return String(n);
+  }
+
+  /**
+   * Minimum advertised service price among active doctors (clinic tenant DB).
+   */
+  async getTenantMinConsultationPriceString(
+    databaseName: string,
+  ): Promise<string | null> {
+    try {
+      const clinicDataSource =
+        await this.tenantDataSourceService.getTenantDataSource(databaseName);
+      if (!clinicDataSource) return null;
+      const raw = await clinicDataSource
+        .getRepository(DoctorService)
+        .createQueryBuilder('ds')
+        .innerJoin('ds.doctor', 'd')
+        .where('d.is_active = :active', { active: true })
+        .andWhere('ds.price IS NOT NULL')
+        .select('MIN(ds.price)', 'min')
+        .getRawOne();
+      return this.formatPriceString(raw?.min);
+    } catch (error) {
+      console.error(
+        `Error resolving min consultation price for clinic DB ${databaseName}:`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  async getTenantDoctorMinPriceString(
+    databaseName: string,
+    clinicDoctorId: number,
+  ): Promise<string | null> {
+    try {
+      const clinicDataSource =
+        await this.tenantDataSourceService.getTenantDataSource(databaseName);
+      if (!clinicDataSource) return null;
+      const raw = await clinicDataSource
+        .getRepository(DoctorService)
+        .createQueryBuilder('ds')
+        .innerJoin('ds.doctor', 'd')
+        .where('d.is_active = :active', { active: true })
+        .andWhere('ds.doctor_id = :doctorId', { doctorId: clinicDoctorId })
+        .andWhere('ds.price IS NOT NULL')
+        .select('MIN(ds.price)', 'min')
+        .getRawOne();
+      return this.formatPriceString(raw?.min);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Earliest next slot across clinic doctors plus price hint for the booking card.
+   */
+  async findClinicBookingPreview(
+    doctors: Doctor[],
+    databaseName: string | null,
+    clinicMinPrice: string | null = null,
+  ): Promise<{ date: string | null; time: string | null; amount: string | null }> {
+    const minClinic =
+      clinicMinPrice ??
+      (databaseName
+        ? await this.getTenantMinConsultationPriceString(databaseName)
+        : null);
+    if (!databaseName) {
+      return { date: null, time: null, amount: minClinic };
+    }
+
+    const active = doctors.filter(
+      (d) => d.is_active !== false && d.clinic_doctor_id != null,
+    );
+    const pairs = await Promise.all(
+      active.map(async (doctor) => {
+        const slot = await this.getNextAvailableSlot(doctor, databaseName);
+        return slot ? { doctor, slot } : null;
+      }),
+    );
+
+    const candidates = pairs.filter(Boolean) as Array<{
+      doctor: Doctor;
+      slot: NextAvailableSlot;
+    }>;
+
+    if (candidates.length === 0) {
+      return { date: null, time: null, amount: minClinic };
+    }
+
+    candidates.sort((a, b) => {
+      const ta = a.slot.datetime
+        ? new Date(a.slot.datetime).getTime()
+        : Number.POSITIVE_INFINITY;
+      const tb = b.slot.datetime
+        ? new Date(b.slot.datetime).getTime()
+        : Number.POSITIVE_INFINITY;
+      return ta - tb;
+    });
+
+    const best = candidates[0];
+    const doctorPrice = await this.getTenantDoctorMinPriceString(
+      databaseName,
+      best.doctor.clinic_doctor_id,
+    );
+    return {
+      date: best.slot.date,
+      time: formatSingleTime12h(best.slot.time),
+      amount: doctorPrice ?? minClinic,
+    };
   }
 }

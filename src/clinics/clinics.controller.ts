@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  Req,
   UseGuards,
   UseInterceptors,
   UploadedFile,
@@ -14,6 +15,7 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express';
 import {
@@ -178,9 +180,90 @@ export class ClinicsController {
     };
   }
 
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Get authenticated clinic profile',
+    description:
+      'Same response as GET /clinics/:id for the clinic in the JWT (`clinic_id`). Use a clinic staff or doctor access token.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Clinic profile for the authenticated clinic',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Missing or invalid bearer token',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Token has no clinic_id (e.g. main-app user only)',
+  })
+  getMyClinic(@Req() req: { user?: { clinic_id?: number } }) {
+    const clinicId = req.user?.clinic_id;
+    if (clinicId == null) {
+      throw new ForbiddenException(
+        'A clinic or doctor session with clinic_id is required. For public clinic details, use GET /clinics/:id.',
+      );
+    }
+    return this.clinicsService.findOne(clinicId);
+  }
+
   @Get(':id')
-  @ApiOperation({ summary: 'Get a clinic by ID' })
-  @ApiResponse({ status: 200, description: 'Clinic found' })
+  @ApiOperation({
+    summary: 'Get a clinic by ID',
+    description:
+      'Includes mobile UI fields: date, time, amount (next available booking preview across active doctors), and schedule (structured working hours).',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Clinic found',
+    schema: {
+      type: 'object',
+      properties: {
+        date: {
+          type: 'string',
+          format: 'date',
+          nullable: true,
+          example: '2026-04-20',
+          description: 'Next available appointment date (YYYY-MM-DD), if any',
+        },
+        time: {
+          type: 'string',
+          nullable: true,
+          example: '6:30 pm',
+          description: 'Start time for that next slot (12-hour)',
+        },
+        amount: {
+          type: 'string',
+          nullable: true,
+          example: '200',
+          description: 'Price hint from doctor services (tenant DB)',
+        },
+        schedule: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              amount: { type: 'string', nullable: true },
+              day: { type: 'string', example: 'Sun - Wed' },
+              slots: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    time: { type: 'string', example: '6:00 pm - 10:00 pm' },
+                    available: { type: 'boolean', example: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
   @ApiResponse({ status: 404, description: 'Clinic not found' })
   findOne(@Param('id') id: string) {
     return this.clinicsService.findOne(+id);
