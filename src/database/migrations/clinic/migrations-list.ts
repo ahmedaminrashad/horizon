@@ -55,6 +55,7 @@ import { AddIsActiveToUsers1776000000035 } from './1776000000035-AddIsActiveToUs
 import { CreatePasswordResetTokensTable1776000000036 } from './1776000000036-CreatePasswordResetTokensTable';
 import { AddCodeHashToPasswordResetTokens1776000000037 } from './1776000000037-AddCodeHashToPasswordResetTokens';
 import { AddWeekScheduleToDoctorBranches1776000000038 } from './1776000000038-AddWeekScheduleToDoctorBranches';
+import { AddFeesToDoctorBranches1776000000039 } from './1776000000039-AddFeesToDoctorBranches';
 
 /**
  * List of all clinic migrations in order
@@ -117,4 +118,5 @@ export const clinicMigrations: (new () => MigrationInterface)[] = [
   CreatePasswordResetTokensTable1776000000036,
   AddCodeHashToPasswordResetTokens1776000000037,
   AddWeekScheduleToDoctorBranches1776000000038,
+  AddFeesToDoctorBranches1776000000039,
 ];

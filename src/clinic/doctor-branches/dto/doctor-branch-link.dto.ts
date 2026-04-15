@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsString,
   Matches,
+  Min,
 } from 'class-validator';
 import { DayOfWeek } from '../../working-hours/entities/working-hour.entity';
 
@@ -52,4 +53,13 @@ export class DoctorBranchLinkDto {
     message: 'to_time must be HH:mm or HH:mm:ss',
   })
   to_time?: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional fee for this doctor at this branch',
+    example: 200.5,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  fees?: number | null;
 }

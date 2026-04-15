@@ -66,6 +66,16 @@ export class DoctorBranch {
   })
   to_time: string | null;
 
+  @Column({
+    name: 'fees',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    comment: 'Optional fee for this doctor at this branch (e.g. session default)',
+  })
+  fees: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

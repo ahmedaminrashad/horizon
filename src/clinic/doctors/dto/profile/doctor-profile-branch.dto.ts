@@ -24,6 +24,13 @@ export class DoctorProfileBranchDto {
   @ApiPropertyOptional({ example: '17:00:00' })
   to_time?: string | null;
 
+  @ApiPropertyOptional({
+    description: 'Optional fee for this doctor at this branch',
+    example: 200.5,
+    nullable: true,
+  })
+  fees?: number | null;
+
   @ApiPropertyOptional({ type: () => DoctorProfileBranchInfoDto })
   branch?: DoctorProfileBranchInfoDto;
 }

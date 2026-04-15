@@ -20,6 +20,8 @@ export interface DoctorBranchPivotDto {
   to_time: string | null;
   /** Tenant branch display name (`branches.name` in clinic DB). */
   name: string | null;
+  /** Optional fee from pivot (`doctor_branches.fees`). */
+  fees: number | null;
 }
 
 @Injectable()
@@ -116,6 +118,7 @@ export class DoctorTenantBranchesService {
           from_time: row.from_time ?? null,
           to_time: row.to_time ?? null,
           name: row.branch?.name ?? null,
+          fees: row.fees != null ? Number(row.fees) : null,
         };
         const k = key(clinicId, row.doctor_id);
         const arr = pivotByClinicDoctorId.get(k);

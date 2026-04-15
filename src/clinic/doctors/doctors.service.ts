@@ -348,6 +348,7 @@ export class DoctorsService {
       dto.week_end_day = db.week_end_day ?? null;
       dto.from_time = db.from_time ?? null;
       dto.to_time = db.to_time ?? null;
+      dto.fees = db.fees != null ? Number(db.fees) : null;
       if (branch) {
         const info = new DoctorProfileBranchInfoDto();
         info.id = branch.id;

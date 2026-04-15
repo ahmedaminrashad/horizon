@@ -73,6 +73,7 @@ export class DoctorBranchesService {
         week_end_day: link.week_end_day ?? null,
         from_time: link.from_time ?? null,
         to_time: link.to_time ?? null,
+        fees: link.fees ?? null,
       }),
     );
     return repository.save(entities);
